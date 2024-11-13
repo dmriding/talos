@@ -1,0 +1,16 @@
+[package]
+name = "talos"
+version = "0.1.0"
+authors = ["Your Name <email@example.com>"]
+edition = "2021"
+description = "A Rust-based licensing system focused on security and access control"
+repository = "https://github.com/yourusername/talos"
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1.31", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json", "tokio"] }
+config = "0.13"
+ring = "0.16"

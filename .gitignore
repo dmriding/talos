@@ -1,0 +1,76 @@
+# Rust build files
+target/
+**/*.rs.bk
+
+# Executable files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Cargo-related files
+Cargo.lock
+/.cargo
+.cargo/
+.cargo-lock
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows files
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Linux files
+*~
+
+# Backup files
+*.bak
+*.tmp
+*.old
+*.orig
+*.rej
+*.sublime-workspace
+*.sublime-project
+
+# Logs and temporary files
+/logs
+*.log
+*.temp
+
+# Python virtual environments
+.venv/
+
+# Generated documentation
+doc/
+
+# Rustfmt and Clippy
+rustfmt.toml
+clippy.toml
+
+# Build artifacts
+*.o
+*.obj
+*.pyc
+*.pyo
+*.class
+*.out
+
+# Node.js (if using any frontend assets)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cargo workspaces
+**/target
