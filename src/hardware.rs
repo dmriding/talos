@@ -1,34 +1,43 @@
-/// Returns a unique identifier for the current machine.
-/// On Windows, macOS, and Linux, this will use different methods to gather a unique ID.
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "linux")]
+mod linux;
+
+/// Retrieves a unique hardware ID based on CPU ID and motherboard ID
 pub fn get_hardware_id() -> String {
+    format!("{}-{}", get_cpu_id(), get_motherboard_id())
+}
+
+/// Get the CPU ID for the current system (platform-specific)
+fn get_cpu_id() -> String {
     #[cfg(target_os = "windows")]
     {
-        get_windows_hardware_id()
+        windows::get_cpu_id()
     }
     #[cfg(target_os = "macos")]
     {
-        get_macos_hardware_id()
+        macos::get_cpu_id()
     }
     #[cfg(target_os = "linux")]
     {
-        get_linux_hardware_id()
+        linux::get_cpu_id()
     }
 }
 
-/// Placeholder implementation for Windows
-#[cfg(target_os = "windows")]
-fn get_windows_hardware_id() -> String {
-    "windows-placeholder-id".to_string()
-}
-
-/// Placeholder implementation for macOS
-#[cfg(target_os = "macos")]
-fn get_macos_hardware_id() -> String {
-    "macos-placeholder-id".to_string()
-}
-
-/// Placeholder implementation for Linux
-#[cfg(target_os = "linux")]
-fn get_linux_hardware_id() -> String {
-    "linux-placeholder-id".to_string()
+/// Get the motherboard ID for the current system (platform-specific)
+fn get_motherboard_id() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        windows::get_motherboard_id()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        macos::get_motherboard_id()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        linux::get_motherboard_id()
+    }
 }

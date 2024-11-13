@@ -3,6 +3,7 @@ use crate::heartbeat::send_heartbeat;
 use crate::errors::LicenseError;
 use crate::hardware::get_hardware_id;
 use serde::{Deserialize, Serialize};
+use reqwest::Client;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct License {
@@ -16,22 +17,31 @@ pub struct License {
 }
 
 impl License {
-    /// Function to validate the license using heartbeat
+    /// Function to validate the license using heartbeat and hardware binding
     pub async fn validate(&self) -> Result<bool, LicenseError> {
+        let current_hardware_id = get_hardware_id();
+        
+        // Check if the license is bound to the current hardware
+        if self.client_id != current_hardware_id {
+            return Err(LicenseError::InvalidLicense);
+        }
+
+        // Check if the license is active
         if !self.is_active {
             return Err(LicenseError::InvalidLicense);
         }
-        let client_id = get_hardware_id();
+
+        // Send a heartbeat to the server to confirm the license is still valid
         let rotating_key = "example_rotating_key"; // Placeholder
-        send_heartbeat(self, &client_id, &rotating_key).await
+        send_heartbeat(self, &current_hardware_id, &rotating_key).await
     }
 
     /// Function to activate the license
     pub async fn activate(&mut self) -> Result<(), LicenseError> {
         let server_url = get_server_url(self);
         let client_id = get_hardware_id();
-
-        let response = reqwest::Client::new()
+        
+        let response = Client::new()
             .post(format!("{}/activate", server_url))
             .json(&serde_json::json!({
                 "license_id": self.license_id,
@@ -42,6 +52,7 @@ impl License {
 
         if response.status().is_success() {
             self.is_active = true;
+            self.client_id = client_id; // Bind the license to this hardware
             println!("License activated successfully.");
             Ok(())
         } else {
@@ -53,8 +64,8 @@ impl License {
     pub async fn deactivate(&mut self) -> Result<(), LicenseError> {
         let server_url = get_server_url(self);
         let client_id = get_hardware_id();
-
-        let response = reqwest::Client::new()
+        
+        let response = Client::new()
             .post(format!("{}/deactivate", server_url))
             .json(&serde_json::json!({
                 "license_id": self.license_id,

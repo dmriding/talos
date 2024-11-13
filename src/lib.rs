@@ -1,6 +1,9 @@
-pub mod client;
+// src/lib.rs
+
 pub mod config;
-pub mod encryption;
+pub mod client;
+pub mod errors;
 pub mod hardware;
 pub mod heartbeat;
-pub mod errors;
+pub mod key_generation;
+pub mod encrypted_storage;

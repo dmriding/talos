@@ -21,13 +21,18 @@ serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"
 
 # HTTP requests for client-server communication
-reqwest = { version = "0.11.18", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11.27", features = [
+    "json",
+    "rustls-tls",
+], default-features = false }
 
 # Configuration management
 config = "0.14.1"
 
-# Cryptography utilities (for signing and verification)
-ring = "0.17.8"
+# Cryptography utilities
+ring = "0.17.8"    # For cryptographic functions like random number generation
+aes-gcm = "0.10.3" # AES encryption/decryption
+hex = "0.4.3"      # For hex encoding
 
 # Logging (optional, for better debugging)
 log = "0.4.22"
