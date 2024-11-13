@@ -13,18 +13,12 @@ documentation = "https://docs.rs/talos"
 homepage = "https://github.com/dmriding/talos"
 
 [dependencies]
-# Asynchronous runtime
-tokio = { version = "1.41.1", features = ["full"] }
+# === Core Dependencies ===
+tokio = { version = "1.41.1", features = ["full"] } # Asynchronous runtime
 
-# Data serialization and deserialization
+# Data serialization/deserialization
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"
-
-# HTTP requests for client-server communication
-reqwest = { version = "0.11.27", features = [
-    "json",
-    "rustls-tls",
-], default-features = false }
 
 # Configuration management
 config = "0.14.1"
@@ -32,15 +26,33 @@ config = "0.14.1"
 # Cryptography utilities
 ring = "0.17.8"    # For cryptographic functions like random number generation
 aes-gcm = "0.10.3" # AES encryption/decryption
-hex = "0.4.3"      # For hex encoding
-rand = "0.8.5"
+hex = "0.4.3"      # Hex encoding/decoding
+rand = "0.8.5"     # Random number generation
 
-# Logging (optional, for better debugging)
+# HTTP client for client-side requests
+reqwest = { version = "0.11.27", features = [
+    "json",
+    "rustls-tls",
+], default-features = false }
+
+# Logging for debugging
 log = "0.4.22"
 env_logger = "0.11.5"
+
+# Lazy static initialization
 lazy_static = "1.4.0"
 
+# === Web Framework Dependencies ===
+axum = "0.7" # Web framework for building HTTP servers
+tower = "0.5.1" # Utilities for building robust services
+hyper = "1.5.0" # HTTP implementation
+uuid = { version = "1.11.0", features = [
+    "v4",
+] } # UUID generation for unique identifiers
+
+# === Utilities and Helpers ===
+tokio-util = "0.7.12" # Tokio utilities like codec support
 
 [dev-dependencies]
-# For testing and examples
+# For testing
 tokio-test = "0.4.4"
