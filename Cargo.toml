@@ -1,16 +1,39 @@
 [package]
 name = "talos"
 version = "0.1.0"
-authors = ["David Riding netviperllc@gmail.com"]
-edition = "2024"
-description = "A Rust-based licensing system focused on security and access control"
-repository = "https://github.com/dmriding/talos.git"
+authors = ["David Riding <netviperllc@gmail.com>"]
+edition = "2021"
+description = "A Rust-based secure licensing system."
+repository = "https://github.com/dmriding/talos"
 license = "MIT"
+license-file = "LICENSE"
+keywords = ["licensing", "rust", "security", "software-protection"]
+categories = ["access-control", "cryptography", "software-development"]
+readme = "README.md"
+documentation = "https://docs.rs/talos"
+homepage = "https://github.com/dmriding/talos"
 
 [dependencies]
-tokio = { version = "1.31", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-reqwest = { version = "0.11", features = ["json", "tokio"] }
-config = "0.13"
-ring = "0.16"
+# Asynchronous runtime
+tokio = { version = "1.31.0", features = ["full"] }
+
+# Data serialization and deserialization
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.109"
+
+# HTTP requests for client-server communication
+reqwest = { version = "0.12.11", features = ["json", "tokio"] }
+
+# Configuration management
+config = "0.14.2"
+
+# Cryptography utilities (for signing and verification)
+ring = "0.17.9"
+
+# Logging (optional, for better debugging)
+log = "0.4.20"
+env_logger = "0.11.6"
+
+[dev-dependencies]
+# For testing and examples
+tokio-test = "0.4.5"
