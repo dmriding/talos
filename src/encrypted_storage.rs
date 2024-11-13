@@ -1,8 +1,8 @@
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
-use aes_gcm::aead::{Aead};
+use aes_gcm::aead::Aead;
 use aes_gcm::aes::cipher::generic_array::GenericArray;
 use ring::rand::{SystemRandom, SecureRandom};
-use std::fs::{File};
+use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::error::Error;
