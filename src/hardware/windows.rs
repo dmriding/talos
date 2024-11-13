@@ -1,21 +1,19 @@
 use std::process::Command;
 
-pub fn get_cpu_id() -> String {
+pub fn get_cpu_id() -> Result<String, Box<dyn std::error::Error>> {
     let output = Command::new("wmic")
         .args(&["cpu", "get", "ProcessorId"])
-        .output()
-        .expect("Failed to execute command");
+        .output()?;
     let result = String::from_utf8_lossy(&output.stdout);
     let id = result.lines().nth(1).unwrap_or("").trim();
-    id.to_string()
+    Ok(id.to_string())
 }
 
-pub fn get_motherboard_id() -> String {
+pub fn get_motherboard_id() -> Result<String, Box<dyn std::error::Error>> {
     let output = Command::new("wmic")
         .args(&["baseboard", "get", "SerialNumber"])
-        .output()
-        .expect("Failed to execute command");
+        .output()?;
     let result = String::from_utf8_lossy(&output.stdout);
     let id = result.lines().nth(1).unwrap_or("").trim();
-    id.to_string()
+    Ok(id.to_string())
 }

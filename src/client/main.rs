@@ -1,5 +1,5 @@
-use talos::key_generation::generate_secure_key;
-use talos::encrypted_storage::{encrypt_and_store, load_and_decrypt};
+use crate::client::key_generation::generate_secure_key;
+use crate::client::encrypted_storage::{encrypt_and_store, load_and_decrypt};
 
 fn main() {
     // Step 1: Generate a secure key using hardware ID, timestamp, and private key

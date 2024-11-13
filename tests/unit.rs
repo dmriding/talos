@@ -1,4 +1,4 @@
-use talos::client::License;
+use talos::client::client::License;
 use talos::hardware::get_hardware_id;
 
 #[tokio::test]

@@ -1,10 +1,12 @@
-use talos::client::License;
+use talos::client::client::License;
+use talos::hardware::get_hardware_id;
 
 #[tokio::test]
 async fn integration_test_license_lifecycle() {
+    let hardware_id = get_hardware_id();
     let mut license = License {
         license_id: "LICENSE-12345".to_string(),
-        client_id: "CLIENT-67890".to_string(),
+        client_id: hardware_id.clone(),
         expiry_date: "2025-12-31".to_string(),
         features: vec!["feature1".to_string(), "feature2".to_string()],
         server_url: "https://yourserver.com".to_string(),

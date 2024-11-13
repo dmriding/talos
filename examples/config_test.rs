@@ -1,4 +1,5 @@
-use talos::{client::License, config};
+use talos::client::client::License; // Adjusted import path
+use talos::config;
 use std::fs;
 
 fn main() {

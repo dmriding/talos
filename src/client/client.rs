@@ -1,5 +1,5 @@
 use crate::config::get_server_url;
-use crate::heartbeat::send_heartbeat;
+use crate::client::heartbeat::send_heartbeat;
 use crate::errors::LicenseError;
 use crate::hardware::get_hardware_id;
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ pub struct License {
     pub features: Vec<String>,
     pub server_url: String,
     pub signature: String,
-    pub is_active: bool, // New field to track activation status
+    pub is_active: bool, // Field to track activation status
 }
 
 impl License {

@@ -8,6 +8,7 @@ use hex;
 pub fn get_or_create_private_key() -> Result<Vec<u8>, Box<dyn Error>> {
     // Try to load an existing private key
     if let Ok(existing_key) = load_and_decrypt(&generate_encryption_key()) {
+        println!("Loaded existing private key.");
         return Ok(existing_key.into_bytes());
     }
 
@@ -17,6 +18,7 @@ pub fn get_or_create_private_key() -> Result<Vec<u8>, Box<dyn Error>> {
 
     // Store the new key securely
     encrypt_and_store(&key_str, &new_key)?;
+    println!("Generated and stored new private key.");
     Ok(new_key)
 }
 
@@ -35,5 +37,7 @@ pub fn generate_secure_key() -> Result<String, Box<dyn Error>> {
     let private_key_encoded = hex::encode(private_key);
 
     // Return the combined secure key
-    Ok(format!("{}-{}-{}", hardware_id, timestamp, private_key_encoded))
+    let secure_key = format!("{}-{}-{}", hardware_id, timestamp, private_key_encoded);
+    println!("Generated secure key: {}", secure_key);
+    Ok(secure_key)
 }
