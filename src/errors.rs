@@ -12,3 +12,10 @@ impl std::fmt::Display for LicenseError {
 }
 
 impl std::error::Error for LicenseError {}
+
+// Implement conversion from reqwest::Error to LicenseError
+impl From<reqwest::Error> for LicenseError {
+    fn from(err: reqwest::Error) -> Self {
+        LicenseError::NetworkError(err.to_string())
+    }
+}

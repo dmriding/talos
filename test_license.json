@@ -7,5 +7,6 @@
         "feature2"
     ],
     "server_url": "https://yourserver.com",
-    "signature": "test-signature"
+    "signature": "test-signature",
+    "is_active": false
 }
