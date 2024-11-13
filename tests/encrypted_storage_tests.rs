@@ -1,7 +1,15 @@
+use std::fs;
 use talos::encrypted_storage::{generate_encryption_key, encrypt_and_store, load_and_decrypt};
+
+const ENCRYPTED_FILE_PATH: &str = "talos_encrypted_data";
 
 #[test]
 fn test_encryption_storage() {
+    // Clean up any existing encrypted file before running the test
+    if fs::metadata(ENCRYPTED_FILE_PATH).is_ok() {
+        let _ = fs::remove_file(ENCRYPTED_FILE_PATH);
+    }
+
     // Step 1: Generate a 32-byte encryption key
     let encryption_key = generate_encryption_key();
     assert_eq!(encryption_key.len(), 32, "Encryption key should be 32 bytes long");
@@ -19,4 +27,7 @@ fn test_encryption_storage() {
 
     // Step 5: Ensure the decrypted data matches the original
     assert_eq!(data, decrypted_data, "Decrypted data should match the original data");
+
+    // Clean up the file after the test
+    let _ = fs::remove_file(ENCRYPTED_FILE_PATH);
 }
