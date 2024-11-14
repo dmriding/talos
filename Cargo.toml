@@ -1,5 +1,4 @@
 [package]
-# Basic package metadata
 name = "talos"
 version = "0.1.0"
 edition = "2021"
@@ -10,63 +9,49 @@ license = "MIT"
 readme = "README.md"
 documentation = "https://docs.rs/talos"
 homepage = "https://github.com/dmriding/talos"
-
-# Keywords and categories to improve discoverability on crates.io
 keywords = ["licensing", "rust", "security", "software-protection"]
 categories = ["access-control", "cryptography", "software-development"]
 
 [dependencies]
 # === Core Dependencies ===
-# Asynchronous runtime with full feature set
 tokio = { version = "1.41.1", features = ["full"] }
-
-# Data serialization and deserialization
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"
-
-# Configuration management using `config.toml`
 config = "0.14.1"
 
 # === Cryptography Utilities ===
-# Provides cryptographic functions, AES encryption, and random number generation
-ring = "0.17.8"    # Core cryptographic functions
-aes-gcm = "0.10.3" # AES encryption/decryption
-hex = "0.4.3"      # Hex encoding/decoding
-rand = "0.8.5"     # Random number generation
+ring = "0.17.8"
+aes-gcm = "0.10.3"
+hex = "0.4.3"
+rand = "0.8.5"
 
 # === HTTP Client ===
-# HTTP client with JSON support for client-side requests
 reqwest = { version = "0.11.27", features = [
     "json",
     "rustls-tls",
 ], default-features = false }
 
 # === Logging and Tracing ===
-# Standard logging utilities and async context-aware tracing
-log = "0.4.22"             # Basic logging
-env_logger = "0.11.5"      # Environment-based logger
-tracing = "0.1"            # Structured logging and tracing
-tracing-subscriber = "0.3" # Collects trace data
-
-# === Lazy Static Initialization ===
-# Useful for initializing static data once and sharing it across threads
+log = "0.4.22"
+env_logger = "0.11.5"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
 lazy_static = "1.4.0"
 
 # === Web Framework Dependencies ===
-# Web framework and utilities for building HTTP servers with routing
-axum = "0.7"                                     # Web framework for building servers
-tower = "0.5.1"                                  # Utilities for building robust services
-hyper = "1.5.0"                                  # HTTP implementation for low-level control
-uuid = { version = "1.11.0", features = ["v4"] } # UUID generation
-tokio-util = "0.7.12"                            # Utilities for Tokio async I/O
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.5.1"
+hyper = { version = "1.5.0" }
+uuid = { version = "1.11.0", features = ["v4"] }
+tokio-util = "0.7.12"
 
 # === Database Dependencies ===
-# Database library supporting both SQLite and PostgreSQL
 sqlx = { version = "0.8.2", features = [
     "runtime-tokio-rustls",
     "macros",
     "sqlite",
     "postgres",
+    "chrono",
 ] }
 
 # === Date and Time Utilities ===
@@ -74,16 +59,13 @@ chrono = { version = "0.4.38", features = ["serde"] }
 
 # === Development Dependencies ===
 [dev-dependencies]
-# For async testing with Tokio
 tokio-test = "0.4.4"
 
 # === Binary Definitions ===
-# Unified server binary (focus on a single server for now)
 [[bin]]
 name = "talos_server"
 path = "src/server/main.rs"
 
-# Client binary for license management
 [[bin]]
 name = "talos_client"
 path = "src/client/main.rs"

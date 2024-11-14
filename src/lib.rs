@@ -1,20 +1,20 @@
-// Make core modules accessible
+// Core modules
 pub mod config;
-pub mod encrypted_storage;
 pub mod encryption;
 pub mod errors;
 pub mod hardware;
-pub mod key_generation;
 
 // Client-related modules
 pub mod client {
     pub mod client;
+    pub mod encrypted_storage;
     pub mod heartbeat;
+    pub mod key_generation;
 }
 
 // Server-related modules
 pub mod server {
     pub mod database;
     pub mod handlers;
-    pub mod routes;
+    pub mod server_sim;
 }
