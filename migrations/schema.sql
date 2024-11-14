@@ -7,5 +7,6 @@ CREATE TABLE IF NOT EXISTS licenses (
     issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Timestamp when the license was issued
     expires_at TIMESTAMP,                -- Optional expiration date
     hardware_id TEXT,                     -- Optional hardware binding (CPU/Motherboard ID)
-    signature TEXT                        -- Cryptographic signature for license validation
+    signature TEXT,                       -- Cryptographic signature for license validation
+    last_heartbeat TIMESTAMP              -- Timestamp of the last heartbeat received
 );

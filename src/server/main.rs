@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use talos::server::database::Database;
-use talos::server::handlers::{activate_license_handler, validate_license_handler, deactivate_license_handler};
+use talos::server::handlers::{activate_license_handler, validate_license_handler, deactivate_license_handler, heartbeat_handler}; // Import the heartbeat handler
 use tracing_subscriber;
 
 #[tokio::main]
@@ -19,6 +19,7 @@ async fn main() {
         .route("/activate", post(activate_license_handler))
         .route("/validate", post(validate_license_handler))
         .route("/deactivate", post(deactivate_license_handler))
+        .route("/heartbeat", post(heartbeat_handler))  // Add the heartbeat route
         .with_state(db); // Use the Arc<Database> directly
 
     // Bind to an address using TcpListener

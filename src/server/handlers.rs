@@ -4,14 +4,29 @@ use crate::server::database::{Database, License};
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
 
+/// Request structure for license-related operations
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LicenseRequest {
     pub license_id: String,
     pub client_id: String,
 }
 
+/// Response structure for license-related operations
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LicenseResponse {
+    pub success: bool,
+}
+
+/// Request structure for heartbeat operations
+#[derive(Debug, Deserialize, Serialize)]
+pub struct HeartbeatRequest {
+    pub license_id: String,
+    pub client_id: String,
+}
+
+/// Response structure for heartbeat operations
+#[derive(Debug, Deserialize, Serialize)]
+pub struct HeartbeatResponse {
     pub success: bool,
 }
 
@@ -29,6 +44,7 @@ pub async fn activate_license_handler(
         expires_at: None,
         hardware_id: None,
         signature: None,
+        last_heartbeat: Some(Utc::now().naive_utc()),
     };
 
     let success = db.insert_license(license).await.is_ok();
@@ -54,17 +70,11 @@ pub async fn deactivate_license_handler(
 ) -> Json<LicenseResponse> {
     println!("Received request to deactivate license: {:?}", payload);
 
-    // Try to fetch the license from the database
     let success = match db.get_license(&payload.license_id).await {
         Ok(Some(mut license)) => {
-            // Check if the client_id matches before deactivating
             if license.client_id == payload.client_id {
                 println!("License found and client ID matches, deactivating...");
-                
-                // Update the license status to "inactive"
                 license.status = "inactive".to_string();
-                
-                // Save the updated license back to the database
                 let update_result = db.insert_license(license).await.is_ok();
                 println!("License deactivation result: {}", update_result);
                 update_result
@@ -84,4 +94,25 @@ pub async fn deactivate_license_handler(
     };
 
     Json(LicenseResponse { success })
+}
+
+/// Handler for the heartbeat mechanism
+pub async fn heartbeat_handler(
+    State(db): State<Arc<Database>>,
+    Json(payload): Json<HeartbeatRequest>,
+) -> Json<HeartbeatResponse> {
+    println!("Received heartbeat for license: {:?}", payload);
+
+    let success = match db.update_last_heartbeat(&payload.license_id, &payload.client_id).await {
+        Ok(true) => {
+            println!("Heartbeat updated successfully.");
+            true
+        }
+        _ => {
+            println!("Failed to update heartbeat.");
+            false
+        }
+    };
+
+    Json(HeartbeatResponse { success })
 }
