@@ -1,48 +1,46 @@
 use std::fmt;
+use std::error::Error;
 
-/// Enum representing different types of license errors.
+/// Custom error type for license-related operations
 #[derive(Debug)]
 pub enum LicenseError {
-    NetworkError(String),
-    InvalidLicense,
     ServerError(String),
+    InvalidLicense(String),      // Renamed from LicenseInvalid to InvalidLicense
+    NetworkError(String),
+    StorageError(String),
     EncryptionError(String),
     DecryptionError(String),
-    HardwareError(String),
+    ConfigError(String),
+    UnknownError,
 }
 
 impl fmt::Display for LicenseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LicenseError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
-            LicenseError::InvalidLicense => write!(f, "Invalid License"),
             LicenseError::ServerError(msg) => write!(f, "Server Error: {}", msg),
+            LicenseError::InvalidLicense(msg) => write!(f, "License Invalid: {}", msg),  // Updated to match the new name
+            LicenseError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
+            LicenseError::StorageError(msg) => write!(f, "Storage Error: {}", msg),
             LicenseError::EncryptionError(msg) => write!(f, "Encryption Error: {}", msg),
             LicenseError::DecryptionError(msg) => write!(f, "Decryption Error: {}", msg),
-            LicenseError::HardwareError(msg) => write!(f, "Hardware Error: {}", msg),
+            LicenseError::ConfigError(msg) => write!(f, "Config Error: {}", msg),
+            LicenseError::UnknownError => write!(f, "Unknown Error"),
         }
     }
 }
 
-impl std::error::Error for LicenseError {}
+impl Error for LicenseError {}
 
-// Implement conversion from reqwest::Error to LicenseError
+/// Implement From for reqwest::Error
 impl From<reqwest::Error> for LicenseError {
-    fn from(err: reqwest::Error) -> Self {
-        LicenseError::NetworkError(err.to_string())
+    fn from(error: reqwest::Error) -> Self {
+        LicenseError::ServerError(format!("Reqwest error: {}", error))
     }
 }
 
-// Implement conversion from std::io::Error to LicenseError
+/// Implement From for std::io::Error
 impl From<std::io::Error> for LicenseError {
-    fn from(err: std::io::Error) -> Self {
-        LicenseError::ServerError(err.to_string())
-    }
-}
-
-// Implement conversion from ring::error::Unspecified to LicenseError
-impl From<ring::error::Unspecified> for LicenseError {
-    fn from(_: ring::error::Unspecified) -> Self {
-        LicenseError::EncryptionError("Unspecified error".to_string())
+    fn from(error: std::io::Error) -> Self {
+        LicenseError::StorageError(format!("IO error: {}", error))
     }
 }

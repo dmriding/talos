@@ -1,46 +1,71 @@
 [package]
 name = "talos"
 version = "0.1.0"
-authors = ["David Riding <netviperllc@gmail.com>"]
 edition = "2021"
+authors = ["David Riding <netviperllc@gmail.com>"]
 description = "A Rust-based secure licensing system."
 repository = "https://github.com/dmriding/talos"
 license = "MIT"
-keywords = ["licensing", "rust", "security", "software-protection"]
-categories = ["access-control", "cryptography", "software-development"]
 readme = "README.md"
 documentation = "https://docs.rs/talos"
 homepage = "https://github.com/dmriding/talos"
+keywords = ["licensing", "rust", "security", "software-protection"]
+categories = ["access-control", "cryptography", "software-development"]
 
 [dependencies]
-# Asynchronous runtime
+# === Core Dependencies ===
 tokio = { version = "1.41.1", features = ["full"] }
-
-# Data serialization and deserialization
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"
+config = "0.14.1"
 
-# HTTP requests for client-server communication
+# === Cryptography Utilities ===
+ring = "0.17.8"
+aes-gcm = "0.10.3"
+hex = "0.4.3"
+rand = "0.8.5"
+
+# === HTTP Client ===
 reqwest = { version = "0.11.27", features = [
     "json",
     "rustls-tls",
 ], default-features = false }
 
-# Configuration management
-config = "0.14.1"
-
-# Cryptography utilities
-ring = "0.17.8"    # For cryptographic functions like random number generation
-aes-gcm = "0.10.3" # AES encryption/decryption
-hex = "0.4.3"      # For hex encoding
-rand = "0.8.5"
-
-# Logging (optional, for better debugging)
+# === Logging and Tracing ===
 log = "0.4.22"
 env_logger = "0.11.5"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
 lazy_static = "1.4.0"
 
+# === Web Framework Dependencies ===
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.5.1"
+hyper = { version = "1.5.0" }
+uuid = { version = "1.11.0", features = ["v4"] }
+tokio-util = "0.7.12"
 
+# === Database Dependencies ===
+sqlx = { version = "0.8.2", features = [
+    "runtime-tokio-rustls",
+    "macros",
+    "sqlite",
+    "postgres",
+    "chrono",
+] }
+
+# === Date and Time Utilities ===
+chrono = { version = "0.4.38", features = ["serde"] }
+
+# === Development Dependencies ===
 [dev-dependencies]
-# For testing and examples
 tokio-test = "0.4.4"
+
+# === Binary Definitions ===
+[[bin]]
+name = "talos_server"
+path = "src/server/main.rs"
+
+[[bin]]
+name = "talos_client"
+path = "src/client/main.rs"

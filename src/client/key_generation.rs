@@ -1,4 +1,4 @@
-use crate::encrypted_storage::{generate_encryption_key, encrypt_and_store, load_and_decrypt};
+use super::encrypted_storage::{generate_encryption_key, encrypt_and_store, load_and_decrypt};
 use crate::hardware::get_hardware_id;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::error::Error;
@@ -6,7 +6,7 @@ use hex;
 
 /// Generates and stores the private key securely
 pub fn get_or_create_private_key() -> Result<Vec<u8>, Box<dyn Error>> {
-    // Try to load an existing private key
+    // Try to load an existing private key using the encryption key
     if let Ok(existing_key) = load_and_decrypt(&generate_encryption_key()) {
         println!("Loaded existing private key.");
         return Ok(existing_key.into_bytes());
@@ -16,7 +16,7 @@ pub fn get_or_create_private_key() -> Result<Vec<u8>, Box<dyn Error>> {
     let new_key = generate_encryption_key();
     let key_str = hex::encode(&new_key);
 
-    // Store the new key securely
+    // Store the new key securely using the generated key for encryption
     encrypt_and_store(&key_str, &new_key)?;
     println!("Generated and stored new private key.");
     Ok(new_key)

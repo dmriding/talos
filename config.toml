@@ -14,3 +14,10 @@ license_id = "LICENSE-12345"
 client_id = "CLIENT-67890"
 expiry_date = "2025-12-31"
 signature = "test-signature"
+
+# === Database Configuration ===
+[database]
+# Use "sqlite" for development and "postgres" for production
+db_type = "sqlite"
+sqlite_url = "sqlite://talos_dev.db"
+postgres_url = "postgres://user:password@localhost/talos_db"
