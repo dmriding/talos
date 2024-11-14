@@ -1,31 +1,48 @@
-use std::sync::{Arc, Mutex};
-use crate::server::database::LicenseDB;
+use std::sync::Arc;
+use sqlx::types::chrono::Utc;
+use crate::server::database::{Database, License};
+use chrono::NaiveDateTime;
 
 pub async fn activate_license_handler(
-    db: &Arc<Mutex<LicenseDB>>,
+    db: Arc<Database>,
     license_id: String,
     client_id: String,
+    features: Option<String>,
+    hardware_id: Option<String>,
+    expires_at: Option<NaiveDateTime>
 ) -> bool {
-    let mut db = db.lock().unwrap();
-    db.insert(format!("{}_{}", license_id, client_id), true);
-    true
+    let license = License {
+        license_id,
+        client_id,
+        status: "active".to_string(),
+        features,
+        issued_at: Utc::now().naive_utc(),
+        expires_at,
+        hardware_id,
+        signature: None,
+    };
+
+    db.insert_license(license).await.is_ok()
 }
 
 pub async fn validate_license_handler(
-    db: &Arc<Mutex<LicenseDB>>,
-    license_id: String,
-    client_id: String,
+    db: Arc<Database>,
+    license_id: String
 ) -> bool {
-    let db = db.lock().unwrap();
-    *db.get(&format!("{}_{}", license_id, client_id)).unwrap_or(&false)
+    if let Ok(Some(license)) = db.get_license(&license_id).await {
+        return license.status == "active";
+    }
+    false
 }
 
 pub async fn deactivate_license_handler(
-    db: &Arc<Mutex<LicenseDB>>,
-    license_id: String,
-    client_id: String,
+    db: Arc<Database>,
+    license_id: String
 ) -> bool {
-    let mut db = db.lock().unwrap();
-    db.insert(format!("{}_{}", license_id, client_id), false);
-    true
+    if let Ok(Some(mut license)) = db.get_license(&license_id).await {
+        license.status = "inactive".to_string();
+        db.insert_license(license).await.is_ok()
+    } else {
+        false
+    }
 }

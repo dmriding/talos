@@ -1,58 +1,89 @@
 [package]
+# Basic package metadata
 name = "talos"
 version = "0.1.0"
-authors = ["David Riding <netviperllc@gmail.com>"]
 edition = "2021"
+authors = ["David Riding <netviperllc@gmail.com>"]
 description = "A Rust-based secure licensing system."
 repository = "https://github.com/dmriding/talos"
 license = "MIT"
-keywords = ["licensing", "rust", "security", "software-protection"]
-categories = ["access-control", "cryptography", "software-development"]
 readme = "README.md"
 documentation = "https://docs.rs/talos"
 homepage = "https://github.com/dmriding/talos"
 
+# Keywords and categories to improve discoverability on crates.io
+keywords = ["licensing", "rust", "security", "software-protection"]
+categories = ["access-control", "cryptography", "software-development"]
+
 [dependencies]
 # === Core Dependencies ===
-tokio = { version = "1.41.1", features = ["full"] } # Asynchronous runtime
+# Asynchronous runtime with full feature set
+tokio = { version = "1.41.1", features = ["full"] }
 
-# Data serialization/deserialization
+# Data serialization and deserialization
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.132"
 
-# Configuration management
+# Configuration management using `config.toml`
 config = "0.14.1"
 
-# Cryptography utilities
-ring = "0.17.8"    # For cryptographic functions like random number generation
+# === Cryptography Utilities ===
+# Provides cryptographic functions, AES encryption, and random number generation
+ring = "0.17.8"    # Core cryptographic functions
 aes-gcm = "0.10.3" # AES encryption/decryption
 hex = "0.4.3"      # Hex encoding/decoding
 rand = "0.8.5"     # Random number generation
 
-# HTTP client for client-side requests
+# === HTTP Client ===
+# HTTP client with JSON support for client-side requests
 reqwest = { version = "0.11.27", features = [
     "json",
     "rustls-tls",
 ], default-features = false }
 
-# Logging for debugging
-log = "0.4.22"
-env_logger = "0.11.5"
+# === Logging and Tracing ===
+# Standard logging utilities and async context-aware tracing
+log = "0.4.22"             # Basic logging
+env_logger = "0.11.5"      # Environment-based logger
+tracing = "0.1"            # Structured logging and tracing
+tracing-subscriber = "0.3" # Collects trace data
 
-# Lazy static initialization
+# === Lazy Static Initialization ===
+# Useful for initializing static data once and sharing it across threads
 lazy_static = "1.4.0"
 
 # === Web Framework Dependencies ===
-axum = "0.7" # Web framework for building HTTP servers
-tower = "0.5.1" # Utilities for building robust services
-hyper = "1.5.0" # HTTP implementation
-uuid = { version = "1.11.0", features = [
-    "v4",
-] } # UUID generation for unique identifiers
+# Web framework and utilities for building HTTP servers with routing
+axum = "0.7"                                     # Web framework for building servers
+tower = "0.5.1"                                  # Utilities for building robust services
+hyper = "1.5.0"                                  # HTTP implementation for low-level control
+uuid = { version = "1.11.0", features = ["v4"] } # UUID generation
+tokio-util = "0.7.12"                            # Utilities for Tokio async I/O
 
-# === Utilities and Helpers ===
-tokio-util = "0.7.12" # Tokio utilities like codec support
+# === Database Dependencies ===
+# Database library supporting both SQLite and PostgreSQL
+sqlx = { version = "0.8.2", features = [
+    "runtime-tokio-rustls",
+    "macros",
+    "sqlite",
+    "postgres",
+] }
 
+# === Date and Time Utilities ===
+chrono = { version = "0.4.38", features = ["serde"] }
+
+# === Development Dependencies ===
 [dev-dependencies]
-# For testing
+# For async testing with Tokio
 tokio-test = "0.4.4"
+
+# === Binary Definitions ===
+# Unified server binary (focus on a single server for now)
+[[bin]]
+name = "talos_server"
+path = "src/server/main.rs"
+
+# Client binary for license management
+[[bin]]
+name = "talos_client"
+path = "src/client/main.rs"

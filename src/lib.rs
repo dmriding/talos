@@ -1,4 +1,4 @@
-// Make modules accessible
+// Make core modules accessible
 pub mod config;
 pub mod encrypted_storage;
 pub mod encryption;
@@ -14,5 +14,7 @@ pub mod client {
 
 // Server-related modules
 pub mod server {
-    pub mod server_sim;
+    pub mod database;
+    pub mod handlers;
+    pub mod routes;
 }
