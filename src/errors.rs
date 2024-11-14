@@ -5,7 +5,7 @@ use std::error::Error;
 #[derive(Debug)]
 pub enum LicenseError {
     ServerError(String),
-    LicenseInvalid(String),
+    InvalidLicense(String),      // Renamed from LicenseInvalid to InvalidLicense
     NetworkError(String),
     StorageError(String),
     EncryptionError(String),
@@ -18,7 +18,7 @@ impl fmt::Display for LicenseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LicenseError::ServerError(msg) => write!(f, "Server Error: {}", msg),
-            LicenseError::LicenseInvalid(msg) => write!(f, "License Invalid: {}", msg),
+            LicenseError::InvalidLicense(msg) => write!(f, "License Invalid: {}", msg),  // Updated to match the new name
             LicenseError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
             LicenseError::StorageError(msg) => write!(f, "Storage Error: {}", msg),
             LicenseError::EncryptionError(msg) => write!(f, "Encryption Error: {}", msg),
@@ -30,3 +30,17 @@ impl fmt::Display for LicenseError {
 }
 
 impl Error for LicenseError {}
+
+/// Implement From for reqwest::Error
+impl From<reqwest::Error> for LicenseError {
+    fn from(error: reqwest::Error) -> Self {
+        LicenseError::ServerError(format!("Reqwest error: {}", error))
+    }
+}
+
+/// Implement From for std::io::Error
+impl From<std::io::Error> for LicenseError {
+    fn from(error: std::io::Error) -> Self {
+        LicenseError::StorageError(format!("IO error: {}", error))
+    }
+}

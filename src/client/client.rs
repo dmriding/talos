@@ -23,17 +23,17 @@ impl License {
         
         // Check if the license is bound to the current hardware
         if self.client_id != current_hardware_id {
-            return Err(LicenseError::InvalidLicense);
+            return Err(LicenseError::InvalidLicense("Hardware mismatch.".to_string()));
         }
 
         // Check if the license is active
         if !self.is_active {
-            return Err(LicenseError::InvalidLicense);
+            return Err(LicenseError::InvalidLicense("License is inactive.".to_string()));
         }
 
         // Send a heartbeat to the server to confirm the license is still valid
         let rotating_key = "example_rotating_key"; // Placeholder
-        send_heartbeat(self, &current_hardware_id, &rotating_key).await
+        send_heartbeat(self, &rotating_key).await
     }
 
     /// Function to activate the license

@@ -21,7 +21,6 @@ struct HeartbeatResponse {
 /// Sends a heartbeat to the server to validate that the license is still active.
 pub async fn send_heartbeat(
     license: &License,
-    client_id: &str,
     rotating_key: &str,
 ) -> Result<bool, LicenseError> {
     let server_url = license.server_url.clone();
@@ -50,7 +49,7 @@ pub async fn send_heartbeat(
             if heartbeat_response.success {
                 Ok(true)
             } else {
-                Err(LicenseError::LicenseInvalid("License validation failed".to_string()))
+                Err(LicenseError::InvalidLicense("License validation failed".to_string()))
             }            
         }
         Ok(resp) => {
