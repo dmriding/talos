@@ -1,75 +1,134 @@
+// tests/server_tests.rs
+
 use std::sync::Arc;
-use axum::{Router, routing::post, extract::State};
-use axum::http::{Request, StatusCode};
-use tokio::sync::Mutex;
-use tower::ServiceExt;
-use reqwest::Client;
-use serde_json::json;
-use talos::server::{database::Database, handlers::{activate_license_handler, validate_license_handler, deactivate_license_handler}};
-use talos::server::handlers::LicenseRequest;
+
+use axum::extract::State;
+use axum::Json;
+use chrono::NaiveDateTime;
+use sqlx::sqlite::SqlitePoolOptions;
+
+use talos::errors::LicenseResult;
+use talos::server::database::Database;
+use talos::server::handlers::{
+    activate_license_handler,
+    deactivate_license_handler,
+    validate_license_handler,
+    AppState,
+    LicenseRequest,
+    LicenseResponse,
+};
+
+/// Helper: create an in-memory SQLite Database with the licenses table.
+async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .map_err(|e| talos::errors::LicenseError::ServerError(format!("db connect failed: {e}")))?;
+
+    // Minimal schema matching `server::database::License`
+    sqlx::query(
+        r#"
+        CREATE TABLE licenses (
+            license_id      TEXT PRIMARY KEY,
+            client_id       TEXT NOT NULL,
+            status          TEXT NOT NULL,
+            features        TEXT,
+            issued_at       TEXT NOT NULL,
+            expires_at      TEXT,
+            hardware_id     TEXT,
+            signature       TEXT,
+            last_heartbeat  TEXT
+        );
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| talos::errors::LicenseError::ServerError(format!("schema create failed: {e}")))?;
+
+    Ok(Arc::new(Database::SQLite(pool)))
+}
 
 #[tokio::test]
-async fn test_server_endpoints() {
-    // Initialize the in-memory SQLite database
-    let db = Database::new().await;
-    let db_state = Arc::new(db);
+async fn activate_and_validate_round_trip() -> LicenseResult<()> {
+    // Arrange: in-memory DB + AppState
+    let db = setup_in_memory_db().await?;
+    let state = AppState { db };
 
-    // Create the router
-    let app = Router::new()
-        .route("/activate", post(activate_license_handler))
-        .route("/validate", post(validate_license_handler))
-        .route("/deactivate", post(deactivate_license_handler))
-        .with_state(db_state.clone());
+    let license_id = "TEST-LICENSE-1".to_string();
+    let client_id = "CLIENT-123".to_string();
 
-    // Create a test client
-    let client = Client::new();
+    // Act: activate license
+    let activate_req = LicenseRequest {
+        license_id: license_id.clone(),
+        client_id: client_id.clone(),
+    };
 
-    // --- Test Activate Endpoint ---
-    let activate_payload = json!({
-        "license_id": "LICENSE-123",
-        "client_id": "CLIENT-456"
-    });
+    let Json(LicenseResponse { success }) =
+        activate_license_handler(State(state.clone()), Json(activate_req)).await?;
+    assert!(success, "activation should succeed");
 
-    let activate_response = client
-        .post("http://127.0.0.1:8080/activate")
-        .json(&activate_payload)
-        .send()
-        .await
-        .expect("Failed to send request");
+    // Act: validate with correct client
+    let validate_req = LicenseRequest {
+        license_id: license_id.clone(),
+        client_id: client_id.clone(),
+    };
 
-    assert_eq!(activate_response.status(), StatusCode::OK);
+    let Json(LicenseResponse { success }) =
+        validate_license_handler(State(state.clone()), Json(validate_req)).await?;
+    assert!(success, "validation should succeed for active license");
 
-    // --- Test Validate Endpoint ---
-    let validate_payload = json!({
-        "license_id": "LICENSE-123",
-        "client_id": "CLIENT-456"
-    });
+    // Act: validate with wrong client -> should fail
+    let validate_wrong_req = LicenseRequest {
+        license_id: license_id.clone(),
+        client_id: "OTHER-CLIENT".to_string(),
+    };
 
-    let validate_response = client
-        .post("http://127.0.0.1:8080/validate")
-        .json(&validate_payload)
-        .send()
-        .await
-        .expect("Failed to send request");
+    let Json(LicenseResponse { success }) =
+        validate_license_handler(State(state.clone()), Json(validate_wrong_req)).await?;
+    assert!(!success, "validation should fail for wrong client_id");
 
-    assert_eq!(validate_response.status(), StatusCode::OK);
-    let validate_result: serde_json::Value = validate_response.json().await.unwrap();
-    assert!(validate_result["success"].as_bool().unwrap());
+    Ok(())
+}
 
-    // --- Test Deactivate Endpoint ---
-    let deactivate_payload = json!({
-        "license_id": "LICENSE-123",
-        "client_id": "CLIENT-456"
-    });
+#[tokio::test]
+async fn deactivate_makes_license_invalid() -> LicenseResult<()> {
+    // Arrange
+    let db = setup_in_memory_db().await?;
+    let state = AppState { db };
 
-    let deactivate_response = client
-        .post("http://127.0.0.1:8080/deactivate")
-        .json(&deactivate_payload)
-        .send()
-        .await
-        .expect("Failed to send request");
+    let license_id = "TEST-LICENSE-2".to_string();
+    let client_id = "CLIENT-XYZ".to_string();
 
-    assert_eq!(deactivate_response.status(), StatusCode::OK);
-    let deactivate_result: serde_json::Value = deactivate_response.json().await.unwrap();
-    assert!(deactivate_result["success"].as_bool().unwrap());
+    // Activate first
+    let activate_req = LicenseRequest {
+        license_id: license_id.clone(),
+        client_id: client_id.clone(),
+    };
+    let Json(LicenseResponse { success }) =
+        activate_license_handler(State(state.clone()), Json(activate_req)).await?;
+    assert!(success);
+
+    // Deactivate
+    let deactivate_req = LicenseRequest {
+        license_id: license_id.clone(),
+        client_id: client_id.clone(),
+    };
+    let Json(LicenseResponse { success }) =
+        deactivate_license_handler(State(state.clone()), Json(deactivate_req)).await?;
+    assert!(success, "deactivation should succeed");
+
+    // Validate after deactivation -> should fail
+    let validate_req = LicenseRequest {
+        license_id: license_id.clone(),
+        client_id: client_id.clone(),
+    };
+    let Json(LicenseResponse { success }) =
+        validate_license_handler(State(state), Json(validate_req)).await?;
+    assert!(
+        !success,
+        "validation should fail after license is deactivated"
+    );
+
+    Ok(())
 }
