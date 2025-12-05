@@ -1,9 +1,14 @@
-use sqlx::{query, query_as, Pool, SqlitePool, PgPool, FromRow};
-use config::Config;
 use chrono::{NaiveDateTime, Utc};
+use config::Config;
+use sqlx::{query, query_as, FromRow, PgPool, SqlitePool};
 use std::sync::Arc;
 use tracing::error;
 
+use crate::errors::{LicenseError, LicenseResult};
+
+/// Represents a license record stored in the database.
+///
+/// This mirrors the `licenses` table schema defined in your migrations.
 #[derive(Debug, Clone, FromRow)]
 pub struct License {
     pub license_id: String,
@@ -14,9 +19,13 @@ pub struct License {
     pub expires_at: Option<NaiveDateTime>,
     pub hardware_id: Option<String>,
     pub signature: Option<String>,
-    pub last_heartbeat: Option<NaiveDateTime>, // New field for heartbeat
+    pub last_heartbeat: Option<NaiveDateTime>, // heartbeat timestamp
 }
 
+/// Unified database abstraction over SQLite and Postgres.
+///
+/// For the MVP you can run purely on SQLite, but this allows switching
+/// to Postgres without touching the higher layers.
 #[derive(Debug, Clone)]
 pub enum Database {
     SQLite(SqlitePool),
@@ -24,51 +33,93 @@ pub enum Database {
 }
 
 impl Database {
-    /// Initialize the database connection based on the configuration
-    pub async fn new() -> Arc<Self> {
+    /// Initialize the database connection based on `config.toml`.
+    ///
+    /// Reads:
+    /// - `database.db_type`      -> "sqlite" | "postgres"
+    /// - `database.sqlite_url`   -> e.g. "sqlite://talos.db"
+    /// - `database.postgres_url` -> e.g. "postgres://user:pass@localhost/talos"
+    pub async fn new() -> LicenseResult<Arc<Self>> {
         let settings = Config::builder()
             .add_source(config::File::with_name("config"))
             .build()
-            .expect("Failed to load configuration");
+            .map_err(|e| LicenseError::ConfigError(format!("failed to load config: {e}")))?;
 
-        let db_type: String = settings.get("database.db_type").unwrap();
+        let db_type: String = settings
+            .get("database.db_type")
+            .map_err(|e| LicenseError::ConfigError(format!("missing database.db_type: {e}")))?;
+
         match db_type.as_str() {
             "sqlite" => {
-                let sqlite_url: String = settings.get("database.sqlite_url").unwrap();
+                let sqlite_url: String = settings
+                    .get("database.sqlite_url")
+                    .map_err(|e| {
+                        LicenseError::ConfigError(format!("missing database.sqlite_url: {e}"))
+                    })?;
+
                 let pool = SqlitePool::connect(&sqlite_url)
                     .await
-                    .expect("Failed to connect to SQLite");
-                Arc::new(Database::SQLite(pool))
+                    .map_err(|e| {
+                        error!("Failed to connect to SQLite: {e}");
+                        LicenseError::ServerError(format!("failed to connect to SQLite: {e}"))
+                    })?;
+
+                Ok(Arc::new(Database::SQLite(pool)))
             }
             "postgres" => {
-                let postgres_url: String = settings.get("database.postgres_url").unwrap();
+                let postgres_url: String = settings
+                    .get("database.postgres_url")
+                    .map_err(|e| {
+                        LicenseError::ConfigError(format!("missing database.postgres_url: {e}"))
+                    })?;
+
                 let pool = PgPool::connect(&postgres_url)
                     .await
-                    .expect("Failed to connect to PostgreSQL");
-                Arc::new(Database::Postgres(pool))
+                    .map_err(|e| {
+                        error!("Failed to connect to PostgreSQL: {e}");
+                        LicenseError::ServerError(format!("failed to connect to PostgreSQL: {e}"))
+                    })?;
+
+                Ok(Arc::new(Database::Postgres(pool)))
             }
-            _ => panic!("Unsupported database type"),
+            other => Err(LicenseError::ConfigError(format!(
+                "unsupported database type: {other}"
+            ))),
         }
     }
 
-    /// Insert a new license or update an existing one in the database
-    pub async fn insert_license(&self, license: License) -> Result<(), sqlx::Error> {
+    /// Insert a new license or update an existing one.
+    ///
+    /// This acts like an "upsert" keyed on `license_id`:
+    /// - if the license doesn't exist, it is created
+    /// - if it exists, the fields are updated
+    pub async fn insert_license(&self, license: License) -> LicenseResult<()> {
         match self {
             Database::SQLite(pool) => {
                 query(
                     r#"
-                    INSERT INTO licenses (license_id, client_id, status, features, issued_at, expires_at, hardware_id, signature, last_heartbeat)
+                    INSERT INTO licenses (
+                        license_id,
+                        client_id,
+                        status,
+                        features,
+                        issued_at,
+                        expires_at,
+                        hardware_id,
+                        signature,
+                        last_heartbeat
+                    )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(license_id) DO UPDATE SET
-                        client_id = excluded.client_id,
-                        status = excluded.status,
-                        features = excluded.features,
-                        issued_at = excluded.issued_at,
-                        expires_at = excluded.expires_at,
-                        hardware_id = excluded.hardware_id,
-                        signature = excluded.signature,
+                        client_id      = excluded.client_id,
+                        status         = excluded.status,
+                        features       = excluded.features,
+                        issued_at      = excluded.issued_at,
+                        expires_at     = excluded.expires_at,
+                        hardware_id    = excluded.hardware_id,
+                        signature      = excluded.signature,
                         last_heartbeat = excluded.last_heartbeat
-                    "#
+                    "#,
                 )
                 .bind(&license.license_id)
                 .bind(&license.client_id)
@@ -80,23 +131,37 @@ impl Database {
                 .bind(&license.signature)
                 .bind(license.last_heartbeat)
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    error!("SQLite insert_license failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
             }
             Database::Postgres(pool) => {
                 query(
                     r#"
-                    INSERT INTO licenses (license_id, client_id, status, features, issued_at, expires_at, hardware_id, signature, last_heartbeat)
+                    INSERT INTO licenses (
+                        license_id,
+                        client_id,
+                        status,
+                        features,
+                        issued_at,
+                        expires_at,
+                        hardware_id,
+                        signature,
+                        last_heartbeat
+                    )
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     ON CONFLICT (license_id) DO UPDATE SET
-                        client_id = EXCLUDED.client_id,
-                        status = EXCLUDED.status,
-                        features = EXCLUDED.features,
-                        issued_at = EXCLUDED.issued_at,
-                        expires_at = EXCLUDED.expires_at,
-                        hardware_id = EXCLUDED.hardware_id,
-                        signature = EXCLUDED.signature,
+                        client_id      = EXCLUDED.client_id,
+                        status         = EXCLUDED.status,
+                        features       = EXCLUDED.features,
+                        issued_at      = EXCLUDED.issued_at,
+                        expires_at     = EXCLUDED.expires_at,
+                        hardware_id    = EXCLUDED.hardware_id,
+                        signature      = EXCLUDED.signature,
                         last_heartbeat = EXCLUDED.last_heartbeat
-                    "#
+                    "#,
                 )
                 .bind(&license.license_id)
                 .bind(&license.client_id)
@@ -108,64 +173,102 @@ impl Database {
                 .bind(&license.signature)
                 .bind(license.last_heartbeat)
                 .execute(pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    error!("Postgres insert_license failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
             }
         }
+
         Ok(())
     }
 
-    /// Fetch a license by its ID
-    pub async fn get_license(&self, license_id: &str) -> Result<Option<License>, sqlx::Error> {
+    /// Fetch a license by its ID.
+    ///
+    /// Returns:
+    /// - `Ok(Some(License))` if found
+    /// - `Ok(None)` if not found
+    /// - `Err(LicenseError::ServerError)` on DB failure
+    pub async fn get_license(&self, license_id: &str) -> LicenseResult<Option<License>> {
         match self {
             Database::SQLite(pool) => {
                 let license = query_as::<_, License>(
-                    "SELECT * FROM licenses WHERE license_id = ?"
+                    "SELECT * FROM licenses WHERE license_id = ?",
                 )
                 .bind(license_id)
                 .fetch_optional(pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    error!("SQLite get_license failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
                 Ok(license)
             }
             Database::Postgres(pool) => {
                 let license = query_as::<_, License>(
-                    "SELECT * FROM licenses WHERE license_id = $1"
+                    "SELECT * FROM licenses WHERE license_id = $1",
                 )
                 .bind(license_id)
                 .fetch_optional(pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    error!("Postgres get_license failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
                 Ok(license)
             }
         }
     }
 
-    /// Update the last heartbeat timestamp for a license
+    /// Update the `last_heartbeat` timestamp for a license/client pair.
+    ///
+    /// Returns:
+    /// - `Ok(true)` if a row was updated
+    /// - `Ok(false)` if no matching row was found
+    /// - `Err(LicenseError::ServerError)` on DB failure
     pub async fn update_last_heartbeat(
         &self,
         license_id: &str,
         client_id: &str,
-    ) -> Result<bool, sqlx::Error> {
+    ) -> LicenseResult<bool> {
         let now = Utc::now().naive_utc();
+
         let rows_affected = match self {
             Database::SQLite(pool) => {
                 query(
-                    "UPDATE licenses SET last_heartbeat = ? WHERE license_id = ? AND client_id = ?"
+                    "UPDATE licenses \
+                     SET last_heartbeat = ? \
+                     WHERE license_id = ? AND client_id = ?",
                 )
                 .bind(now)
                 .bind(license_id)
                 .bind(client_id)
                 .execute(pool)
-                .await?
+                .await
+                .map_err(|e| {
+                    error!("SQLite update_last_heartbeat failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?
                 .rows_affected()
             }
             Database::Postgres(pool) => {
                 query(
-                    "UPDATE licenses SET last_heartbeat = $1 WHERE license_id = $2 AND client_id = $3"
+                    "UPDATE licenses \
+                     SET last_heartbeat = $1 \
+                     WHERE license_id = $2 AND client_id = $3",
                 )
                 .bind(now)
                 .bind(license_id)
                 .bind(client_id)
                 .execute(pool)
-                .await?
+                .await
+                .map_err(|e| {
+                    error!("Postgres update_last_heartbeat failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?
                 .rows_affected()
             }
         };
