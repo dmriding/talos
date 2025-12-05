@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
-use axum::extract::State;
-use axum::Json;
-use chrono::NaiveDateTime;
+use axum::{extract::State, Json};
+use chrono::Utc;
 use sqlx::sqlite::SqlitePoolOptions;
 
-use talos::errors::LicenseResult;
+use talos::errors::{LicenseError, LicenseResult};
 use talos::server::database::{Database, License};
-use talos::server::handlers::{heartbeat_handler, HeartbeatRequest, HeartbeatResponse};
-use talos::server::handlers::AppState;
+use talos::server::handlers::{AppState, HeartbeatRequest, HeartbeatResponse, heartbeat_handler};
 
 /// Helper: create an in-memory SQLite `Database` with the `licenses` table
 /// and return it as Arc<Database>.
@@ -17,7 +15,7 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
-        .map_err(|e| talos::errors::LicenseError::ServerError(format!("db connect failed: {e}")))?;
+        .map_err(|e| LicenseError::ServerError(format!("db connect failed: {e}")))?;
 
     // Minimal schema matching `server::database::License`
     sqlx::query(
@@ -37,14 +35,14 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
     )
     .execute(&pool)
     .await
-    .map_err(|e| talos::errors::LicenseError::ServerError(format!("schema create failed: {e}")))?;
+    .map_err(|e| LicenseError::ServerError(format!("schema create failed: {e}")))?;
 
     Ok(Arc::new(Database::SQLite(pool)))
 }
 
 /// Seed a single active license into the DB so heartbeat has something to update.
 async fn insert_active_license(db: &Database, license_id: &str, client_id: &str) -> LicenseResult<()> {
-    let now = chrono::Utc::now().naive_utc();
+    let now = Utc::now().naive_utc();
 
     let license = License {
         license_id: license_id.to_string(),
@@ -58,10 +56,7 @@ async fn insert_active_license(db: &Database, license_id: &str, client_id: &str)
         last_heartbeat: None,
     };
 
-    db.insert_license(license)
-        .await
-        .map_err(|e| talos::errors::LicenseError::ServerError(format!("insert failed: {e}")))?;
-
+    db.insert_license(license).await?;
     Ok(())
 }
 
@@ -82,16 +77,18 @@ async fn valid_heartbeat_updates_license() -> LicenseResult<()> {
     };
 
     let Json(HeartbeatResponse { success }) =
-        heartbeat_handler(State(state.clone()), Json(req)).await;
+        heartbeat_handler(State(state.clone()), Json(req)).await?;
 
-    assert!(success, "heartbeat should succeed for valid license/client pair");
+    assert!(
+        success,
+        "heartbeat should succeed for valid license/client pair"
+    );
 
-    // Optionally, verify last_heartbeat was updated
+    // Verify last_heartbeat was updated
     let stored = db
         .get_license(license_id)
-        .await
-        .map_err(|e| talos::errors::LicenseError::ServerError(format!("fetch failed: {e}")))?;
-    let stored = stored.expect("license should exist");
+        .await?
+        .expect("license should exist");
 
     assert!(
         stored.last_heartbeat.is_some(),
@@ -113,7 +110,7 @@ async fn invalid_heartbeat_fails() -> LicenseResult<()> {
     };
 
     let Json(HeartbeatResponse { success }) =
-        heartbeat_handler(State(state), Json(req)).await;
+        heartbeat_handler(State(state), Json(req)).await?;
 
     assert!(
         !success,

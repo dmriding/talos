@@ -1,173 +1,138 @@
-use aes_gcm::aead::Aead;
-use aes_gcm::aes::cipher::generic_array::GenericArray;
-use aes_gcm::aead::generic_array::typenum::U32;
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
-use rand::rngs::OsRng;
-use rand::TryRngCore;
-use std::error::Error;
-use std::fs::{File, remove_file};
-use std::io::{Read, Write};
+use crate::client::client::License;
+use crate::encryption::{decrypt_from_base64, encrypt_to_base64, KEY_SIZE};
+use crate::errors::{LicenseError, LicenseResult};
+use crate::hardware::get_hardware_id;
+
+use ring::digest::{digest, SHA256};
+use serde_json;
+use std::io::ErrorKind;
 use std::path::Path;
+use tokio::fs;
 
-const ENCRYPTED_FILE_PATH: &str = "talos_encrypted_data";
+const LICENSE_STORAGE_FILE: &str = "talos_license.enc";
 
-/// Generate a random encryption key (256-bit).
-pub fn generate_encryption_key() -> Vec<u8> {
-    let mut key = [0u8; 32]; // 256-bit key for AES-256
-    let mut rng = OsRng;
-    rng.try_fill_bytes(&mut key)
-        .expect("OsRng failed to generate encrypted_storage key");
-    key.to_vec()
+/// Derive a 256-bit local storage key from the hardware ID using SHA-256.
+///
+/// This key:
+/// - is used only for local at-rest encryption of the license,
+/// - is never sent to the server,
+/// - is stable per device (as long as `get_hardware_id()` is stable).
+fn derive_local_storage_key() -> [u8; KEY_SIZE] {
+    let hw_id = get_hardware_id();
+    let hash = digest(&SHA256, hw_id.as_bytes());
+
+    let mut key = [0u8; KEY_SIZE];
+    key.copy_from_slice(hash.as_ref());
+    key
 }
 
-/// Encrypt data and save it to a file.
+/// Encrypt and write the license JSON to disk using the shared encryption module.
 ///
-/// File layout:
-/// - First 12 bytes: nonce
-/// - Remaining bytes: ciphertext+tag
-pub fn encrypt_and_store(data: &str, key: &[u8]) -> Result<(), Box<dyn Error>> {
-    // Ensure key length is valid for AES-256
-    if key.len() != 32 {
-        return Err("Invalid key length".into());
-    }
+/// Format on disk:
+///   base64( nonce || ciphertext+tag )
+pub async fn save_license_to_disk(license: &License) -> LicenseResult<()> {
+    let key = derive_local_storage_key();
 
-    // Initialize the cipher
-    let key_array = GenericArray::<u8, U32>::from_slice(key);
-    let cipher = Aes256Gcm::new(key_array);
+    let json_bytes = serde_json::to_vec(license).map_err(|e| {
+        LicenseError::EncryptionError(format!("Failed to serialize license for storage: {e}"))
+    })?;
 
-    // Generate a random nonce (12 bytes)
-    let mut nonce = [0u8; 12];
-    let mut rng = OsRng;
-    rng.try_fill_bytes(&mut nonce)
-        .expect("OsRng failed to generate nonce for encrypted_storage");
-    let nonce_slice = Nonce::from_slice(&nonce);
+    // AES-256-GCM + nonce + base64 handled by encryption module.
+    let encrypted_b64 = encrypt_to_base64(&json_bytes, &key)?;
 
-    // Encrypt the data
-    let encrypted_data = cipher
-        .encrypt(nonce_slice, data.as_bytes())
-        .map_err(|_| "Encryption failed")?;
+    // Filesystem errors bubble as LicenseError::StorageError via `?`.
+    fs::write(Path::new(LICENSE_STORAGE_FILE), encrypted_b64).await?;
 
-    // Save nonce and encrypted data to file
-    let mut file = File::create(ENCRYPTED_FILE_PATH)?;
-    file.write_all(&nonce)?;
-    file.write_all(&encrypted_data)?;
     Ok(())
 }
 
-/// Decrypt data from the file created by `encrypt_and_store`.
-pub fn load_and_decrypt(key: &[u8]) -> Result<String, Box<dyn Error>> {
-    if !Path::new(ENCRYPTED_FILE_PATH).exists() {
-        return Err("Encrypted file not found".into());
+/// Read, decrypt, and deserialize the license from disk.
+///
+/// Errors:
+/// - `InvalidLicense` if the file is missing.
+/// - `StorageError` for I/O failures.
+/// - `DecryptionError` / `EncryptionError` for crypto issues.
+pub async fn load_license_from_disk() -> LicenseResult<License> {
+    let encrypted_b64 = match fs::read_to_string(Path::new(LICENSE_STORAGE_FILE)).await {
+        Ok(s) => s,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            return Err(LicenseError::InvalidLicense(
+                "No local license file found.".to_string(),
+            ));
+        }
+        Err(e) => return Err(LicenseError::StorageError(e)),
+    };
+
+    let key = derive_local_storage_key();
+
+    let decrypted_bytes = decrypt_from_base64(encrypted_b64.trim(), &key)?;
+
+    let license: License = serde_json::from_slice(&decrypted_bytes).map_err(|e| {
+        LicenseError::DecryptionError(format!(
+            "Failed to deserialize license from decrypted bytes: {e}"
+        ))
+    })?;
+
+    Ok(license)
+}
+
+/// Delete the local license file if it exists (no-op if missing).
+pub async fn clear_license_from_disk() -> LicenseResult<()> {
+    match fs::remove_file(Path::new(LICENSE_STORAGE_FILE)).await {
+        Ok(_) => Ok(()),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(LicenseError::StorageError(e)),
     }
-
-    // Ensure key length is valid for AES-256
-    if key.len() != 32 {
-        return Err("Invalid key length".into());
-    }
-
-    let mut file = File::open(ENCRYPTED_FILE_PATH)?;
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents)?;
-
-    if contents.len() <= 12 {
-        return Err("Encrypted file is too short".into());
-    }
-
-    // Split the contents into nonce and encrypted data
-    let (nonce, encrypted_data) = contents.split_at(12);
-    let nonce_slice = Nonce::from_slice(nonce);
-
-    let key_array = GenericArray::<u8, U32>::from_slice(key);
-    let cipher = Aes256Gcm::new(key_array);
-
-    // Decrypt the data
-    let decrypted_data = cipher
-        .decrypt(nonce_slice, encrypted_data)
-        .map_err(|_| "Decryption failed")?;
-
-    Ok(String::from_utf8(decrypted_data)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use tokio::test as tokio_test;
 
-    /// Helper to clean up the test file before/after tests.
-    fn cleanup_file() {
-        if Path::new(ENCRYPTED_FILE_PATH).exists() {
-            let _ = remove_file(ENCRYPTED_FILE_PATH);
-        }
+    // Simple helper to remove the license file if present.
+    async fn cleanup_file() {
+        let _ = clear_license_from_disk().await;
     }
 
-    #[test]
-    fn round_trip_encrypt_and_decrypt() {
-        cleanup_file();
+    #[tokio_test]
+    async fn round_trip_license_encrypt_decrypt() {
+        cleanup_file().await;
 
-        let key = generate_encryption_key();
-        let original = "talos encrypted storage test";
+        let license = License {
+            license_id: "LIC-123".into(),
+            client_id: "CLIENT-XYZ".into(),
+            expiry_date: "2099-01-01T00:00:00Z".into(),
+            features: vec!["feature_a".into(), "feature_b".into()],
+            server_url: "http://localhost:8080".into(),
+            signature: "dummy-signature".into(),
+            is_active: true,
+        };
 
-        encrypt_and_store(original, &key).expect("encryption + store should succeed");
+        save_license_to_disk(&license)
+            .await
+            .expect("save should succeed");
 
-        let decrypted = load_and_decrypt(&key).expect("load + decrypt should succeed");
+        let loaded = load_license_from_disk()
+            .await
+            .expect("load should succeed");
 
-        assert_eq!(decrypted, original);
+        assert_eq!(loaded.license_id, license.license_id);
+        assert_eq!(loaded.client_id, license.client_id);
+        assert_eq!(loaded.expiry_date, license.expiry_date);
+        assert_eq!(loaded.features, license.features);
+        assert_eq!(loaded.server_url, license.server_url);
+        assert_eq!(loaded.signature, license.signature);
+        assert_eq!(loaded.is_active, license.is_active);
 
-        cleanup_file();
+        cleanup_file().await;
     }
 
-    #[test]
-    fn invalid_key_length_rejected_on_encrypt() {
-        cleanup_file();
+    #[tokio_test]
+    async fn missing_file_returns_invalid_license() {
+        cleanup_file().await;
 
-        let bad_key = vec![0u8; 16]; // too short
-        let result = encrypt_and_store("data", &bad_key);
-
-        assert!(result.is_err());
-
-        cleanup_file();
-    }
-
-    #[test]
-    fn invalid_key_length_rejected_on_decrypt() {
-        cleanup_file();
-
-        let key = generate_encryption_key();
-        encrypt_and_store("data", &key).expect("encrypt should succeed");
-
-        let bad_key = vec![0u8; 16]; // too short
-        let result = load_and_decrypt(&bad_key);
-
-        assert!(result.is_err());
-
-        cleanup_file();
-    }
-
-    #[test]
-    fn missing_file_returns_error() {
-        cleanup_file();
-
-        let key = generate_encryption_key();
-        let result = load_and_decrypt(&key);
-
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn corrupt_file_is_rejected() {
-        cleanup_file();
-
-        // Write a file that's too short / invalid
-        {
-            let mut file = File::create(ENCRYPTED_FILE_PATH).expect("create file");
-            file.write_all(b"short").expect("write file");
-        }
-
-        let key = generate_encryption_key();
-        let result = load_and_decrypt(&key);
-
-        assert!(result.is_err());
-
-        cleanup_file();
+        let result = load_license_from_disk().await;
+        assert!(matches!(result, Err(LicenseError::InvalidLicense(_))));
     }
 }

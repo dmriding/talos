@@ -1,7 +1,7 @@
 # config.toml
 
 # The URL of the license server
-server_url = "https://yourserver.com"
+server_url = "http://127.0.0.1:8080"
 
 # Optional: Heartbeat interval in seconds (default: 60)
 heartbeat_interval = 60

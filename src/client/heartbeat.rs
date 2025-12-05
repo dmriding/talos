@@ -1,66 +1,59 @@
-use reqwest::Client;
 use crate::client::client::License;
-use crate::errors::LicenseError;
+use crate::errors::{LicenseError, LicenseResult};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// Struct for the heartbeat request payload
+/// Struct for the heartbeat request payload sent to the server.
 #[derive(Debug, Serialize)]
 struct HeartbeatRequest {
-    client_id: String,
+    /// Server-side license identifier.
     license_id: String,
-    rotating_key: String,
+    /// Hardware-bound client identifier.
+    client_id: String,
 }
 
-/// Struct for the server response
+/// Struct for the heartbeat response returned by the server.
 #[derive(Debug, Deserialize)]
 struct HeartbeatResponse {
+    /// Whether the heartbeat was accepted (row updated).
     success: bool,
 }
 
-/// Sends a heartbeat to the server to validate that the license is still active.
-pub async fn send_heartbeat(
-    license: &License,
-    rotating_key: &str,
-) -> Result<bool, LicenseError> {
-    let server_url = license.server_url.clone();
+/// Sends a heartbeat to the server to update `last_heartbeat`
+/// for this license/client pair.
+///
+/// Returns:
+/// - `Ok(true)` if `update_last_heartbeat` updated at least one row.
+/// - `Ok(false)` if no matching license/client was found.
+/// - `Err(NetworkError | ServerError)` on transport/protocol errors.
+pub async fn send_heartbeat(license: &License) -> LicenseResult<bool> {
+    let server_url = &license.server_url;
     let client = Client::new();
 
-    // Prepare the heartbeat payload
     let payload = HeartbeatRequest {
-        client_id: license.client_id.clone(),
         license_id: license.license_id.clone(),
-        rotating_key: rotating_key.to_string(),
+        client_id: license.client_id.clone(),
     };
 
-    // Send the heartbeat request to the server
-    let response = client
+    let resp = client
         .post(format!("{}/heartbeat", server_url))
         .json(&payload)
-        .timeout(Duration::from_secs(10)) // Set a timeout to prevent hanging
+        .timeout(Duration::from_secs(10))
         .send()
-        .await;
+        .await?; // → LicenseError::NetworkError via #[from] reqwest::Error
 
-    match response {
-        Ok(resp) if resp.status().is_success() => {
-            let heartbeat_response: HeartbeatResponse = resp.json().await.map_err(|_| {
-                LicenseError::ServerError("Failed to parse server response".to_string())
-            })?;
-            if heartbeat_response.success {
-                Ok(true)
-            } else {
-                Err(LicenseError::InvalidLicense("License validation failed".to_string()))
-            }            
-        }
-        Ok(resp) => {
-            Err(LicenseError::ServerError(format!(
-                "Unexpected server response: {}",
-                resp.status()
-            )))
-        }
-        Err(err) => Err(LicenseError::ServerError(format!(
-            "Failed to send heartbeat: {}",
-            err
-        ))),
+    if !resp.status().is_success() {
+        return Err(LicenseError::ServerError(format!(
+            "Unexpected server response: {}",
+            resp.status()
+        )));
     }
+
+    let heartbeat_response: HeartbeatResponse = resp.json().await.map_err(|e| {
+        LicenseError::ServerError(format!("Failed to parse heartbeat response: {e}"))
+    })?;
+
+    // Server semantics: success == `updated` flag from DB.
+    Ok(heartbeat_response.success)
 }
