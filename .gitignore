@@ -90,3 +90,7 @@ yarn-error.log*
 *.bak
 *.temp
 *.tmp
+
+# Local development database
+talos_dev.db
+*.db
