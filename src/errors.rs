@@ -1,46 +1,47 @@
-use std::fmt;
-use std::error::Error;
+// src/errors.rs
 
-/// Custom error type for license-related operations
-#[derive(Debug)]
+use std::result;
+
+use thiserror::Error;
+
+/// Convenient alias for results throughout Talos.
+pub type LicenseResult<T> = result::Result<T, LicenseError>;
+
+/// Central error type for license-related operations.
+///
+/// This is used by both the client and the server side of Talos.
+/// HTTP mapping / printing / logging should be done *outside* this type.
+#[derive(Debug, Error)]
 pub enum LicenseError {
+    /// The server responded with an application-level error.
+    #[error("server error: {0}")]
     ServerError(String),
-    InvalidLicense(String),      // Renamed from LicenseInvalid to InvalidLicense
-    NetworkError(String),
-    StorageError(String),
+
+    /// The license is invalid for the requested operation.
+    #[error("license invalid: {0}")]
+    InvalidLicense(String),
+
+    /// Network / HTTP client errors when talking to the licensing server.
+    #[error("network error: {0}")]
+    NetworkError(#[from] reqwest::Error),
+
+    /// Local storage errors (filesystem, OS I/O, etc.).
+    #[error("storage error: {0}")]
+    StorageError(#[from] std::io::Error),
+
+    /// Errors during encryption (wrong key, algorithm failure, etc.).
+    #[error("encryption error: {0}")]
     EncryptionError(String),
+
+    /// Errors during decryption (corrupted ciphertext, wrong key, etc.).
+    #[error("decryption error: {0}")]
     DecryptionError(String),
+
+    /// Configuration-related errors (missing values, invalid formats, etc.).
+    #[error("config error: {0}")]
     ConfigError(String),
+
+    /// Fallback for unexpected conditions that don't fit other variants.
+    #[error("unknown error")]
     UnknownError,
-}
-
-impl fmt::Display for LicenseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LicenseError::ServerError(msg) => write!(f, "Server Error: {}", msg),
-            LicenseError::InvalidLicense(msg) => write!(f, "License Invalid: {}", msg),  // Updated to match the new name
-            LicenseError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
-            LicenseError::StorageError(msg) => write!(f, "Storage Error: {}", msg),
-            LicenseError::EncryptionError(msg) => write!(f, "Encryption Error: {}", msg),
-            LicenseError::DecryptionError(msg) => write!(f, "Decryption Error: {}", msg),
-            LicenseError::ConfigError(msg) => write!(f, "Config Error: {}", msg),
-            LicenseError::UnknownError => write!(f, "Unknown Error"),
-        }
-    }
-}
-
-impl Error for LicenseError {}
-
-/// Implement From for reqwest::Error
-impl From<reqwest::Error> for LicenseError {
-    fn from(error: reqwest::Error) -> Self {
-        LicenseError::ServerError(format!("Reqwest error: {}", error))
-    }
-}
-
-/// Implement From for std::io::Error
-impl From<std::io::Error> for LicenseError {
-    fn from(error: std::io::Error) -> Self {
-        LicenseError::StorageError(format!("IO error: {}", error))
-    }
 }

@@ -1,35 +1,22 @@
-use axum::{Json, extract::State};
-use crate::server::handlers::{activate_license_handler, validate_license_handler, deactivate_license_handler};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use crate::server::database::Database;
+use axum::{routing::post, Router};
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct LicenseRequest {
-    pub license_id: String,
-    pub client_id: String,
-}
+use crate::server::handlers::{
+    activate_license_handler,
+    deactivate_license_handler,
+    heartbeat_handler,
+    validate_license_handler,
+    AppState,
+};
 
-pub async fn activate_license(
-    State(db): State<Arc<Database>>,
-    Json(payload): Json<LicenseRequest>,
-) -> Json<bool> {
-    let result = activate_license_handler(db, payload.license_id, payload.client_id).await;
-    Json(result)
-}
-
-pub async fn validate_license(
-    State(db): State<Arc<Database>>,
-    Json(payload): Json<LicenseRequest>,
-) -> Json<bool> {
-    let result = validate_license_handler(db, payload.license_id).await;
-    Json(result)
-}
-
-pub async fn deactivate_license(
-    State(db): State<Arc<Database>>,
-    Json(payload): Json<LicenseRequest>,
-) -> Json<bool> {
-    let result = deactivate_license_handler(db, payload.license_id).await;
-    Json(result)
+/// Build the main application router for the Talos server.
+///
+/// This is a convenience helper so `main.rs` or tests can
+/// construct the router in a single call.
+pub fn build_router(state: AppState) -> Router {
+    Router::new()
+        .route("/activate", post(activate_license_handler))
+        .route("/validate", post(validate_license_handler))
+        .route("/deactivate", post(deactivate_license_handler))
+        .route("/heartbeat", post(heartbeat_handler))
+        .with_state(state)
 }
