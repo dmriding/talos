@@ -2,7 +2,7 @@
 name = "talos"
 version = "0.1.0"
 edition = "2021"
-authors = ["David Riding <netviperllc@gmail.com>"]
+authors = ["David Riding <david@netviper.gr>"]
 description = "A Rust-based secure licensing system."
 repository = "https://github.com/dmriding/talos"
 license = "MIT"
