@@ -5,7 +5,7 @@ use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use rand::rngs::OsRng;
 use rand::TryRngCore;
 use std::error::Error;
-use std::fs::File;
+use std::fs::{File, remove_file};
 use std::io::{Read, Write};
 use std::path::Path;
 
@@ -86,4 +86,88 @@ pub fn load_and_decrypt(key: &[u8]) -> Result<String, Box<dyn Error>> {
         .map_err(|_| "Decryption failed")?;
 
     Ok(String::from_utf8(decrypted_data)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    /// Helper to clean up the test file before/after tests.
+    fn cleanup_file() {
+        if Path::new(ENCRYPTED_FILE_PATH).exists() {
+            let _ = remove_file(ENCRYPTED_FILE_PATH);
+        }
+    }
+
+    #[test]
+    fn round_trip_encrypt_and_decrypt() {
+        cleanup_file();
+
+        let key = generate_encryption_key();
+        let original = "talos encrypted storage test";
+
+        encrypt_and_store(original, &key).expect("encryption + store should succeed");
+
+        let decrypted = load_and_decrypt(&key).expect("load + decrypt should succeed");
+
+        assert_eq!(decrypted, original);
+
+        cleanup_file();
+    }
+
+    #[test]
+    fn invalid_key_length_rejected_on_encrypt() {
+        cleanup_file();
+
+        let bad_key = vec![0u8; 16]; // too short
+        let result = encrypt_and_store("data", &bad_key);
+
+        assert!(result.is_err());
+
+        cleanup_file();
+    }
+
+    #[test]
+    fn invalid_key_length_rejected_on_decrypt() {
+        cleanup_file();
+
+        let key = generate_encryption_key();
+        encrypt_and_store("data", &key).expect("encrypt should succeed");
+
+        let bad_key = vec![0u8; 16]; // too short
+        let result = load_and_decrypt(&bad_key);
+
+        assert!(result.is_err());
+
+        cleanup_file();
+    }
+
+    #[test]
+    fn missing_file_returns_error() {
+        cleanup_file();
+
+        let key = generate_encryption_key();
+        let result = load_and_decrypt(&key);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn corrupt_file_is_rejected() {
+        cleanup_file();
+
+        // Write a file that's too short / invalid
+        {
+            let mut file = File::create(ENCRYPTED_FILE_PATH).expect("create file");
+            file.write_all(b"short").expect("write file");
+        }
+
+        let key = generate_encryption_key();
+        let result = load_and_decrypt(&key);
+
+        assert!(result.is_err());
+
+        cleanup_file();
+    }
 }
