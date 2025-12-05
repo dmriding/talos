@@ -1,80 +1,124 @@
-use reqwest::Client;
-use serde_json::json;
-use std::time::Duration;
+use std::sync::Arc;
 
-#[tokio::test]
-async fn test_activate_and_send_heartbeat() {
-    let client = Client::new();
-    let server_url = "http://127.0.0.1:8080";
+use axum::extract::State;
+use axum::Json;
+use chrono::NaiveDateTime;
+use sqlx::sqlite::SqlitePoolOptions;
 
-    // Step 1: Activate a license
-    let license_id = "LICENSE-12345";
-    let client_id = "CLIENT-67890";
+use talos::errors::LicenseResult;
+use talos::server::database::{Database, License};
+use talos::server::handlers::{heartbeat_handler, HeartbeatRequest, HeartbeatResponse};
+use talos::server::handlers::AppState;
 
-    let activate_response = client
-        .post(format!("{}/activate", server_url))
-        .json(&json!({
-            "license_id": license_id,
-            "client_id": client_id
-        }))
-        .send()
+/// Helper: create an in-memory SQLite `Database` with the `licenses` table
+/// and return it as Arc<Database>.
+async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
         .await
-        .expect("Failed to send activate request");
+        .map_err(|e| talos::errors::LicenseError::ServerError(format!("db connect failed: {e}")))?;
 
-    assert!(
-        activate_response.status().is_success(),
-        "Failed to activate license"
-    );
+    // Minimal schema matching `server::database::License`
+    sqlx::query(
+        r#"
+        CREATE TABLE licenses (
+            license_id      TEXT PRIMARY KEY,
+            client_id       TEXT NOT NULL,
+            status          TEXT NOT NULL,
+            features        TEXT,
+            issued_at       TEXT NOT NULL,
+            expires_at      TEXT,
+            hardware_id     TEXT,
+            signature       TEXT,
+            last_heartbeat  TEXT
+        );
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| talos::errors::LicenseError::ServerError(format!("schema create failed: {e}")))?;
 
-    let activate_result: serde_json::Value = activate_response.json().await.expect("Invalid response");
-    assert_eq!(activate_result["success"], true, "License activation was not successful");
+    Ok(Arc::new(Database::SQLite(pool)))
+}
 
-    // Step 2: Send a heartbeat
-    let heartbeat_response = client
-        .post(format!("{}/heartbeat", server_url))
-        .json(&json!({
-            "license_id": license_id,
-            "client_id": client_id
-        }))
-        .timeout(Duration::from_secs(5))
-        .send()
+/// Seed a single active license into the DB so heartbeat has something to update.
+async fn insert_active_license(db: &Database, license_id: &str, client_id: &str) -> LicenseResult<()> {
+    let now = chrono::Utc::now().naive_utc();
+
+    let license = License {
+        license_id: license_id.to_string(),
+        client_id: client_id.to_string(),
+        status: "active".to_string(),
+        features: None,
+        issued_at: now,
+        expires_at: None,
+        hardware_id: None,
+        signature: None,
+        last_heartbeat: None,
+    };
+
+    db.insert_license(license)
         .await
-        .expect("Failed to send heartbeat request");
+        .map_err(|e| talos::errors::LicenseError::ServerError(format!("insert failed: {e}")))?;
 
-    assert!(
-        heartbeat_response.status().is_success(),
-        "Failed to send heartbeat"
-    );
-
-    let heartbeat_result: serde_json::Value = heartbeat_response.json().await.expect("Invalid response");
-    assert_eq!(heartbeat_result["success"], true, "Heartbeat was not successful");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_invalid_heartbeat() {
-    let client = Client::new();
-    let server_url = "http://127.0.0.1:8080";
+async fn valid_heartbeat_updates_license() -> LicenseResult<()> {
+    let db = setup_in_memory_db().await?;
+    let state = AppState { db: db.clone() };
 
-    // Step 1: Send a heartbeat without activating license
-    let license_id = "INVALID-LICENSE";
-    let client_id = "INVALID-CLIENT";
+    let license_id = "HB-LICENSE-1";
+    let client_id = "HB-CLIENT-1";
 
-    let heartbeat_response = client
-        .post(format!("{}/heartbeat", server_url))
-        .json(&json!({
-            "license_id": license_id,
-            "client_id": client_id
-        }))
-        .timeout(Duration::from_secs(5))
-        .send()
+    insert_active_license(&db, license_id, client_id).await?;
+
+    // Call the handler
+    let req = HeartbeatRequest {
+        license_id: license_id.to_string(),
+        client_id: client_id.to_string(),
+    };
+
+    let Json(HeartbeatResponse { success }) =
+        heartbeat_handler(State(state.clone()), Json(req)).await;
+
+    assert!(success, "heartbeat should succeed for valid license/client pair");
+
+    // Optionally, verify last_heartbeat was updated
+    let stored = db
+        .get_license(license_id)
         .await
-        .expect("Failed to send heartbeat request");
+        .map_err(|e| talos::errors::LicenseError::ServerError(format!("fetch failed: {e}")))?;
+    let stored = stored.expect("license should exist");
 
     assert!(
-        heartbeat_response.status().is_success(),
-        "Failed to send heartbeat"
+        stored.last_heartbeat.is_some(),
+        "last_heartbeat should be updated after heartbeat"
     );
 
-    let heartbeat_result: serde_json::Value = heartbeat_response.json().await.expect("Invalid response");
-    assert_eq!(heartbeat_result["success"], false, "Invalid license should not succeed in heartbeat");
+    Ok(())
+}
+
+#[tokio::test]
+async fn invalid_heartbeat_fails() -> LicenseResult<()> {
+    let db = setup_in_memory_db().await?;
+    let state = AppState { db };
+
+    // No license inserted at all
+    let req = HeartbeatRequest {
+        license_id: "NON_EXISTENT".to_string(),
+        client_id: "BAD_CLIENT".to_string(),
+    };
+
+    let Json(HeartbeatResponse { success }) =
+        heartbeat_handler(State(state), Json(req)).await;
+
+    assert!(
+        !success,
+        "heartbeat should fail for non-existent license/client pair"
+    );
+
+    Ok(())
 }
