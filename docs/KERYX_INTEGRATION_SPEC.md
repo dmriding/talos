@@ -5,6 +5,7 @@
 This document specifies the features and API endpoints that need to be added to Talos to support the **Keryx** licensing system. Keryx is a file transfer application with paid tiers that require license validation, feature gating, and device management.
 
 **Integration Model:**
+
 - Django Admin Portal manages billing, users, and business logic
 - Talos is the **license authority** - issues, validates, and revokes licenses
 - Keryx CLI validates directly with Talos (no Django in the validation path)
@@ -51,25 +52,25 @@ This document specifies the features and API endpoints that need to be added to 
 
 ## Current State vs. Required
 
-| Feature | Current Talos | Required for Keryx | Priority |
-|---------|---------------|-------------------|----------|
-| Activate/Deactivate | Yes | Yes | - |
-| Validate (binary) | Yes | Yes | - |
-| Heartbeat | Yes | Yes | - |
-| Feature list storage | Yes (`Vec<String>`) | Yes | - |
-| **Admin API (CRUD)** | No | Yes | P0 |
-| **License key generation** | No | Yes (`KERYX-XXXX-XXXX-XXXX`) | P0 |
-| **Feature validation endpoint** | No | Yes | P0 |
-| **Hardware binding (1 key = 1 device)** | Yes | Yes (enhanced with bind/release) | P0 |
-| **Bind/Release workflow** | No | Yes (release key to re-bind elsewhere) | P0 |
-| **Multi-license per org** | No | Yes (org buys N keys) | P0 |
-| **JWT service authentication** | No | Yes | P0 |
-| **Revoke with grace period** | No | Yes | P1 |
-| **Extend expiry** | No | Yes | P1 |
-| **Usage/limits tracking** | No | Yes | P1 |
-| **Blacklist/ban** | No | Yes | P2 |
-| **Org-based grouping** | No | Yes (licenses belong to org) | P0 |
-| **Metadata storage** | No | Yes (Stripe IDs) | P1 |
+| Feature                                 | Current Talos       | Required for Keryx                     | Priority |
+| --------------------------------------- | ------------------- | -------------------------------------- | -------- |
+| Activate/Deactivate                     | Yes                 | Yes                                    | -        |
+| Validate (binary)                       | Yes                 | Yes                                    | -        |
+| Heartbeat                               | Yes                 | Yes                                    | -        |
+| Feature list storage                    | Yes (`Vec<String>`) | Yes                                    | -        |
+| **Admin API (CRUD)**                    | No                  | Yes                                    | P0       |
+| **License key generation**              | No                  | Yes (`KERYX-XXXX-XXXX-XXXX`)           | P0       |
+| **Feature validation endpoint**         | No                  | Yes                                    | P0       |
+| **Hardware binding (1 key = 1 device)** | Yes                 | Yes (enhanced with bind/release)       | P0       |
+| **Bind/Release workflow**               | No                  | Yes (release key to re-bind elsewhere) | P0       |
+| **Multi-license per org**               | No                  | Yes (org buys N keys)                  | P0       |
+| **JWT service authentication**          | No                  | Yes                                    | P0       |
+| **Revoke with grace period**            | No                  | Yes                                    | P1       |
+| **Extend expiry**                       | No                  | Yes                                    | P1       |
+| **Usage/limits tracking**               | No                  | Yes                                    | P1       |
+| **Blacklist/ban**                       | No                  | Yes                                    | P2       |
+| **Org-based grouping**                  | No                  | Yes (licenses belong to org)           | P0       |
+| **Metadata storage**                    | No                  | Yes (Stripe IDs)                       | P1       |
 
 ---
 
@@ -280,11 +281,13 @@ CREATE TABLE api_tokens (
 ### Authentication
 
 **Admin endpoints** require JWT Bearer token:
+
 ```
 Authorization: Bearer <jwt-token>
 ```
 
 JWT payload:
+
 ```json
 {
   "sub": "django-service",
@@ -304,18 +307,18 @@ Base path: `/api/v1`
 
 ### Endpoint Summary
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/licenses` | Create single license |
-| POST | `/api/v1/licenses/batch` | Create multiple licenses |
-| GET | `/api/v1/licenses?org_id={id}` | List org's licenses |
-| GET | `/api/v1/licenses/{license_id}` | Get license details |
-| PATCH | `/api/v1/licenses/{license_id}` | Update tier/features |
-| POST | `/api/v1/licenses/{license_id}/revoke` | Suspend/revoke |
-| POST | `/api/v1/licenses/{license_id}/reinstate` | Reinstate |
-| POST | `/api/v1/licenses/{license_id}/extend` | Extend expiry |
-| POST | `/api/v1/licenses/{license_id}/release` | Admin force unbind |
-| POST | `/api/v1/licenses/{license_id}/blacklist` | Permanent ban |
+| Method | Endpoint                                  | Purpose                  |
+| ------ | ----------------------------------------- | ------------------------ |
+| POST   | `/api/v1/licenses`                        | Create single license    |
+| POST   | `/api/v1/licenses/batch`                  | Create multiple licenses |
+| GET    | `/api/v1/licenses?org_id={id}`            | List org's licenses      |
+| GET    | `/api/v1/licenses/{license_id}`           | Get license details      |
+| PATCH  | `/api/v1/licenses/{license_id}`           | Update tier/features     |
+| POST   | `/api/v1/licenses/{license_id}/revoke`    | Suspend/revoke           |
+| POST   | `/api/v1/licenses/{license_id}/reinstate` | Reinstate                |
+| POST   | `/api/v1/licenses/{license_id}/extend`    | Extend expiry            |
+| POST   | `/api/v1/licenses/{license_id}/release`   | Admin force unbind       |
+| POST   | `/api/v1/licenses/{license_id}/blacklist` | Permanent ban            |
 
 ---
 
@@ -326,6 +329,7 @@ Base path: `/api/v1`
 Creates a single new license. Each license is hardware-bound (1 key = 1 device).
 
 **Request:**
+
 ```json
 {
   "org_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -341,6 +345,7 @@ Creates a single new license. Each license is hardware-bound (1 key = 1 device).
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "license_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -356,6 +361,7 @@ Creates a single new license. Each license is hardware-bound (1 key = 1 device).
 ```
 
 **License Key Format:**
+
 - Pattern: `KERYX-XXXX-XXXX-XXXX-XXXX`
 - Characters: Uppercase alphanumeric (excluding ambiguous: 0, O, I, L)
 - Generated using cryptographically secure random
@@ -367,6 +373,7 @@ Creates a single new license. Each license is hardware-bound (1 key = 1 device).
 **GET** `/api/v1/licenses/{license_id}`
 
 **Response (200 OK):**
+
 ```json
 {
   "license_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -400,23 +407,21 @@ Creates a single new license. Each license is hardware-bound (1 key = 1 device).
 
 **PATCH** `/api/v1/licenses/{license_id}`
 
-Updates tier, features, limits, or expiry. Used for upgrades/downgrades.
+Updates tier, features, or expiry. Used for upgrades/downgrades.
+
+**Note:** `limits`, `max_devices`, and `bandwidth_limit` are NOT passed by Django - Talos derives these from the tier configuration internally.
 
 **Request:**
+
 ```json
 {
   "tier": "team",
   "features": ["relay", "priority_support", "dedicated_relay"],
-  "limits": {
-    "bandwidth_gb": 2000,
-    "max_users": 25
-  },
-  "max_devices": 25,
   "expires_at": "2025-02-01T00:00:00Z"
 }
 ```
 
-**Response (200 OK):** Full license object with updated fields.
+**Response (200 OK):** Full license object with updated fields (including tier-derived limits).
 
 ---
 
@@ -427,6 +432,7 @@ Updates tier, features, limits, or expiry. Used for upgrades/downgrades.
 Suspends or revokes a license. Used for payment failures, cancellations.
 
 **Request:**
+
 ```json
 {
   "reason": "payment_failed",
@@ -436,6 +442,7 @@ Suspends or revokes a license. Used for payment failures, cancellations.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "license_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -447,6 +454,7 @@ Suspends or revokes a license. Used for payment failures, cancellations.
 ```
 
 **Behavior:**
+
 - `grace_period_days: 0` = immediate revocation, status becomes `revoked`
 - `grace_period_days: N` = status becomes `suspended`, validation succeeds until grace period ends
 - When grace period ends, background job changes status to `revoked`
@@ -460,6 +468,7 @@ Suspends or revokes a license. Used for payment failures, cancellations.
 Reinstates a suspended/revoked license (e.g., after payment retry succeeds).
 
 **Request:**
+
 ```json
 {
   "new_expires_at": "2025-02-01T00:00:00Z",
@@ -478,6 +487,7 @@ Reinstates a suspended/revoked license (e.g., after payment retry succeeds).
 Extends expiry date (e.g., when monthly invoice is paid).
 
 **Request:**
+
 ```json
 {
   "new_expires_at": "2025-03-01T00:00:00Z",
@@ -496,6 +506,7 @@ Extends expiry date (e.g., when monthly invoice is paid).
 Updates bandwidth usage. Django calls this periodically to sync usage from Redis.
 
 **Request:**
+
 ```json
 {
   "bandwidth_used_bytes": 450000000000,
@@ -504,6 +515,7 @@ Updates bandwidth usage. Django calls this periodically to sync usage from Redis
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "license_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -515,6 +527,7 @@ Updates bandwidth usage. Django calls this periodically to sync usage from Redis
 ```
 
 **Behavior:**
+
 - If `bandwidth_used_bytes >= bandwidth_limit_bytes`:
   - Sets `quota_exceeded: true`
   - Sets `quota_restricted_features: ["relay"]`
@@ -529,6 +542,7 @@ Updates bandwidth usage. Django calls this periodically to sync usage from Redis
 Permanently bans an organization. Validation always fails.
 
 **Request:**
+
 ```json
 {
   "reason": "terms_violation",
@@ -537,6 +551,7 @@ Permanently bans an organization. Validation always fails.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "license_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -555,6 +570,7 @@ Permanently bans an organization. Validation always fails.
 Admin forcibly unbinds a license from its current hardware. Used when user loses access to device.
 
 **Request:**
+
 ```json
 {
   "reason": "user_request"
@@ -562,6 +578,7 @@ Admin forcibly unbinds a license from its current hardware. Used when user loses
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "license_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -581,6 +598,7 @@ Admin forcibly unbinds a license from its current hardware. Used when user loses
 Lists all licenses for an organization.
 
 **Response (200 OK):**
+
 ```json
 {
   "org_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -623,6 +641,7 @@ Lists all licenses for an organization.
 Creates multiple licenses at once (for bulk purchases).
 
 **Request:**
+
 ```json
 {
   "org_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -639,6 +658,7 @@ Creates multiple licenses at once (for bulk purchases).
 ```
 
 **Response (201 Created):**
+
 ```json
 {
   "created": 5,
@@ -680,6 +700,7 @@ These endpoints are called by Keryx CLI. No authentication required but rate-lim
 Binds a license key to the current hardware. Must be called before validation.
 
 **Request:**
+
 ```json
 {
   "license_key": "KERYX-A1B2-C3D4-E5F6-G7H8",
@@ -693,6 +714,7 @@ Binds a license key to the current hardware. Must be called before validation.
 ```
 
 **Response (200 OK) - Success:**
+
 ```json
 {
   "success": true,
@@ -705,6 +727,7 @@ Binds a license key to the current hardware. Must be called before validation.
 ```
 
 **Response (200 OK) - Already Bound:**
+
 ```json
 {
   "success": false,
@@ -731,6 +754,7 @@ Binds a license key to the current hardware. Must be called before validation.
 Releases a license from current hardware, making it available for rebinding.
 
 **Request:**
+
 ```json
 {
   "license_key": "KERYX-A1B2-C3D4-E5F6-G7H8",
@@ -739,6 +763,7 @@ Releases a license from current hardware, making it available for rebinding.
 ```
 
 **Response (200 OK) - Success:**
+
 ```json
 {
   "success": true,
@@ -749,6 +774,7 @@ Releases a license from current hardware, making it available for rebinding.
 ```
 
 **Response (200 OK) - Wrong Device:**
+
 ```json
 {
   "success": false,
@@ -773,6 +799,7 @@ Releases a license from current hardware, making it available for rebinding.
 Validates a license. License must be bound to the requesting hardware.
 
 **Request:**
+
 ```json
 {
   "license_key": "KERYX-A1B2-C3D4-E5F6-G7H8",
@@ -781,6 +808,7 @@ Validates a license. License must be bound to the requesting hardware.
 ```
 
 **Response (200 OK) - Valid:**
+
 ```json
 {
   "valid": true,
@@ -794,6 +822,7 @@ Validates a license. License must be bound to the requesting hardware.
 ```
 
 **Response (200 OK) - Invalid:**
+
 ```json
 {
   "valid": false,
@@ -822,6 +851,7 @@ Validates a license. License must be bound to the requesting hardware.
 Validates if already bound, otherwise attempts to bind first. Convenience endpoint.
 
 **Request:**
+
 ```json
 {
   "license_key": "KERYX-A1B2-C3D4-E5F6-G7H8",
@@ -835,6 +865,7 @@ Validates if already bound, otherwise attempts to bind first. Convenience endpoi
 ```
 
 **Behavior:**
+
 1. If license is bound to this `hardware_id` → validate and return
 2. If license is unbound → bind to this hardware, then validate
 3. If license is bound to different hardware → return `ALREADY_BOUND` error
@@ -850,6 +881,7 @@ Validates if already bound, otherwise attempts to bind first. Convenience endpoi
 Checks if a specific feature is available for this license.
 
 **Request:**
+
 ```json
 {
   "license_key": "KERYX-A1B2-C3D4-E5F6-G7H8",
@@ -859,6 +891,7 @@ Checks if a specific feature is available for this license.
 ```
 
 **Response (200 OK) - Allowed:**
+
 ```json
 {
   "allowed": true,
@@ -868,6 +901,7 @@ Checks if a specific feature is available for this license.
 ```
 
 **Response (200 OK) - Denied:**
+
 ```json
 {
   "allowed": false,
@@ -878,6 +912,7 @@ Checks if a specific feature is available for this license.
 ```
 
 **Response (200 OK) - Quota Restricted:**
+
 ```json
 {
   "allowed": false,
@@ -896,6 +931,7 @@ Checks if a specific feature is available for this license.
 Sends liveness ping. Updates `last_seen_at` on the device activation.
 
 **Request:**
+
 ```json
 {
   "license_key": "KERYX-A1B2-C3D4-E5F6-G7H8",
@@ -904,6 +940,7 @@ Sends liveness ping. Updates `last_seen_at` on the device activation.
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -920,6 +957,7 @@ Sends liveness ping. Updates `last_seen_at` on the device activation.
 User voluntarily deactivates their device (frees up a slot).
 
 **Request:**
+
 ```json
 {
   "license_key": "KERYX-A1B2-C3D4-E5F6-G7H8",
@@ -928,6 +966,7 @@ User voluntarily deactivates their device (frees up a slot).
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -940,18 +979,23 @@ User voluntarily deactivates their device (frees up a slot).
 ## License Key Generation
 
 ### Format
+
 ```
 KERYX-XXXX-XXXX-XXXX-XXXX
 ```
 
 ### Character Set
+
 Uppercase alphanumeric excluding ambiguous characters:
+
 ```
 ABCDEFGHJKMNPQRSTUVWXYZ23456789
 ```
+
 (Excludes: 0, O, I, L, 1)
 
 ### Generation Algorithm
+
 ```rust
 use rand::Rng;
 
@@ -973,6 +1017,50 @@ fn generate_license_key() -> String {
     format!("KERYX-{}", segments.join("-"))
 }
 ```
+
+---
+
+## Tier Configuration
+
+Talos owns the tier-to-limits mapping. When Django sends `tier: "pro"`, Talos looks up the limits internally:
+
+```rust
+// Built-in tier configuration (in Talos)
+const TIER_LIMITS: &[TierConfig] = &[
+    TierConfig {
+        name: "free",
+        bandwidth_gb: 0,
+        max_devices: 1,
+        features: &[],
+    },
+    TierConfig {
+        name: "starter",
+        bandwidth_gb: 50,
+        max_devices: 2,
+        features: &["relay"],
+    },
+    TierConfig {
+        name: "pro",
+        bandwidth_gb: 500,
+        max_devices: 5,
+        features: &["relay", "priority_support"],
+    },
+    TierConfig {
+        name: "team",
+        bandwidth_gb: 2000,
+        max_devices: 25,
+        features: &["relay", "priority_support", "dedicated_relay"],
+    },
+    TierConfig {
+        name: "enterprise",
+        bandwidth_gb: 0,  // Custom (set via update_license)
+        max_devices: 100,
+        features: &["relay", "priority_support", "dedicated_relay", "sla"],
+    },
+];
+```
+
+**Note:** For `enterprise` tier, bandwidth limits can be customized via the `/usage` endpoint.
 
 ---
 
@@ -1116,24 +1204,25 @@ All error responses follow this format:
 
 ### HTTP Status Codes
 
-| Status | Usage |
-|--------|-------|
-| 200 | Success |
-| 201 | Created |
-| 204 | No Content (successful delete) |
-| 400 | Bad Request (validation error) |
-| 401 | Unauthorized (missing/invalid JWT) |
-| 403 | Forbidden (insufficient scopes) |
-| 404 | Not Found |
-| 409 | Conflict (e.g., license key collision) |
-| 429 | Too Many Requests (rate limited) |
-| 500 | Internal Server Error |
+| Status | Usage                                  |
+| ------ | -------------------------------------- |
+| 200    | Success                                |
+| 201    | Created                                |
+| 204    | No Content (successful delete)         |
+| 400    | Bad Request (validation error)         |
+| 401    | Unauthorized (missing/invalid JWT)     |
+| 403    | Forbidden (insufficient scopes)        |
+| 404    | Not Found                              |
+| 409    | Conflict (e.g., license key collision) |
+| 429    | Too Many Requests (rate limited)       |
+| 500    | Internal Server Error                  |
 
 ---
 
 ## Implementation Phases
 
 ### Phase 1: Core Admin API (P0)
+
 - [ ] Database schema migration
 - [ ] License CRUD endpoints
 - [ ] License key generation
@@ -1141,27 +1230,32 @@ All error responses follow this format:
 - [ ] Basic validation endpoint update
 
 ### Phase 2: Device Management (P0)
+
 - [ ] Device activation table
 - [ ] Auto-activation on validate
 - [ ] Device limit enforcement
 - [ ] List/deactivate devices
 
 ### Phase 3: Feature Gating (P0)
+
 - [ ] Feature validation endpoint
 - [ ] Quota exceeded feature restriction
 
 ### Phase 4: Lifecycle Management (P1)
+
 - [ ] Revoke with grace period
 - [ ] Reinstate license
 - [ ] Extend expiry
 - [ ] Usage tracking endpoint
 
 ### Phase 5: Background Jobs (P1)
+
 - [ ] Grace period expiration job
 - [ ] License expiration job
 - [ ] Stale device cleanup job
 
 ### Phase 6: Blacklist & Polish (P2)
+
 - [ ] Blacklist endpoint
 - [ ] Rate limiting
 - [ ] Comprehensive error handling
@@ -1172,18 +1266,21 @@ All error responses follow this format:
 ## Testing Requirements
 
 ### Unit Tests
+
 - License key generation uniqueness
 - JWT validation
 - Feature permission logic
 - Device limit enforcement
 
 ### Integration Tests
+
 - Full license lifecycle (create → validate → update → revoke)
 - Device activation flow
 - Grace period expiration
 - Quota exceeded behavior
 
 ### Load Tests
+
 - Validation endpoint: 1000 req/s target
 - Heartbeat endpoint: 500 req/s target
 

@@ -90,6 +90,7 @@ The Django Admin Portal manages the backend infrastructure for Keryx's paid tier
 ## Service Responsibilities
 
 ### Django Admin Portal
+
 - **Payment processing** (Stripe webhooks)
 - **Customer portal** (self-service dashboard)
 - **Relay health polling** (background task -> Redis)
@@ -99,6 +100,7 @@ The Django Admin Portal manages the backend infrastructure for Keryx's paid tier
 - **Admin UI** (manage orgs, users, relays)
 
 ### Talos License Server
+
 - **License issuance** (Django calls Talos API to create licenses)
 - **License validation** (CLI validates directly with Talos)
 - **Device management** (track activated devices per license)
@@ -107,6 +109,7 @@ The Django Admin Portal manages the backend infrastructure for Keryx's paid tier
 - **License storage** (Talos maintains license database)
 
 ### Rust Signal Server
+
 - **WebSocket signaling** (real-time P2P coordination)
 - **Room management** (create/join rooms)
 - **Relay token generation** (JWT for relay auth)
@@ -144,29 +147,29 @@ def get_talos_jwt():
 
 ### Admin Endpoints (called by Django)
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/licenses` | Create single license |
-| POST | `/api/v1/licenses/batch` | Create multiple licenses |
-| GET | `/api/v1/licenses?org_id={id}` | List org's licenses |
-| GET | `/api/v1/licenses/{license_id}` | Get license details |
-| PATCH | `/api/v1/licenses/{license_id}` | Update tier/features |
-| POST | `/api/v1/licenses/{license_id}/revoke` | Suspend/revoke license |
-| POST | `/api/v1/licenses/{license_id}/reinstate` | Reinstate suspended license |
-| POST | `/api/v1/licenses/{license_id}/extend` | Extend expiry date |
-| POST | `/api/v1/licenses/{license_id}/release` | Admin force unbind from hardware |
-| POST | `/api/v1/licenses/{license_id}/blacklist` | Permanently ban |
+| Method | Endpoint                                  | Purpose                          |
+| ------ | ----------------------------------------- | -------------------------------- |
+| POST   | `/api/v1/licenses`                        | Create single license            |
+| POST   | `/api/v1/licenses/batch`                  | Create multiple licenses         |
+| GET    | `/api/v1/licenses?org_id={id}`            | List org's licenses              |
+| GET    | `/api/v1/licenses/{license_id}`           | Get license details              |
+| PATCH  | `/api/v1/licenses/{license_id}`           | Update tier/features             |
+| POST   | `/api/v1/licenses/{license_id}/revoke`    | Suspend/revoke license           |
+| POST   | `/api/v1/licenses/{license_id}/reinstate` | Reinstate suspended license      |
+| POST   | `/api/v1/licenses/{license_id}/extend`    | Extend expiry date               |
+| POST   | `/api/v1/licenses/{license_id}/release`   | Admin force unbind from hardware |
+| POST   | `/api/v1/licenses/{license_id}/blacklist` | Permanently ban                  |
 
 ### Client Endpoints (called by Keryx CLI)
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/client/bind` | Bind license to hardware |
-| POST | `/api/v1/client/release` | Release license from hardware |
-| POST | `/api/v1/client/validate` | Validate license (must be bound) |
-| POST | `/api/v1/client/validate-or-bind` | Validate or auto-bind if unbound |
-| POST | `/api/v1/client/validate-feature` | Check specific feature access |
-| POST | `/api/v1/client/heartbeat` | Liveness ping |
+| Method | Endpoint                          | Purpose                          |
+| ------ | --------------------------------- | -------------------------------- |
+| POST   | `/api/v1/client/bind`             | Bind license to hardware         |
+| POST   | `/api/v1/client/release`          | Release license from hardware    |
+| POST   | `/api/v1/client/validate`         | Validate license (must be bound) |
+| POST   | `/api/v1/client/validate-or-bind` | Validate or auto-bind if unbound |
+| POST   | `/api/v1/client/validate-feature` | Check specific feature access    |
+| POST   | `/api/v1/client/heartbeat`        | Liveness ping                    |
 
 ---
 
@@ -291,6 +294,8 @@ class TalosClient:
         """
         Create a single new license. Each license can be bound to one device.
 
+        Note: limits and max_devices are NOT passed - Talos derives these from tier.
+
         Args:
             org_id: Organization UUID
             org_name: Organization display name
@@ -371,13 +376,13 @@ class TalosClient:
         license_id: str,
         tier: str = None,
         features: list[str] = None,
-        limits: dict = None,
-        max_devices: int = None,
         expires_at: datetime = None
     ) -> dict:
         """
-        Update license tier, features, or limits.
+        Update license tier, features, or expiry.
         Used for subscription upgrades/downgrades.
+
+        Note: limits and max_devices are NOT passed - Talos derives these from tier.
         """
         if self.use_stubs:
             return self._stub_update_license(license_id, tier)
@@ -387,10 +392,6 @@ class TalosClient:
             payload["tier"] = tier
         if features is not None:
             payload["features"] = features
-        if limits is not None:
-            payload["limits"] = limits
-        if max_devices is not None:
-            payload["max_devices"] = max_devices
         if expires_at is not None:
             payload["expires_at"] = expires_at.isoformat()
 
@@ -782,28 +783,46 @@ def get_tier_limits(tier_name: str) -> dict:
 
 Django will manage these **existing tables** (already deployed to production):
 
-| Table | Purpose |
-|-------|---------|
-| `organizations` | Billing entities with tier, bandwidth limits, Stripe IDs |
-| `users` | User accounts linked to orgs, password hash, JWT token versioning |
-| `sessions` | Active WebSocket connections (peer tracking) |
-| `rooms` | P2P room codes with 23hr expiry |
-| `usage_records` | Transfer logs (bytes, speed, connection type) for billing |
-| `relay_servers` | Relay server registry (public/private, region, health status) |
-| `relay_sessions` | Relay usage tracking for bandwidth billing |
+| Table            | Purpose                                                           |
+| ---------------- | ----------------------------------------------------------------- |
+| `organizations`  | Billing entities with tier, bandwidth limits, Stripe IDs          |
+| `users`          | User accounts linked to orgs, password hash, JWT token versioning |
+| `sessions`       | Active WebSocket connections (peer tracking)                      |
+| `rooms`          | P2P room codes with 23hr expiry                                   |
+| `usage_records`  | Transfer logs (bytes, speed, connection type) for billing         |
+| `relay_servers`  | Relay server registry (public/private, region, health status)     |
+| `relay_sessions` | Relay usage tracking for bandwidth billing                        |
 
 ### Database Additions
 
 ```sql
--- Add Talos license tracking to organizations
-ALTER TABLE organizations ADD COLUMN talos_license_id UUID;
-ALTER TABLE organizations ADD COLUMN talos_license_key TEXT;
-ALTER TABLE organizations ADD COLUMN license_status TEXT DEFAULT 'none';  -- 'active', 'suspended', 'revoked', 'none'
-
--- Stripe integration
+-- Stripe integration on organizations
 ALTER TABLE organizations ADD COLUMN stripe_customer_id TEXT;
 ALTER TABLE organizations ADD COLUMN stripe_subscription_id TEXT;
 ALTER TABLE organizations ADD COLUMN subscription_status TEXT;  -- 'active', 'past_due', 'canceled'
+
+-- New table: organization_licenses (many licenses per org)
+-- This is a Django-side tracking table - Talos is the source of truth
+CREATE TABLE organization_licenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Talos reference (Talos owns the license, we just track it)
+    talos_license_id UUID NOT NULL UNIQUE,
+    license_key TEXT NOT NULL,              -- KERYX-XXXX-XXXX-XXXX (cached from Talos)
+
+    -- Cached status (synced from Talos periodically)
+    status TEXT NOT NULL DEFAULT 'active',  -- 'active', 'suspended', 'revoked', 'expired'
+    is_bound BOOLEAN NOT NULL DEFAULT FALSE,
+    device_name TEXT,                       -- Cached from Talos for display
+
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_org_licenses_org_id ON organization_licenses(org_id);
+CREATE INDEX idx_org_licenses_talos_id ON organization_licenses(talos_license_id);
 ```
 
 ---
@@ -815,6 +834,7 @@ ALTER TABLE organizations ADD COLUMN subscription_status TEXT;  -- 'active', 'pa
 **Purpose:** Keep Redis updated with relay health so Rust signal server can route clients to healthy relays.
 
 **Implementation:**
+
 - Background task (Celery or Django-Q) running every 30 seconds
 - Query active relays from database
 - HTTP health check each relay endpoint
@@ -1150,8 +1170,11 @@ def stripe_webhook(request):
 
 def handle_checkout_completed(session, talos):
     """
-    New subscription created - issue license via Talos.
+    New subscription created - issue license(s) via Talos.
+    Creates multiple licenses for tiers that include multiple seats.
     """
+    from apps.organizations.models import Organization, OrganizationLicense
+
     # Get or create organization
     org = get_or_create_org_from_session(session)
     tier = get_tier_from_session(session)
@@ -1160,26 +1183,52 @@ def handle_checkout_completed(session, talos):
     # Calculate expiry (1 month + buffer)
     expires_at = datetime.utcnow() + timedelta(days=32)
 
-    # Issue license via Talos
+    # Determine how many licenses to create based on tier
+    # Individual tiers get 1 license, team tiers get multiple
+    license_count = get_license_count_for_tier(tier, session)
+
+    metadata = {
+        "stripe_customer_id": session['customer'],
+        "stripe_subscription_id": session['subscription']
+    }
+
     try:
-        result = talos.create_license(
-            org_id=str(org.id),
-            org_name=org.name,
-            tier=tier,
-            features=tier_config.features,
-            limits=get_tier_limits(tier),
-            max_devices=tier_config.max_devices,
-            expires_at=expires_at,
-            metadata={
-                "stripe_customer_id": session['customer'],
-                "stripe_subscription_id": session['subscription']
-            }
-        )
+        if license_count == 1:
+            # Single license
+            result = talos.create_license(
+                org_id=str(org.id),
+                org_name=org.name,
+                tier=tier,
+                features=tier_config.features,
+                expires_at=expires_at,
+                metadata=metadata
+            )
+            license_keys = [result['license_key']]
+            license_ids = [(result['license_id'], result['license_key'])]
+        else:
+            # Batch create for team/enterprise
+            result = talos.create_licenses_batch(
+                org_id=str(org.id),
+                org_name=org.name,
+                tier=tier,
+                features=tier_config.features,
+                expires_at=expires_at,
+                count=license_count,
+                metadata=metadata
+            )
+            license_keys = [lic['license_key'] for lic in result['licenses']]
+            license_ids = [(lic['license_id'], lic['license_key']) for lic in result['licenses']]
+
+        # Create OrganizationLicense records for each license
+        for talos_license_id, license_key in license_ids:
+            OrganizationLicense.objects.create(
+                org=org,
+                talos_license_id=talos_license_id,
+                license_key=license_key,
+                status='active'
+            )
 
         # Update organization
-        org.talos_license_id = result['license_id']
-        org.talos_license_key = result['license_key']
-        org.license_status = 'active'
         org.tier = tier
         org.relay_bandwidth_limit_bytes = tier_config.bandwidth_gb * (1024 ** 3)
         org.stripe_customer_id = session['customer']
@@ -1187,10 +1236,10 @@ def handle_checkout_completed(session, talos):
         org.subscription_status = 'active'
         org.save()
 
-        # Email license key to customer
-        send_license_email(org, result['license_key'])
+        # Email license key(s) to customer
+        send_license_email(org, license_keys)
 
-        logger.info(f"License issued for org {org.id}: {result['license_key']}")
+        logger.info(f"Issued {len(license_keys)} license(s) for org {org.id}")
 
     except TalosError as e:
         logger.error(f"Failed to issue license for org {org.id}: {e}")
@@ -1199,8 +1248,10 @@ def handle_checkout_completed(session, talos):
 
 def handle_subscription_updated(subscription, talos):
     """
-    Subscription changed (upgrade/downgrade) - update license.
+    Subscription changed (upgrade/downgrade) - update all org licenses.
     """
+    from apps.organizations.models import Organization, OrganizationLicense
+
     try:
         org = Organization.objects.get(stripe_subscription_id=subscription['id'])
     except Organization.DoesNotExist:
@@ -1210,127 +1261,162 @@ def handle_subscription_updated(subscription, talos):
     new_tier = get_tier_from_subscription(subscription)
     tier_config = get_tier_config(new_tier)
 
-    if org.talos_license_id:
+    # Update all licenses for this org
+    org_licenses = OrganizationLicense.objects.filter(org=org)
+    for org_license in org_licenses:
         try:
             talos.update_license(
-                license_id=str(org.talos_license_id),
+                license_id=str(org_license.talos_license_id),
                 tier=new_tier,
-                features=tier_config.features,
-                limits=get_tier_limits(new_tier),
-                max_devices=tier_config.max_devices
+                features=tier_config.features
             )
-
-            org.tier = new_tier
-            org.relay_bandwidth_limit_bytes = tier_config.bandwidth_gb * (1024 ** 3)
-            org.save()
-
-            logger.info(f"License updated for org {org.id}: tier={new_tier}")
+            logger.info(f"License {org_license.license_key} updated to tier={new_tier}")
 
         except TalosError as e:
-            logger.error(f"Failed to update license for org {org.id}: {e}")
-            raise
+            logger.error(f"Failed to update license {org_license.talos_license_id}: {e}")
+            # Continue updating other licenses even if one fails
+
+    org.tier = new_tier
+    org.relay_bandwidth_limit_bytes = tier_config.bandwidth_gb * (1024 ** 3)
+    org.save()
+
+    logger.info(f"Updated {org_licenses.count()} license(s) for org {org.id}: tier={new_tier}")
 
 
 def handle_subscription_deleted(subscription, talos):
     """
-    Subscription canceled - revoke license.
+    Subscription canceled - revoke all org licenses.
     """
+    from apps.organizations.models import Organization, OrganizationLicense
+
     try:
         org = Organization.objects.get(stripe_subscription_id=subscription['id'])
     except Organization.DoesNotExist:
         return
 
-    if org.talos_license_id:
+    # Revoke all licenses for this org
+    org_licenses = OrganizationLicense.objects.filter(org=org)
+    for org_license in org_licenses:
         try:
             talos.revoke_license(
-                license_id=str(org.talos_license_id),
+                license_id=str(org_license.talos_license_id),
                 reason="subscription_canceled",
                 grace_period_days=0,
                 message="Your subscription has been canceled."
             )
-
-            org.tier = 'free'
-            org.license_status = 'revoked'
-            org.subscription_status = 'canceled'
-            org.relay_bandwidth_limit_bytes = 0
-            org.save()
-
-            logger.info(f"License revoked for org {org.id}: subscription canceled")
+            org_license.status = 'revoked'
+            org_license.save()
 
         except TalosError as e:
-            logger.error(f"Failed to revoke license for org {org.id}: {e}")
-            raise
+            logger.error(f"Failed to revoke license {org_license.talos_license_id}: {e}")
+
+    org.tier = 'free'
+    org.subscription_status = 'canceled'
+    org.relay_bandwidth_limit_bytes = 0
+    org.save()
+
+    logger.info(f"Revoked {org_licenses.count()} license(s) for org {org.id}: subscription canceled")
 
 
 def handle_invoice_paid(invoice, talos):
     """
-    Monthly invoice paid - extend license and reset bandwidth.
+    Monthly invoice paid - extend all org licenses and reset bandwidth.
     """
+    from apps.organizations.models import Organization, OrganizationLicense
+
     try:
         org = Organization.objects.get(stripe_customer_id=invoice['customer'])
     except Organization.DoesNotExist:
         return
 
-    if org.talos_license_id and org.license_status == 'active':
-        new_expires = datetime.utcnow() + timedelta(days=32)
+    new_expires = datetime.utcnow() + timedelta(days=32)
 
+    # Extend all active licenses for this org
+    org_licenses = OrganizationLicense.objects.filter(org=org, status='active')
+    for org_license in org_licenses:
         try:
             talos.extend_license(
-                license_id=str(org.talos_license_id),
+                license_id=str(org_license.talos_license_id),
                 new_expires_at=new_expires,
                 reset_bandwidth=True
             )
 
-            # Reset local bandwidth tracking
-            org.relay_bandwidth_used_bytes = 0
-            org.billing_cycle_start = datetime.utcnow()
-            org.quota_exceeded_notified = False
-            org.save()
-
-            # Reset Redis counter
-            import redis
-            redis_client = redis.from_url(settings.REDIS_URL)
-            redis_client.set(f"relay:usage:{org.id}:bytes", 0)
-
-            logger.info(f"License extended for org {org.id}: expires={new_expires}")
-
         except TalosError as e:
-            logger.error(f"Failed to extend license for org {org.id}: {e}")
-            raise
+            logger.error(f"Failed to extend license {org_license.talos_license_id}: {e}")
+
+    # Reset local bandwidth tracking
+    org.relay_bandwidth_used_bytes = 0
+    org.billing_cycle_start = datetime.utcnow()
+    org.quota_exceeded_notified = False
+    org.save()
+
+    # Reset Redis counter
+    import redis
+    redis_client = redis.from_url(settings.REDIS_URL)
+    redis_client.set(f"relay:usage:{org.id}:bytes", 0)
+
+    logger.info(f"Extended {org_licenses.count()} license(s) for org {org.id}: expires={new_expires}")
 
 
 def handle_payment_failed(invoice, talos):
     """
-    Payment failed - suspend license with grace period.
+    Payment failed - suspend all org licenses with grace period.
     """
+    from apps.organizations.models import Organization, OrganizationLicense
+
     try:
         org = Organization.objects.get(stripe_customer_id=invoice['customer'])
     except Organization.DoesNotExist:
         return
 
-    if org.talos_license_id:
+    # Suspend all licenses for this org
+    org_licenses = OrganizationLicense.objects.filter(org=org, status='active')
+    for org_license in org_licenses:
         try:
             talos.revoke_license(
-                license_id=str(org.talos_license_id),
+                license_id=str(org_license.talos_license_id),
                 reason="payment_failed",
                 grace_period_days=7,
                 message="Payment failed. Please update your payment method within 7 days."
             )
-
-            org.license_status = 'suspended'
-            org.subscription_status = 'past_due'
-            org.save()
-
-            send_payment_failed_email(org)
-
-            logger.info(f"License suspended for org {org.id}: payment failed")
+            org_license.status = 'suspended'
+            org_license.save()
 
         except TalosError as e:
-            logger.error(f"Failed to suspend license for org {org.id}: {e}")
-            raise
+            logger.error(f"Failed to suspend license {org_license.talos_license_id}: {e}")
+
+    org.subscription_status = 'past_due'
+    org.save()
+
+    send_payment_failed_email(org)
+
+    logger.info(f"Suspended {org_licenses.count()} license(s) for org {org.id}: payment failed")
 
 
 # Helper functions
+
+def get_license_count_for_tier(tier: str, session: dict) -> int:
+    """
+    Determine how many licenses to create based on tier.
+    For team tiers, this may come from the checkout session quantity.
+    """
+    # Default license counts per tier
+    tier_defaults = {
+        'starter': 1,
+        'pro': 1,
+        'team': 5,       # Team includes 5 licenses by default
+        'enterprise': 10  # Enterprise default, usually customized
+    }
+
+    # Check if quantity was specified in checkout (for per-seat pricing)
+    line_items = session.get('line_items', {}).get('data', [])
+    if line_items:
+        quantity = line_items[0].get('quantity', 1)
+        if quantity > 1:
+            return quantity
+
+    return tier_defaults.get(tier, 1)
+
 
 def get_or_create_org_from_session(session):
     """Get or create organization from Stripe checkout session."""
@@ -1494,7 +1580,9 @@ def billing(request):
 # apps/api/views.py
 
 import json
+import jwt
 import redis
+from functools import wraps
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
@@ -1504,11 +1592,44 @@ from apps.organizations.models import Organization
 redis_client = redis.from_url(settings.REDIS_URL)
 
 
+def require_service_auth(view_func):
+    """
+    Decorator requiring JWT service authentication.
+    Used for internal APIs called by Rust signal server.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header.startswith('Bearer '):
+            return JsonResponse({'error': 'missing_auth'}, status=401)
+
+        token = auth_header[7:]
+        try:
+            payload = jwt.decode(
+                token,
+                settings.SERVICE_JWT_SECRET,
+                algorithms=['HS256'],
+                audience='keryx-internal'
+            )
+            # Verify it's a service token (not user token)
+            if payload.get('type') != 'service':
+                return JsonResponse({'error': 'invalid_token_type'}, status=403)
+
+        except jwt.ExpiredSignatureError:
+            return JsonResponse({'error': 'token_expired'}, status=401)
+        except jwt.InvalidTokenError:
+            return JsonResponse({'error': 'invalid_token'}, status=401)
+
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 @require_GET
+@require_service_auth
 def available_relays(request):
     """
     Get available relays for an organization.
-    Called by Rust signal server.
+    Called by Rust signal server (requires service JWT).
     """
     org_id = request.GET.get('org_id')
     if not org_id:
@@ -1582,16 +1703,16 @@ def available_relays(request):
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Framework | Django 5.x |
-| Admin UI | Django Admin + django-unfold (modern styling) |
-| API | Django REST Framework |
-| Background Tasks | Celery + Redis (or Django-Q) |
-| Payments | stripe-python |
-| Cache | redis-py |
-| Database | psycopg (PostgreSQL 16) |
-| Talos Client | requests + PyJWT |
+| Component        | Technology                                    |
+| ---------------- | --------------------------------------------- |
+| Framework        | Django 5.x                                    |
+| Admin UI         | Django Admin + django-unfold (modern styling) |
+| API              | Django REST Framework                         |
+| Background Tasks | Celery + Redis (or Django-Q)                  |
+| Payments         | stripe-python                                 |
+| Cache            | redis-py                                      |
+| Database         | psycopg (PostgreSQL 16)                       |
+| Talos Client     | requests + PyJWT                              |
 
 ---
 
@@ -1616,8 +1737,9 @@ STRIPE_PRICE_STARTER=price_xxx
 STRIPE_PRICE_PRO=price_xxx
 STRIPE_PRICE_TEAM=price_xxx
 
-# JWT Secret (for relay token generation, shared with relay servers)
+# JWT Secrets
 RELAY_JWT_SECRET=<shared-with-relay-servers>
+SERVICE_JWT_SECRET=<shared-with-signal-server>  # For internal API auth
 
 # Django
 SECRET_KEY=<django-secret>
@@ -1668,6 +1790,7 @@ CELERY_BEAT_SCHEDULE = {
 ## Checklist
 
 ### Priority 1: Infrastructure
+
 - [ ] Django project setup with PostgreSQL connection
 - [ ] Django Admin models for all existing tables
 - [ ] Celery/Django-Q setup for background tasks
@@ -1675,6 +1798,7 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Redis integration for health cache
 
 ### Priority 2: Talos Integration
+
 - [ ] TalosClient service class with stubs
 - [ ] Tier configuration module
 - [ ] Create license(s) on checkout complete (batch for multi-seat)
@@ -1687,6 +1811,7 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Blacklist/ban functionality
 
 ### Priority 3: Payments
+
 - [ ] Stripe webhook endpoint
 - [ ] Handle checkout.session.completed -> Talos issue
 - [ ] Handle subscription.updated -> Talos update
@@ -1695,6 +1820,7 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Handle invoice.payment_failed -> Talos suspend
 
 ### Priority 4: Customer Portal
+
 - [ ] User authentication (login/logout)
 - [ ] Dashboard overview page
 - [ ] Licenses management page (list, view binding status, release)
@@ -1702,6 +1828,7 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Billing/upgrade page (Stripe portal, add/remove licenses)
 
 ### Priority 5: Relay Routing
+
 - [ ] Available relays API endpoint
 - [ ] Relay token generation endpoint
 - [ ] Bandwidth quota enforcement
