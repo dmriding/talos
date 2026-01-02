@@ -11,11 +11,22 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: read
 
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, rust]
+        include:
+          - language: actions
+            build-mode: none
+          - language: rust
+            build-mode: manual
 
     steps:
       - name: Checkout repository
@@ -24,17 +35,18 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: rust
-          # If you wish to specify custom queries, you can do so here
-          # queries: security-extended,security-and-quality
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Install Rust toolchain
+        if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build
+      - name: Build Rust
+        if: matrix.language == 'rust'
         run: cargo build --release
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:rust"
+          category: "/language:${{ matrix.language }}"
