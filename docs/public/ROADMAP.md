@@ -139,22 +139,26 @@ let config = LicenseKeyConfig {
 let key = generate_license_key(&config); // "KERYX-A1B2-C3D4-E5F6-G7H8"
 ```
 
-### 1.3 JWT Authentication Middleware
+### 1.3 JWT Authentication Middleware ✅
 
 **Gated behind `jwt-auth` feature flag**
 
-- [ ] Add `jsonwebtoken` crate as optional dependency
-- [ ] Create `src/server/auth.rs` module
-- [ ] Implement JWT validation middleware for Axum
-- [ ] Support HS256 algorithm with shared secret
-- [ ] Validate `sub`, `iat`, `exp` claims
-- [ ] Implement scope-based authorization (`licenses:read`, `licenses:write`, `licenses:*`)
-- [ ] Add `TALOS_JWT_SECRET` environment variable
-- [ ] Add `TALOS_JWT_ISSUER` and `TALOS_JWT_AUDIENCE` config options
-- [ ] Create extractor for authenticated requests
-- [ ] **When feature disabled**: Admin endpoints return 501 Not Implemented or are simply not mounted
-- [ ] Write unit tests for JWT validation
-- [ ] Write integration tests for protected endpoints
+- [x] Add `jsonwebtoken` crate as optional dependency
+- [x] Create `src/server/auth.rs` module
+- [x] Implement JWT validation middleware for Axum
+- [x] Support HS256 algorithm with shared secret
+- [x] Validate `sub`, `iat`, `exp`, `iss`, `aud` claims
+- [x] Implement scope-based authorization (`licenses:read`, `licenses:write`, `licenses:*`, wildcard support)
+- [x] Add `TALOS_JWT_SECRET` environment variable
+- [x] Add `TALOS_JWT_ISSUER`, `TALOS_JWT_AUDIENCE`, `TALOS_TOKEN_EXPIRATION_SECS` config options
+- [x] Add `AuthConfig` struct with all JWT settings to config system
+- [x] Create `AuthenticatedUser` extractor for authenticated requests
+- [x] Create `OptionalUser` extractor for optional authentication
+- [x] Create `JwtValidator` for token creation and validation
+- [x] Create `AuthState` for middleware state management
+- [x] **When feature disabled**: Auth module not compiled, `AuthError::AuthDisabled` returned
+- [x] Write unit tests for JWT validation (11 tests)
+- [ ] Write integration tests for protected endpoints *(deferred to Phase 1.5 when endpoints exist)*
 
 ### 1.4 Tier Configuration System
 

@@ -41,8 +41,5 @@ pub mod client {
 
 // Server-related modules (requires "server" feature)
 #[cfg(feature = "server")]
-pub mod server {
-    pub mod database;
-    pub mod handlers;
-    pub mod server_sim;
-}
+#[path = "server/mod.rs"]
+pub mod server;

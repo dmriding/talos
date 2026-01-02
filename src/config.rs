@@ -13,6 +13,11 @@
 //! - `TALOS_DATABASE_URL` - Database connection URL
 //! - `TALOS_LICENSE_KEY_PREFIX` - License key prefix
 //! - `TALOS_LOG_LEVEL` - Log level (trace, debug, info, warn, error)
+//! - `TALOS_AUTH_ENABLED` - Enable JWT authentication (requires `jwt-auth` feature)
+//! - `TALOS_JWT_SECRET` - JWT secret key for signing/validation
+//! - `TALOS_JWT_ISSUER` - JWT issuer claim
+//! - `TALOS_JWT_AUDIENCE` - JWT audience claim
+//! - `TALOS_TOKEN_EXPIRATION_SECS` - Token expiration time in seconds
 
 use config::Config;
 use serde::Deserialize;
@@ -36,6 +41,8 @@ pub struct TalosConfig {
     pub database: DatabaseConfig,
     /// Logging configuration
     pub logging: LoggingConfig,
+    /// JWT authentication configuration (requires "jwt-auth" feature)
+    pub auth: AuthConfig,
 }
 
 /// Server configuration.
@@ -123,6 +130,36 @@ impl Default for LoggingConfig {
     }
 }
 
+/// JWT authentication configuration.
+///
+/// Used when the `jwt-auth` feature is enabled.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct AuthConfig {
+    /// Enable JWT authentication for admin endpoints
+    pub enabled: bool,
+    /// JWT secret key (use `env:VAR_NAME` to read from environment)
+    pub jwt_secret: String,
+    /// JWT issuer claim (iss)
+    pub jwt_issuer: String,
+    /// JWT audience claim (aud)
+    pub jwt_audience: String,
+    /// Token expiration time in seconds (default: 1 hour)
+    pub token_expiration_secs: u64,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            jwt_secret: String::new(),
+            jwt_issuer: "talos".to_string(),
+            jwt_audience: "talos-api".to_string(),
+            token_expiration_secs: 3600,
+        }
+    }
+}
+
 impl TalosConfig {
     /// Load configuration from file and environment.
     ///
@@ -154,6 +191,16 @@ impl TalosConfig {
             .set_default("logging.enabled", false)
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             .set_default("logging.level", "info")
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("auth.enabled", false)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("auth.jwt_secret", "")
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("auth.jwt_issuer", "talos")
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("auth.jwt_audience", "talos-api")
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("auth.token_expiration_secs", 3600)
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             // Load from config.toml (optional)
             .add_source(config::File::with_name("config").required(false))
@@ -203,6 +250,26 @@ impl TalosConfig {
             )
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             .set_override_option("logging.level", env::var("TALOS_LOG_LEVEL").ok())
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_override_option(
+                "auth.enabled",
+                env::var("TALOS_AUTH_ENABLED")
+                    .ok()
+                    .and_then(|v| v.parse::<bool>().ok()),
+            )
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_override_option("auth.jwt_secret", env::var("TALOS_JWT_SECRET").ok())
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_override_option("auth.jwt_issuer", env::var("TALOS_JWT_ISSUER").ok())
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_override_option("auth.jwt_audience", env::var("TALOS_JWT_AUDIENCE").ok())
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_override_option(
+                "auth.token_expiration_secs",
+                env::var("TALOS_TOKEN_EXPIRATION_SECS")
+                    .ok()
+                    .and_then(|v| v.parse::<i64>().ok()),
+            )
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?;
 
         let settings = builder
@@ -258,6 +325,13 @@ impl TalosConfig {
                     "logging.level must be one of: trace, debug, info, warn, error. Got '{other}'"
                 )));
             }
+        }
+
+        // Validate auth config (only if enabled)
+        if self.auth.enabled && self.auth.jwt_secret.is_empty() {
+            return Err(LicenseError::ConfigError(
+                "auth.jwt_secret is required when auth.enabled is true".to_string(),
+            ));
         }
 
         Ok(())

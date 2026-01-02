@@ -1,11 +1,8 @@
 use axum::{routing::post, Router};
 
 use crate::server::handlers::{
-    activate_license_handler,
-    deactivate_license_handler,
-    heartbeat_handler,
-    validate_license_handler,
-    AppState,
+    activate_license_handler, deactivate_license_handler, heartbeat_handler,
+    validate_license_handler, AppState,
 };
 
 /// Build the main application router for the Talos server.
