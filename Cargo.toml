@@ -26,8 +26,10 @@ postgres = ["sqlx?/postgres"]
 # JWT authentication for admin API endpoints
 jwt-auth = ["dep:jsonwebtoken", "server"]
 
+# Admin API for license CRUD operations
+admin-api = ["server"]
+
 # Future features (reserved, not yet implemented)
-# admin-api = []
 # background-jobs = ["dep:tokio-cron-scheduler"]
 # quota-tracking = []
 

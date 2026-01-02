@@ -607,7 +607,9 @@ mod tests {
         let config = test_config();
         let validator = JwtValidator::from_config(&config).unwrap();
 
-        let token = validator.create_token("test-user", &["licenses:read"]).unwrap();
+        let token = validator
+            .create_token("test-user", &["licenses:read"])
+            .unwrap();
 
         // Create validator expecting different issuer
         let other_config = AuthConfig {
@@ -625,7 +627,9 @@ mod tests {
         let config = test_config();
         let validator = JwtValidator::from_config(&config).unwrap();
 
-        let token = validator.create_token("test-user", &["licenses:read"]).unwrap();
+        let token = validator
+            .create_token("test-user", &["licenses:read"])
+            .unwrap();
 
         // Create validator expecting different audience
         let other_config = AuthConfig {
