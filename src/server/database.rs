@@ -87,9 +87,7 @@ impl License {
 
     /// Check if the license is valid for use.
     pub fn is_valid(&self) -> bool {
-        self.status == "active"
-            && !self.is_expired()
-            && self.is_blacklisted != Some(true)
+        self.status == "active" && !self.is_expired() && self.is_blacklisted != Some(true)
     }
 }
 
@@ -495,31 +493,29 @@ impl Database {
         match self {
             #[cfg(feature = "sqlite")]
             Database::SQLite(pool) => {
-                let result: (i64,) = query_as(
-                    "SELECT COUNT(*) FROM licenses WHERE license_key = ?",
-                )
-                .bind(license_key)
-                .fetch_one(pool)
-                .await
-                .map_err(|e| {
-                    error!("SQLite license_key_exists failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?;
+                let result: (i64,) =
+                    query_as("SELECT COUNT(*) FROM licenses WHERE license_key = ?")
+                        .bind(license_key)
+                        .fetch_one(pool)
+                        .await
+                        .map_err(|e| {
+                            error!("SQLite license_key_exists failed: {e}");
+                            LicenseError::ServerError(format!("database error: {e}"))
+                        })?;
 
                 Ok(result.0 > 0)
             }
             #[cfg(feature = "postgres")]
             Database::Postgres(pool) => {
-                let result: (i64,) = query_as(
-                    "SELECT COUNT(*) FROM licenses WHERE license_key = $1",
-                )
-                .bind(license_key)
-                .fetch_one(pool)
-                .await
-                .map_err(|e| {
-                    error!("Postgres license_key_exists failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?;
+                let result: (i64,) =
+                    query_as("SELECT COUNT(*) FROM licenses WHERE license_key = $1")
+                        .bind(license_key)
+                        .fetch_one(pool)
+                        .await
+                        .map_err(|e| {
+                            error!("Postgres license_key_exists failed: {e}");
+                            LicenseError::ServerError(format!("database error: {e}"))
+                        })?;
 
                 Ok(result.0 > 0)
             }
@@ -531,29 +527,27 @@ impl Database {
         match self {
             #[cfg(feature = "sqlite")]
             Database::SQLite(pool) => {
-                let licenses =
-                    query_as::<_, License>("SELECT * FROM licenses WHERE org_id = ?")
-                        .bind(org_id)
-                        .fetch_all(pool)
-                        .await
-                        .map_err(|e| {
-                            error!("SQLite list_licenses_by_org failed: {e}");
-                            LicenseError::ServerError(format!("database error: {e}"))
-                        })?;
+                let licenses = query_as::<_, License>("SELECT * FROM licenses WHERE org_id = ?")
+                    .bind(org_id)
+                    .fetch_all(pool)
+                    .await
+                    .map_err(|e| {
+                        error!("SQLite list_licenses_by_org failed: {e}");
+                        LicenseError::ServerError(format!("database error: {e}"))
+                    })?;
 
                 Ok(licenses)
             }
             #[cfg(feature = "postgres")]
             Database::Postgres(pool) => {
-                let licenses =
-                    query_as::<_, License>("SELECT * FROM licenses WHERE org_id = $1")
-                        .bind(org_id)
-                        .fetch_all(pool)
-                        .await
-                        .map_err(|e| {
-                            error!("Postgres list_licenses_by_org failed: {e}");
-                            LicenseError::ServerError(format!("database error: {e}"))
-                        })?;
+                let licenses = query_as::<_, License>("SELECT * FROM licenses WHERE org_id = $1")
+                    .bind(org_id)
+                    .fetch_all(pool)
+                    .await
+                    .map_err(|e| {
+                        error!("Postgres list_licenses_by_org failed: {e}");
+                        LicenseError::ServerError(format!("database error: {e}"))
+                    })?;
 
                 Ok(licenses)
             }

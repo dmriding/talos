@@ -92,22 +92,28 @@ enabled = false
 
 ## Phase 1: Core Admin API (P0 - Critical)
 
-### 1.1 Database Schema Migration
+### 1.1 Database Schema Migration ✅
 
-- [ ] Create new migration file for extended schema
-- [ ] Add `org_id` and `org_name` columns to licenses table (nullable for simple use cases)
-- [ ] Add `license_key` column (configurable `PREFIX-XXXX-XXXX-XXXX` format)
-- [ ] Add `tier` column (nullable, optional for users who don't need tiers)
-- [ ] Change `features` from TEXT to JSONB array
-- [ ] Add hardware binding fields (`hardware_id`, `device_name`, `device_info`, `bound_at`, `last_seen_at`)
-- [ ] Add status lifecycle fields (`status`, `suspended_at`, `revoked_at`, `revoke_reason`, `grace_period_ends_at`, `suspension_message`)
-- [ ] Add bandwidth quota fields - **gated behind `quota-tracking` feature** (`bandwidth_used_bytes`, `bandwidth_limit_bytes`, `quota_exceeded`, `quota_restricted_features`)
-- [ ] Add blacklist fields (`is_blacklisted`, `blacklisted_at`, `blacklist_reason`)
-- [ ] Add `metadata` JSONB column for arbitrary user data (Stripe IDs, custom fields, etc.)
-- [ ] Create indexes on `org_id`, `license_key`, `hardware_id`, `status`, `expires_at`
-- [ ] Create `license_binding_history` table for audit trail (optional, can be disabled)
-- [ ] Create `api_tokens` table for service authentication - **gated behind `jwt-auth` feature**
-- [ ] Write migration rollback script
+- [x] Create new migration file for extended schema
+- [x] Add `org_id` and `org_name` columns to licenses table (nullable for simple use cases)
+- [x] Add `license_key` column (configurable `PREFIX-XXXX-XXXX-XXXX` format)
+- [x] Add `tier` column (nullable, optional for users who don't need tiers)
+- [ ] Change `features` from TEXT to JSONB array *(deferred - current TEXT format works)*
+- [x] Add hardware binding fields (`hardware_id`, `device_name`, `device_info`, `bound_at`, `last_seen_at`)
+- [x] Add status lifecycle fields (`status`, `suspended_at`, `revoked_at`, `revoke_reason`, `grace_period_ends_at`, `suspension_message`)
+- [ ] Add bandwidth quota fields - **gated behind `quota-tracking` feature** (`bandwidth_used_bytes`, `bandwidth_limit_bytes`, `quota_exceeded`, `quota_restricted_features`) *(deferred to quota feature)*
+- [x] Add blacklist fields (`is_blacklisted`, `blacklisted_at`, `blacklist_reason`)
+- [x] Add `metadata` JSONB column for arbitrary user data (Stripe IDs, custom fields, etc.)
+- [x] Create indexes on `org_id`, `license_key`, `hardware_id`, `status`, `expires_at`
+- [x] Create `license_binding_history` table for audit trail (optional, can be disabled)
+- [ ] Create `api_tokens` table for service authentication - **gated behind `jwt-auth` feature** *(deferred to jwt-auth feature)*
+- [ ] Write migration rollback script *(deferred)*
+- [x] Update `License` struct with all new fields
+- [x] Update `insert_license` to handle all 26 fields
+- [x] Add database methods: `get_license_by_key`, `license_key_exists`, `list_licenses_by_org`, `update_license_status`, `bind_license`, `release_license`, `record_binding_history`, `update_last_seen`
+- [x] Add helper methods: `License::is_bound()`, `is_expired()`, `is_in_grace_period()`, `is_valid()`
+- [x] Add `LicenseBindingHistory` struct and `BindingAction`/`PerformedBy` enums
+- [x] Write tests for all new database methods (12 tests)
 
 ### 1.2 License Key Generation
 
