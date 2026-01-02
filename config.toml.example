@@ -1,24 +1,61 @@
 # Talos Configuration
-# Copy this file to config.toml and customize for your environment
+# Copy this file to config.toml and customize for your environment.
+#
+# All settings have sensible defaults. You only need to specify
+# values you want to override.
+#
+# Environment variables take precedence over this file:
+# - TALOS_SERVER_HOST, TALOS_SERVER_PORT
+# - TALOS_DATABASE_URL, TALOS_DATABASE_TYPE
+# - TALOS_LICENSE_KEY_PREFIX
+# - TALOS_LOG_LEVEL, TALOS_LOGGING_ENABLED
 
-# The URL of the license server
-server_url = "http://127.0.0.1:8080"
+# =============================================================================
+# Server Configuration
+# =============================================================================
+[server]
+# Host address to bind to (default: "127.0.0.1")
+host = "127.0.0.1"
 
-# Optional: Heartbeat interval in seconds (default: 60)
+# Port to listen on (default: 8080)
+port = 8080
+
+# Heartbeat interval in seconds (default: 60)
 heartbeat_interval = 60
 
-# Optional: Enable logging (default: false)
-enable_logging = true
+# =============================================================================
+# License Key Configuration
+# =============================================================================
+[license]
+# Prefix for generated license keys (default: "LIC")
+# Example: "LIC" -> "LIC-A1B2-C3D4-E5F6-G7H8"
+key_prefix = "LIC"
 
-# Optional: License metadata (for testing)
-license_id = "LICENSE-12345"
-client_id = "CLIENT-67890"
-expiry_date = "2025-12-31"
-signature = "test-signature"
+# Number of segments in the license key (default: 4)
+key_segments = 4
 
-# === Database Configuration ===
+# Characters per segment (default: 4)
+key_segment_length = 4
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
 [database]
-# Use "sqlite" for development and "postgres" for production
+# Database type: "sqlite" or "postgres" (default: "sqlite")
 db_type = "sqlite"
+
+# SQLite connection URL (used when db_type = "sqlite")
 sqlite_url = "sqlite://talos.db"
-# postgres_url = "postgres://username:password@localhost/talos_db"
+
+# PostgreSQL connection URL (used when db_type = "postgres")
+# postgres_url = "postgres://username:password@localhost/talos"
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+[logging]
+# Enable logging (default: false)
+enabled = true
+
+# Log level: trace, debug, info, warn, error (default: "info")
+level = "info"

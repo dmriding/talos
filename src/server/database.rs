@@ -1,5 +1,4 @@
 use chrono::{NaiveDateTime, Utc};
-use config::Config;
 use sqlx::{query, query_as, FromRow};
 use std::sync::Arc;
 use tracing::error;
@@ -10,6 +9,7 @@ use sqlx::SqlitePool;
 #[cfg(feature = "postgres")]
 use sqlx::PgPool;
 
+use crate::config::get_config;
 use crate::errors::{LicenseError, LicenseResult};
 
 /// Represents a license record stored in the database.
@@ -42,30 +42,18 @@ pub enum Database {
 }
 
 impl Database {
-    /// Initialize the database connection based on `config.toml`.
+    /// Initialize the database connection based on configuration.
     ///
-    /// Reads:
-    /// - `database.db_type`      -> "sqlite" | "postgres"
-    /// - `database.sqlite_url`   -> e.g. "sqlite://talos.db"
-    /// - `database.postgres_url` -> e.g. "postgres://user:pass@localhost/talos"
+    /// Uses the global configuration from `config.toml` and environment variables.
+    /// See `crate::config` for configuration options.
     pub async fn new() -> LicenseResult<Arc<Self>> {
-        let settings = Config::builder()
-            .add_source(config::File::with_name("config"))
-            .build()
-            .map_err(|e| LicenseError::ConfigError(format!("failed to load config: {e}")))?;
+        let config = get_config()?;
+        let db_config = &config.database;
 
-        let db_type: String = settings
-            .get("database.db_type")
-            .map_err(|e| LicenseError::ConfigError(format!("missing database.db_type: {e}")))?;
-
-        match db_type.as_str() {
+        match db_config.db_type.as_str() {
             #[cfg(feature = "sqlite")]
             "sqlite" => {
-                let sqlite_url: String = settings.get("database.sqlite_url").map_err(|e| {
-                    LicenseError::ConfigError(format!("missing database.sqlite_url: {e}"))
-                })?;
-
-                let pool = SqlitePool::connect(&sqlite_url).await.map_err(|e| {
+                let pool = SqlitePool::connect(&db_config.sqlite_url).await.map_err(|e| {
                     error!("Failed to connect to SQLite: {e}");
                     LicenseError::ServerError(format!("failed to connect to SQLite: {e}"))
                 })?;
@@ -78,11 +66,7 @@ impl Database {
             )),
             #[cfg(feature = "postgres")]
             "postgres" => {
-                let postgres_url: String = settings.get("database.postgres_url").map_err(|e| {
-                    LicenseError::ConfigError(format!("missing database.postgres_url: {e}"))
-                })?;
-
-                let pool = PgPool::connect(&postgres_url).await.map_err(|e| {
+                let pool = PgPool::connect(&db_config.postgres_url).await.map_err(|e| {
                     error!("Failed to connect to PostgreSQL: {e}");
                     LicenseError::ServerError(format!("failed to connect to PostgreSQL: {e}"))
                 })?;

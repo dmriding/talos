@@ -53,11 +53,11 @@ Structure the library so advanced features are opt-in:
 
 ### 0.2 Configuration System Enhancement
 
-- [ ] Extend `config.rs` to support all new options
-- [ ] All values should have sensible defaults
-- [ ] Support environment variable overrides for all config
-- [ ] Add configuration validation on startup
-- [ ] Document all configuration options
+- [x] Extend `config.rs` to support all new options
+- [x] All values should have sensible defaults
+- [x] Support environment variable overrides for all config
+- [x] Add configuration validation on startup
+- [x] Document all configuration options
 
 ```toml
 # Example config.toml showing all options with defaults
