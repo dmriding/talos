@@ -17,19 +17,36 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
         .await
         .map_err(|e| LicenseError::ServerError(format!("db connect failed: {e}")))?;
 
-    // Minimal schema matching `server::database::License`
+    // Schema matching `server::database::License` with all extended fields
     sqlx::query(
         r#"
         CREATE TABLE licenses (
             license_id      TEXT PRIMARY KEY,
-            client_id       TEXT NOT NULL,
+            client_id       TEXT,
             status          TEXT NOT NULL,
             features        TEXT,
             issued_at       TEXT NOT NULL,
             expires_at      TEXT,
             hardware_id     TEXT,
             signature       TEXT,
-            last_heartbeat  TEXT
+            last_heartbeat  TEXT,
+            org_id          TEXT,
+            org_name        TEXT,
+            license_key     TEXT UNIQUE,
+            tier            TEXT,
+            device_name     TEXT,
+            device_info     TEXT,
+            bound_at        TEXT,
+            last_seen_at    TEXT,
+            suspended_at    TEXT,
+            revoked_at      TEXT,
+            revoke_reason   TEXT,
+            grace_period_ends_at TEXT,
+            suspension_message TEXT,
+            is_blacklisted  INTEGER DEFAULT 0,
+            blacklisted_at  TEXT,
+            blacklist_reason TEXT,
+            metadata        TEXT
         );
         "#,
     )
@@ -50,7 +67,7 @@ async fn insert_active_license(
 
     let license = License {
         license_id: license_id.to_string(),
-        client_id: client_id.to_string(),
+        client_id: Some(client_id.to_string()),
         status: "active".to_string(),
         features: None,
         issued_at: now,
@@ -58,6 +75,23 @@ async fn insert_active_license(
         hardware_id: None,
         signature: None,
         last_heartbeat: None,
+        org_id: None,
+        org_name: None,
+        license_key: None,
+        tier: None,
+        device_name: None,
+        device_info: None,
+        bound_at: None,
+        last_seen_at: None,
+        suspended_at: None,
+        revoked_at: None,
+        revoke_reason: None,
+        grace_period_ends_at: None,
+        suspension_message: None,
+        is_blacklisted: None,
+        blacklisted_at: None,
+        blacklist_reason: None,
+        metadata: None,
     };
 
     db.insert_license(license).await?;
