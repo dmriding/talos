@@ -22,31 +22,18 @@ jobs:
       fail-fast: false
       matrix:
         language: [actions, rust]
-        include:
-          - language: actions
-            build-mode: none
-          - language: rust
-            build-mode: manual
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
-
-      - name: Install Rust toolchain
-        if: matrix.language == 'rust'
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build Rust
-        if: matrix.language == 'rust'
-        run: cargo build --release
+          build-mode: none
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
