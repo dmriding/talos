@@ -21,10 +21,12 @@
 
 use config::Config;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::env;
 use std::sync::OnceLock;
 
 use crate::errors::{LicenseError, LicenseResult};
+use crate::tiers::TierConfig;
 
 /// Global configuration singleton.
 static CONFIG: OnceLock<TalosConfig> = OnceLock::new();
@@ -43,6 +45,8 @@ pub struct TalosConfig {
     pub logging: LoggingConfig,
     /// JWT authentication configuration (requires "jwt-auth" feature)
     pub auth: AuthConfig,
+    /// Tier configurations (optional, keyed by tier name)
+    pub tiers: HashMap<String, TierConfig>,
 }
 
 /// Server configuration.
@@ -404,4 +408,94 @@ pub fn get_heartbeat_interval() -> u64 {
 /// Check whether logging is enabled.
 pub fn is_logging_enabled() -> bool {
     get_config().map(|c| c.logging.enabled).unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_config() -> TalosConfig {
+        TalosConfig::default()
+    }
+
+    #[test]
+    fn default_config_is_valid() {
+        let config = default_config();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn validates_port_not_zero() {
+        let mut config = default_config();
+        config.server.port = 0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("port"));
+    }
+
+    #[test]
+    fn validates_database_type() {
+        let mut config = default_config();
+        config.database.db_type = "invalid".to_string();
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("db_type"));
+    }
+
+    #[test]
+    fn validates_log_level() {
+        let mut config = default_config();
+        config.logging.level = "invalid".to_string();
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("logging.level"));
+    }
+
+    #[test]
+    fn validates_jwt_secret_required_when_auth_enabled() {
+        let mut config = default_config();
+        config.auth.enabled = true;
+        config.auth.jwt_secret = String::new(); // Empty secret
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("jwt_secret"));
+    }
+
+    #[test]
+    fn validates_jwt_secret_not_required_when_auth_disabled() {
+        let mut config = default_config();
+        config.auth.enabled = false;
+        config.auth.jwt_secret = String::new(); // Empty secret is OK
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn validates_license_key_prefix_not_empty() {
+        let mut config = default_config();
+        config.license.key_prefix = String::new();
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("key_prefix"));
+    }
+
+    #[test]
+    fn validates_license_key_segments_not_zero() {
+        let mut config = default_config();
+        config.license.key_segments = 0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("key_segments"));
+    }
+
+    #[test]
+    fn validates_license_key_segment_length_not_zero() {
+        let mut config = default_config();
+        config.license.key_segment_length = 0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("key_segment_length"));
+    }
 }

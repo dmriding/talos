@@ -569,4 +569,72 @@ mod tests {
         assert!(user.require_scope("licenses:read").is_ok());
         assert!(user.require_scope("licenses:write").is_err());
     }
+
+    #[test]
+    fn reject_expired_token() {
+        let config = test_config();
+        let validator = JwtValidator::from_config(&config).unwrap();
+
+        // Manually create a token with an expired timestamp (1 hour in the past)
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let expired_claims = Claims {
+            sub: "test-user".to_string(),
+            iat: now - 7200, // 2 hours ago
+            exp: now - 3600, // 1 hour ago (expired)
+            iss: config.jwt_issuer.clone(),
+            aud: config.jwt_audience.clone(),
+            scope: "licenses:read".to_string(),
+        };
+
+        let token = encode(
+            &Header::default(),
+            &expired_claims,
+            &EncodingKey::from_secret(config.jwt_secret.as_bytes()),
+        )
+        .unwrap();
+
+        // Token should be rejected as expired
+        let result = validator.validate_token(&token);
+        assert!(matches!(result, Err(AuthError::TokenExpired)));
+    }
+
+    #[test]
+    fn reject_wrong_issuer() {
+        let config = test_config();
+        let validator = JwtValidator::from_config(&config).unwrap();
+
+        let token = validator.create_token("test-user", &["licenses:read"]).unwrap();
+
+        // Create validator expecting different issuer
+        let other_config = AuthConfig {
+            jwt_issuer: "other-issuer".to_string(),
+            ..test_config()
+        };
+        let other_validator = JwtValidator::from_config(&other_config).unwrap();
+
+        let result = other_validator.validate_token(&token);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn reject_wrong_audience() {
+        let config = test_config();
+        let validator = JwtValidator::from_config(&config).unwrap();
+
+        let token = validator.create_token("test-user", &["licenses:read"]).unwrap();
+
+        // Create validator expecting different audience
+        let other_config = AuthConfig {
+            jwt_audience: "other-audience".to_string(),
+            ..test_config()
+        };
+        let other_validator = JwtValidator::from_config(&other_config).unwrap();
+
+        let result = other_validator.validate_token(&token);
+        assert!(result.is_err());
+    }
 }

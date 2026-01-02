@@ -160,19 +160,21 @@ let key = generate_license_key(&config); // "KERYX-A1B2-C3D4-E5F6-G7H8"
 - [x] Write unit tests for JWT validation (11 tests)
 - [ ] Write integration tests for protected endpoints *(deferred to Phase 1.5 when endpoints exist)*
 
-### 1.4 Tier Configuration System
+### 1.4 Tier Configuration System ✅
 
 **Optional feature** - users can ignore tiers entirely if they don't need them.
 
-- [ ] Create `src/tiers.rs` module
-- [ ] Define `TierConfig` struct with `name`, `features`, `bandwidth_gb` (all optional)
-- [ ] Allow tiers to be defined via config file (not hardcoded)
-- [ ] Provide sensible example tiers in documentation
-- [ ] Implement `get_tier_config(tier_name)` function
-- [ ] Implement `get_bandwidth_limit_bytes(tier_name)` function (returns None if quota-tracking disabled)
-- [ ] Implement `get_tier_features(tier_name)` function
-- [ ] **Tiers are optional**: If no tier specified on license, skip tier-based logic
-- [ ] Write unit tests for tier lookups
+- [x] Create `src/tiers.rs` module
+- [x] Define `TierConfig` struct with `features`, `bandwidth_gb` fields
+- [x] Define `Tier` wrapper struct with `name` and helper methods
+- [x] Allow tiers to be defined via config file (not hardcoded)
+- [x] Add `tiers: HashMap<String, TierConfig>` to `TalosConfig`
+- [x] Implement `get_tier_config(tier_name)` function
+- [x] Implement `get_bandwidth_limit_bytes(tier_name)` function (returns None if unlimited or missing)
+- [x] Implement `get_tier_features(tier_name)` function
+- [x] Implement helper functions: `tier_exists()`, `tier_has_feature()`, `get_all_tier_names()`, `get_all_tiers()`
+- [x] **Tiers are optional**: If no tier specified on license, functions return None/empty
+- [x] Write unit tests for tier lookups (4 tests)
 
 ```toml
 # Example config - users define their own tiers

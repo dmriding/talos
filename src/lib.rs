@@ -27,6 +27,7 @@ pub mod encryption;
 pub mod errors;
 pub mod hardware;
 pub mod license_key;
+pub mod tiers;
 
 // Client-related modules (always available)
 pub mod client {
