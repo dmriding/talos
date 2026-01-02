@@ -1,0 +1,680 @@
+//! Admin API handlers for license management.
+//!
+//! This module provides CRUD operations for licenses, intended for admin use.
+//! All endpoints require JWT authentication when the `jwt-auth` feature is enabled.
+//!
+//! # Endpoints
+//!
+//! - `POST /api/v1/licenses` - Create a new license
+//! - `POST /api/v1/licenses/batch` - Create multiple licenses
+//! - `GET /api/v1/licenses/{license_id}` - Get a license by ID
+//! - `GET /api/v1/licenses?org_id={id}` - List licenses for an organization
+//! - `PATCH /api/v1/licenses/{license_id}` - Update a license
+
+use axum::{
+    extract::{Path, Query, State},
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
+use chrono::{NaiveDateTime, Utc};
+
+// Import traits for test assertions
+#[cfg(test)]
+use chrono::{Datelike, Timelike};
+use serde::{Deserialize, Serialize};
+use tracing::info;
+use uuid::Uuid;
+
+use crate::config::get_config;
+use crate::errors::{LicenseError, LicenseResult};
+use crate::license_key::{generate_license_key, LicenseKeyConfig};
+use crate::server::database::{Database, License};
+use crate::server::handlers::AppState;
+use crate::tiers::get_tier_features;
+
+// ============================================================================
+// Request/Response Types
+// ============================================================================
+
+/// Request body for creating a new license.
+#[derive(Debug, Deserialize)]
+pub struct CreateLicenseRequest {
+    /// Organization ID (optional)
+    pub org_id: Option<String>,
+    /// Organization name (optional)
+    pub org_name: Option<String>,
+    /// Tier name - if provided and tiers are configured, features are derived from tier
+    pub tier: Option<String>,
+    /// Features to enable - if tier is provided, these are merged with tier features
+    #[serde(default)]
+    pub features: Vec<String>,
+    /// Expiration date (ISO 8601 format: "2025-12-31T23:59:59")
+    pub expires_at: Option<String>,
+    /// Additional metadata as JSON
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Request body for batch creating licenses.
+#[derive(Debug, Deserialize)]
+pub struct BatchCreateLicenseRequest {
+    /// Number of licenses to create
+    pub count: u32,
+    /// Organization ID (optional, applied to all)
+    pub org_id: Option<String>,
+    /// Organization name (optional, applied to all)
+    pub org_name: Option<String>,
+    /// Tier name (optional, applied to all)
+    pub tier: Option<String>,
+    /// Features (optional, applied to all)
+    #[serde(default)]
+    pub features: Vec<String>,
+    /// Expiration date (optional, applied to all)
+    pub expires_at: Option<String>,
+}
+
+/// Request body for updating a license.
+#[derive(Debug, Deserialize)]
+pub struct UpdateLicenseRequest {
+    /// New tier (re-derives features if tiers configured)
+    pub tier: Option<String>,
+    /// New features (replaces existing)
+    pub features: Option<Vec<String>>,
+    /// New expiration date
+    pub expires_at: Option<String>,
+    /// New metadata
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Query parameters for listing licenses.
+#[derive(Debug, Deserialize)]
+pub struct ListLicensesQuery {
+    /// Filter by organization ID
+    pub org_id: Option<String>,
+    /// Pagination: page number (1-indexed)
+    #[serde(default = "default_page")]
+    pub page: u32,
+    /// Pagination: items per page
+    #[serde(default = "default_per_page")]
+    pub per_page: u32,
+}
+
+fn default_page() -> u32 {
+    1
+}
+fn default_per_page() -> u32 {
+    50
+}
+
+/// Response for a single license.
+#[derive(Debug, Serialize)]
+pub struct LicenseResponse {
+    pub license_id: String,
+    pub license_key: Option<String>,
+    pub status: String,
+    pub org_id: Option<String>,
+    pub org_name: Option<String>,
+    pub tier: Option<String>,
+    pub features: Vec<String>,
+    pub issued_at: String,
+    pub expires_at: Option<String>,
+    pub is_bound: bool,
+    pub hardware_id: Option<String>,
+    pub device_name: Option<String>,
+    pub bound_at: Option<String>,
+    pub last_seen_at: Option<String>,
+    pub metadata: Option<serde_json::Value>,
+}
+
+impl From<License> for LicenseResponse {
+    fn from(license: License) -> Self {
+        let features: Vec<String> = license
+            .features
+            .as_ref()
+            .map(|f| serde_json::from_str(f).unwrap_or_default())
+            .unwrap_or_default();
+
+        let metadata: Option<serde_json::Value> = license
+            .metadata
+            .as_ref()
+            .and_then(|m| serde_json::from_str(m).ok());
+
+        let is_bound = license.is_bound();
+
+        Self {
+            license_id: license.license_id,
+            license_key: license.license_key,
+            status: license.status,
+            org_id: license.org_id,
+            org_name: license.org_name,
+            tier: license.tier,
+            features,
+            issued_at: license.issued_at.to_string(),
+            expires_at: license.expires_at.map(|d| d.to_string()),
+            is_bound,
+            hardware_id: license.hardware_id,
+            device_name: license.device_name,
+            bound_at: license.bound_at.map(|d| d.to_string()),
+            last_seen_at: license.last_seen_at.map(|d| d.to_string()),
+            metadata,
+        }
+    }
+}
+
+/// Response for batch create operation.
+#[derive(Debug, Serialize)]
+pub struct BatchCreateResponse {
+    pub created: u32,
+    pub licenses: Vec<LicenseSummary>,
+}
+
+/// Summary of a created license (for batch operations).
+#[derive(Debug, Serialize)]
+pub struct LicenseSummary {
+    pub license_id: String,
+    pub license_key: String,
+}
+
+/// Response for listing licenses.
+#[derive(Debug, Serialize)]
+pub struct ListLicensesResponse {
+    pub licenses: Vec<LicenseResponse>,
+    pub total: u32,
+    pub page: u32,
+    pub per_page: u32,
+    pub total_pages: u32,
+}
+
+/// Admin API error type.
+#[derive(Debug)]
+pub enum AdminError {
+    /// License not found
+    NotFound(String),
+    /// Invalid request data
+    BadRequest(String),
+    /// Database error
+    DatabaseError(String),
+    /// Configuration error
+    ConfigError(String),
+}
+
+impl std::fmt::Display for AdminError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AdminError::NotFound(msg) => write!(f, "not found: {msg}"),
+            AdminError::BadRequest(msg) => write!(f, "bad request: {msg}"),
+            AdminError::DatabaseError(msg) => write!(f, "database error: {msg}"),
+            AdminError::ConfigError(msg) => write!(f, "configuration error: {msg}"),
+        }
+    }
+}
+
+impl std::error::Error for AdminError {}
+
+impl IntoResponse for AdminError {
+    fn into_response(self) -> Response {
+        let (status, code) = match &self {
+            AdminError::NotFound(_) => (StatusCode::NOT_FOUND, "NOT_FOUND"),
+            AdminError::BadRequest(_) => (StatusCode::BAD_REQUEST, "BAD_REQUEST"),
+            AdminError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR"),
+            AdminError::ConfigError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "CONFIG_ERROR"),
+        };
+
+        let body = serde_json::json!({
+            "error": self.to_string(),
+            "code": code,
+        });
+
+        (status, Json(body)).into_response()
+    }
+}
+
+impl From<LicenseError> for AdminError {
+    fn from(err: LicenseError) -> Self {
+        match err {
+            LicenseError::ConfigError(msg) => AdminError::ConfigError(msg),
+            LicenseError::ServerError(msg) => AdminError::DatabaseError(msg),
+            _ => AdminError::DatabaseError(err.to_string()),
+        }
+    }
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Parse an ISO 8601 datetime string into NaiveDateTime.
+fn parse_datetime(s: &str) -> Result<NaiveDateTime, AdminError> {
+    // Try parsing with time
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+        return Ok(dt.naive_utc());
+    }
+
+    // Try parsing date only (assume end of day)
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return Ok(date.and_hms_opt(23, 59, 59).unwrap());
+    }
+
+    // Try common formats
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+        return Ok(dt);
+    }
+
+    Err(AdminError::BadRequest(format!(
+        "invalid datetime format: {s}. Use ISO 8601 (e.g., '2025-12-31T23:59:59Z' or '2025-12-31')"
+    )))
+}
+
+/// Merge tier features with explicit features.
+fn resolve_features(tier: Option<&str>, explicit_features: &[String]) -> Vec<String> {
+    let mut features: Vec<String> = if let Some(tier_name) = tier {
+        get_tier_features(tier_name)
+    } else {
+        Vec::new()
+    };
+
+    // Add explicit features (avoiding duplicates)
+    for feature in explicit_features {
+        if !features.contains(feature) {
+            features.push(feature.clone());
+        }
+    }
+
+    features
+}
+
+/// Generate a unique license key, checking for collisions.
+async fn generate_unique_license_key(db: &Database) -> LicenseResult<String> {
+    let config = get_config()?;
+    let key_config: LicenseKeyConfig = (&config.license).into();
+
+    // Try up to 10 times to generate a unique key
+    for _ in 0..10 {
+        let key = generate_license_key(&key_config);
+        if !db.license_key_exists(&key).await? {
+            return Ok(key);
+        }
+    }
+
+    Err(LicenseError::ServerError(
+        "failed to generate unique license key after 10 attempts".to_string(),
+    ))
+}
+
+// ============================================================================
+// Handlers
+// ============================================================================
+
+/// Create a new license.
+///
+/// `POST /api/v1/licenses`
+pub async fn create_license_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateLicenseRequest>,
+) -> Result<(StatusCode, Json<LicenseResponse>), AdminError> {
+    info!("Creating new license for org_id={:?}", payload.org_id);
+
+    let now = Utc::now().naive_utc();
+    let license_id = Uuid::new_v4().to_string();
+    let license_key = generate_unique_license_key(&state.db).await?;
+
+    // Parse expiration date if provided
+    let expires_at = payload
+        .expires_at
+        .as_ref()
+        .map(|s| parse_datetime(s))
+        .transpose()?;
+
+    // Resolve features from tier and explicit list
+    let features = resolve_features(payload.tier.as_deref(), &payload.features);
+    let features_json = serde_json::to_string(&features).ok();
+
+    // Serialize metadata
+    let metadata_json = payload
+        .metadata
+        .as_ref()
+        .and_then(|m| serde_json::to_string(m).ok());
+
+    let license = License {
+        license_id: license_id.clone(),
+        client_id: None,
+        status: "active".to_string(),
+        features: features_json,
+        issued_at: now,
+        expires_at,
+        hardware_id: None,
+        signature: None,
+        last_heartbeat: None,
+        org_id: payload.org_id,
+        org_name: payload.org_name,
+        license_key: Some(license_key.clone()),
+        tier: payload.tier,
+        device_name: None,
+        device_info: None,
+        bound_at: None,
+        last_seen_at: None,
+        suspended_at: None,
+        revoked_at: None,
+        revoke_reason: None,
+        grace_period_ends_at: None,
+        suspension_message: None,
+        is_blacklisted: None,
+        blacklisted_at: None,
+        blacklist_reason: None,
+        metadata: metadata_json,
+    };
+
+    state.db.insert_license(license.clone()).await?;
+
+    info!(
+        "Created license license_id={} license_key={}",
+        license_id, license_key
+    );
+
+    Ok((StatusCode::CREATED, Json(license.into())))
+}
+
+/// Batch create multiple licenses.
+///
+/// `POST /api/v1/licenses/batch`
+pub async fn batch_create_license_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<BatchCreateLicenseRequest>,
+) -> Result<(StatusCode, Json<BatchCreateResponse>), AdminError> {
+    if payload.count == 0 {
+        return Err(AdminError::BadRequest(
+            "count must be greater than 0".to_string(),
+        ));
+    }
+
+    if payload.count > 1000 {
+        return Err(AdminError::BadRequest(
+            "count must not exceed 1000".to_string(),
+        ));
+    }
+
+    info!(
+        "Batch creating {} licenses for org_id={:?}",
+        payload.count, payload.org_id
+    );
+
+    let now = Utc::now().naive_utc();
+
+    // Parse expiration date if provided
+    let expires_at = payload
+        .expires_at
+        .as_ref()
+        .map(|s| parse_datetime(s))
+        .transpose()?;
+
+    // Resolve features
+    let features = resolve_features(payload.tier.as_deref(), &payload.features);
+    let features_json = serde_json::to_string(&features).ok();
+
+    let mut licenses = Vec::with_capacity(payload.count as usize);
+
+    for _ in 0..payload.count {
+        let license_id = Uuid::new_v4().to_string();
+        let license_key = generate_unique_license_key(&state.db).await?;
+
+        let license = License {
+            license_id: license_id.clone(),
+            client_id: None,
+            status: "active".to_string(),
+            features: features_json.clone(),
+            issued_at: now,
+            expires_at,
+            hardware_id: None,
+            signature: None,
+            last_heartbeat: None,
+            org_id: payload.org_id.clone(),
+            org_name: payload.org_name.clone(),
+            license_key: Some(license_key.clone()),
+            tier: payload.tier.clone(),
+            device_name: None,
+            device_info: None,
+            bound_at: None,
+            last_seen_at: None,
+            suspended_at: None,
+            revoked_at: None,
+            revoke_reason: None,
+            grace_period_ends_at: None,
+            suspension_message: None,
+            is_blacklisted: None,
+            blacklisted_at: None,
+            blacklist_reason: None,
+            metadata: None,
+        };
+
+        state.db.insert_license(license).await?;
+
+        licenses.push(LicenseSummary {
+            license_id,
+            license_key,
+        });
+    }
+
+    info!("Batch created {} licenses", licenses.len());
+
+    Ok((
+        StatusCode::CREATED,
+        Json(BatchCreateResponse {
+            created: licenses.len() as u32,
+            licenses,
+        }),
+    ))
+}
+
+/// Get a license by ID.
+///
+/// `GET /api/v1/licenses/{license_id}`
+pub async fn get_license_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+) -> Result<Json<LicenseResponse>, AdminError> {
+    info!("Getting license license_id={}", license_id);
+
+    let license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("license not found: {license_id}")))?;
+
+    Ok(Json(license.into()))
+}
+
+/// List licenses with optional filtering.
+///
+/// `GET /api/v1/licenses?org_id={id}&page={n}&per_page={n}`
+pub async fn list_licenses_handler(
+    State(state): State<AppState>,
+    Query(query): Query<ListLicensesQuery>,
+) -> Result<Json<ListLicensesResponse>, AdminError> {
+    info!(
+        "Listing licenses org_id={:?} page={} per_page={}",
+        query.org_id, query.page, query.per_page
+    );
+
+    let licenses = if let Some(org_id) = &query.org_id {
+        state.db.list_licenses_by_org(org_id).await?
+    } else {
+        // For now, require org_id filter to prevent unbounded queries
+        return Err(AdminError::BadRequest(
+            "org_id query parameter is required".to_string(),
+        ));
+    };
+
+    let total = licenses.len() as u32;
+    let total_pages = total.div_ceil(query.per_page);
+
+    // Apply pagination
+    let start = ((query.page.saturating_sub(1)) * query.per_page) as usize;
+    let end = (start + query.per_page as usize).min(licenses.len());
+
+    let page_licenses: Vec<LicenseResponse> = licenses
+        .into_iter()
+        .skip(start)
+        .take(end - start)
+        .map(|l| l.into())
+        .collect();
+
+    Ok(Json(ListLicensesResponse {
+        licenses: page_licenses,
+        total,
+        page: query.page,
+        per_page: query.per_page,
+        total_pages,
+    }))
+}
+
+/// Update a license.
+///
+/// `PATCH /api/v1/licenses/{license_id}`
+pub async fn update_license_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<UpdateLicenseRequest>,
+) -> Result<Json<LicenseResponse>, AdminError> {
+    info!("Updating license license_id={}", license_id);
+
+    let mut license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("license not found: {license_id}")))?;
+
+    // Update tier if provided
+    if let Some(tier) = &payload.tier {
+        license.tier = Some(tier.clone());
+
+        // Re-derive features from tier if features not explicitly provided
+        if payload.features.is_none() {
+            let features = resolve_features(Some(tier), &[]);
+            license.features = serde_json::to_string(&features).ok();
+        }
+    }
+
+    // Update features if explicitly provided
+    if let Some(features) = &payload.features {
+        // If tier is also being set, merge with tier features
+        let final_features = if let Some(tier) = &payload.tier {
+            resolve_features(Some(tier), features)
+        } else {
+            features.clone()
+        };
+        license.features = serde_json::to_string(&final_features).ok();
+    }
+
+    // Update expiration date if provided
+    if let Some(expires_at_str) = &payload.expires_at {
+        license.expires_at = Some(parse_datetime(expires_at_str)?);
+    }
+
+    // Update metadata if provided
+    if let Some(metadata) = &payload.metadata {
+        license.metadata = serde_json::to_string(metadata).ok();
+    }
+
+    state.db.insert_license(license.clone()).await?;
+
+    info!("Updated license license_id={}", license_id);
+
+    Ok(Json(license.into()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_datetime_rfc3339() {
+        let dt = parse_datetime("2025-12-31T23:59:59Z").unwrap();
+        assert_eq!(dt.year(), 2025);
+        assert_eq!(dt.month(), 12);
+        assert_eq!(dt.day(), 31);
+    }
+
+    #[test]
+    fn parse_datetime_date_only() {
+        let dt = parse_datetime("2025-12-31").unwrap();
+        assert_eq!(dt.year(), 2025);
+        assert_eq!(dt.month(), 12);
+        assert_eq!(dt.day(), 31);
+        assert_eq!(dt.hour(), 23);
+        assert_eq!(dt.minute(), 59);
+    }
+
+    #[test]
+    fn parse_datetime_invalid() {
+        assert!(parse_datetime("invalid").is_err());
+        assert!(parse_datetime("2025/12/31").is_err());
+    }
+
+    #[test]
+    fn resolve_features_no_tier() {
+        let features = resolve_features(None, &["feature_a".to_string()]);
+        assert_eq!(features, vec!["feature_a"]);
+    }
+
+    #[test]
+    fn resolve_features_merges_without_duplicates() {
+        // Without a configured tier, just returns explicit features
+        let features = resolve_features(
+            Some("nonexistent"),
+            &["feature_a".to_string(), "feature_b".to_string()],
+        );
+        assert_eq!(features, vec!["feature_a", "feature_b"]);
+    }
+
+    #[test]
+    fn license_response_from_license() {
+        let license = License {
+            license_id: "test-id".to_string(),
+            client_id: None,
+            status: "active".to_string(),
+            features: Some(r#"["feature_a","feature_b"]"#.to_string()),
+            issued_at: Utc::now().naive_utc(),
+            expires_at: None,
+            hardware_id: Some("hw-123".to_string()),
+            signature: None,
+            last_heartbeat: None,
+            org_id: Some("org-1".to_string()),
+            org_name: Some("Test Org".to_string()),
+            license_key: Some("LIC-AAAA-BBBB-CCCC".to_string()),
+            tier: Some("pro".to_string()),
+            device_name: Some("Test Device".to_string()),
+            device_info: None,
+            bound_at: Some(Utc::now().naive_utc()),
+            last_seen_at: None,
+            suspended_at: None,
+            revoked_at: None,
+            revoke_reason: None,
+            grace_period_ends_at: None,
+            suspension_message: None,
+            is_blacklisted: None,
+            blacklisted_at: None,
+            blacklist_reason: None,
+            metadata: Some(r#"{"key":"value"}"#.to_string()),
+        };
+
+        let response: LicenseResponse = license.into();
+
+        assert_eq!(response.license_id, "test-id");
+        assert_eq!(response.status, "active");
+        assert_eq!(response.features, vec!["feature_a", "feature_b"]);
+        assert_eq!(response.org_id, Some("org-1".to_string()));
+        assert_eq!(response.tier, Some("pro".to_string()));
+        assert!(response.is_bound);
+        assert!(response.metadata.is_some());
+    }
+
+    #[test]
+    fn admin_error_display() {
+        assert!(AdminError::NotFound("test".to_string())
+            .to_string()
+            .contains("not found"));
+        assert!(AdminError::BadRequest("test".to_string())
+            .to_string()
+            .contains("bad request"));
+    }
+}

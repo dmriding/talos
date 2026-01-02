@@ -107,7 +107,7 @@ pub async fn activate_license_handler(
 
     let license = License {
         license_id: payload.license_id.clone(),
-        client_id: payload.client_id.clone(),
+        client_id: Some(payload.client_id.clone()),
         status: "active".to_string(),
         features: None,
         issued_at: now,
@@ -115,6 +115,24 @@ pub async fn activate_license_handler(
         hardware_id: None,
         signature: None,
         last_heartbeat: Some(now),
+        // Extended fields (all optional, default to None)
+        org_id: None,
+        org_name: None,
+        license_key: None,
+        tier: None,
+        device_name: None,
+        device_info: None,
+        bound_at: None,
+        last_seen_at: None,
+        suspended_at: None,
+        revoked_at: None,
+        revoke_reason: None,
+        grace_period_ends_at: None,
+        suspension_message: None,
+        is_blacklisted: None,
+        blacklisted_at: None,
+        blacklist_reason: None,
+        metadata: None,
     };
 
     state.db.insert_license(license).await?;
@@ -143,9 +161,9 @@ pub async fn validate_license_handler(
 
     let success = match license_opt {
         Some(license) => {
-            if license.client_id != payload.client_id {
+            if license.client_id.as_deref() != Some(payload.client_id.as_str()) {
                 warn!(
-                    "Client ID mismatch for license_id={} (expected={}, got={})",
+                    "Client ID mismatch for license_id={} (expected={:?}, got={})",
                     payload.license_id, license.client_id, payload.client_id
                 );
                 false
@@ -188,7 +206,7 @@ pub async fn deactivate_license_handler(
     let license_opt = state.db.get_license(&payload.license_id).await?;
 
     let success = if let Some(mut license) = license_opt {
-        if license.client_id == payload.client_id {
+        if license.client_id.as_deref() == Some(payload.client_id.as_str()) {
             license.status = "inactive".to_string();
             state.db.insert_license(license).await?;
             info!(
@@ -198,7 +216,7 @@ pub async fn deactivate_license_handler(
             true
         } else {
             warn!(
-                "Client ID mismatch during deactivation for license_id={} (expected={}, got={})",
+                "Client ID mismatch during deactivation for license_id={} (expected={:?}, got={})",
                 payload.license_id, license.client_id, payload.client_id
             );
             false

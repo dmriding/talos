@@ -22,19 +22,36 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
         .await
         .map_err(|e| talos::errors::LicenseError::ServerError(format!("db connect failed: {e}")))?;
 
-    // Minimal schema matching `server::database::License`
+    // Schema matching `server::database::License` with all extended fields
     sqlx::query(
         r#"
         CREATE TABLE licenses (
             license_id      TEXT PRIMARY KEY,
-            client_id       TEXT NOT NULL,
+            client_id       TEXT,
             status          TEXT NOT NULL,
             features        TEXT,
             issued_at       TEXT NOT NULL,
             expires_at      TEXT,
             hardware_id     TEXT,
             signature       TEXT,
-            last_heartbeat  TEXT
+            last_heartbeat  TEXT,
+            org_id          TEXT,
+            org_name        TEXT,
+            license_key     TEXT UNIQUE,
+            tier            TEXT,
+            device_name     TEXT,
+            device_info     TEXT,
+            bound_at        TEXT,
+            last_seen_at    TEXT,
+            suspended_at    TEXT,
+            revoked_at      TEXT,
+            revoke_reason   TEXT,
+            grace_period_ends_at TEXT,
+            suspension_message TEXT,
+            is_blacklisted  INTEGER DEFAULT 0,
+            blacklisted_at  TEXT,
+            blacklist_reason TEXT,
+            metadata        TEXT
         );
         "#,
     )

@@ -26,6 +26,8 @@ pub mod config;
 pub mod encryption;
 pub mod errors;
 pub mod hardware;
+pub mod license_key;
+pub mod tiers;
 
 // Client-related modules (always available)
 pub mod client {
@@ -40,8 +42,5 @@ pub mod client {
 
 // Server-related modules (requires "server" feature)
 #[cfg(feature = "server")]
-pub mod server {
-    pub mod database;
-    pub mod handlers;
-    pub mod server_sim;
-}
+#[path = "server/mod.rs"]
+pub mod server;

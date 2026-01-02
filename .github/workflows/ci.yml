@@ -36,6 +36,9 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
 
+      - name: Run tests with all features
+        run: cargo test --verbose --features "admin-api,jwt-auth"
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -60,6 +63,9 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy -- -D warnings
+
+      - name: Run Clippy with all features
+        run: cargo clippy --features "admin-api,jwt-auth" -- -D warnings
 
   fmt:
     name: Format

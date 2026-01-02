@@ -41,9 +41,7 @@ fn heartbeat_interval_has_sane_default() {
 
 #[test]
 fn logging_is_disabled_by_default() {
-    // Unless explicitly enabled in config.toml, this should be false.
-    let logging_enabled = is_logging_enabled();
-    assert!(!logging_enabled || logging_enabled == true);
-    // In practice, default is false; we don't hard-fail if the user
-    // enables it in their dev config.toml.
+    // Verify the function returns without panicking.
+    // The actual value depends on config.toml, so we don't assert a specific value.
+    let _logging_enabled = is_logging_enabled();
 }

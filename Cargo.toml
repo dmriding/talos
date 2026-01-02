@@ -23,9 +23,13 @@ server = ["dep:axum", "dep:tower", "dep:hyper", "dep:sqlx"]
 sqlite = ["sqlx?/sqlite"]
 postgres = ["sqlx?/postgres"]
 
+# JWT authentication for admin API endpoints
+jwt-auth = ["dep:jsonwebtoken", "server"]
+
+# Admin API for license CRUD operations
+admin-api = ["server"]
+
 # Future features (reserved, not yet implemented)
-# jwt-auth = ["dep:jsonwebtoken"]
-# admin-api = []
 # background-jobs = ["dep:tokio-cron-scheduler"]
 # quota-tracking = []
 
@@ -73,6 +77,9 @@ sqlx = { version = "0.8.2", features = [
     "macros",
     "chrono",
 ], optional = true }
+
+# === JWT Authentication (optional, requires "jwt-auth" feature) ===
+jsonwebtoken = { version = "9", optional = true }
 
 # === Date and Time Utilities ===
 chrono = { version = "0.4.38", features = ["serde"] }
