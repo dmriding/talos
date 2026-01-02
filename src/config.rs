@@ -158,10 +158,7 @@ impl TalosConfig {
             // Load from config.toml (optional)
             .add_source(config::File::with_name("config").required(false))
             // Override with environment variables
-            .set_override_option(
-                "server.host",
-                env::var("TALOS_SERVER_HOST").ok(),
-            )
+            .set_override_option("server.host", env::var("TALOS_SERVER_HOST").ok())
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             .set_override_option(
                 "server.port",
@@ -182,10 +179,7 @@ impl TalosConfig {
                 env::var("TALOS_LICENSE_KEY_PREFIX").ok(),
             )
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
-            .set_override_option(
-                "database.db_type",
-                env::var("TALOS_DATABASE_TYPE").ok(),
-            )
+            .set_override_option("database.db_type", env::var("TALOS_DATABASE_TYPE").ok())
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             .set_override_option(
                 "database.sqlite_url",
@@ -208,10 +202,7 @@ impl TalosConfig {
                     .and_then(|v| v.parse::<bool>().ok()),
             )
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
-            .set_override_option(
-                "logging.level",
-                env::var("TALOS_LOG_LEVEL").ok(),
-            )
+            .set_override_option("logging.level", env::var("TALOS_LOG_LEVEL").ok())
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?;
 
         let settings = builder
@@ -338,7 +329,5 @@ pub fn get_heartbeat_interval() -> u64 {
 
 /// Check whether logging is enabled.
 pub fn is_logging_enabled() -> bool {
-    get_config()
-        .map(|c| c.logging.enabled)
-        .unwrap_or(false)
+    get_config().map(|c| c.logging.enabled).unwrap_or(false)
 }

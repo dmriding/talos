@@ -53,10 +53,12 @@ impl Database {
         match db_config.db_type.as_str() {
             #[cfg(feature = "sqlite")]
             "sqlite" => {
-                let pool = SqlitePool::connect(&db_config.sqlite_url).await.map_err(|e| {
-                    error!("Failed to connect to SQLite: {e}");
-                    LicenseError::ServerError(format!("failed to connect to SQLite: {e}"))
-                })?;
+                let pool = SqlitePool::connect(&db_config.sqlite_url)
+                    .await
+                    .map_err(|e| {
+                        error!("Failed to connect to SQLite: {e}");
+                        LicenseError::ServerError(format!("failed to connect to SQLite: {e}"))
+                    })?;
 
                 Ok(Arc::new(Database::SQLite(pool)))
             }
@@ -66,10 +68,12 @@ impl Database {
             )),
             #[cfg(feature = "postgres")]
             "postgres" => {
-                let pool = PgPool::connect(&db_config.postgres_url).await.map_err(|e| {
-                    error!("Failed to connect to PostgreSQL: {e}");
-                    LicenseError::ServerError(format!("failed to connect to PostgreSQL: {e}"))
-                })?;
+                let pool = PgPool::connect(&db_config.postgres_url)
+                    .await
+                    .map_err(|e| {
+                        error!("Failed to connect to PostgreSQL: {e}");
+                        LicenseError::ServerError(format!("failed to connect to PostgreSQL: {e}"))
+                    })?;
 
                 Ok(Arc::new(Database::Postgres(pool)))
             }
