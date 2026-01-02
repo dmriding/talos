@@ -14,14 +14,10 @@ permissions:
   actions: read
 
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
+  # Analyze GitHub Actions workflows
+  analyze-actions:
+    name: Analyze (actions)
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [actions, rust]
 
     steps:
       - name: Checkout repository
@@ -30,10 +26,32 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
+          languages: actions
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:actions"
+
+  # Analyze Rust code
+  # Note: Rust support requires CodeQL 2.23.3+ and GHES 3.20+
+  # If this fails, your GitHub instance may not support Rust scanning yet
+  analyze-rust:
+    name: Analyze (rust)
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail the whole workflow if Rust scanning isn't available
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: rust
           build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:rust"
