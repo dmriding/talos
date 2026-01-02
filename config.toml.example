@@ -1,4 +1,5 @@
-# config.toml
+# Talos Configuration
+# Copy this file to config.toml and customize for your environment
 
 # The URL of the license server
 server_url = "http://127.0.0.1:8080"
@@ -9,7 +10,7 @@ heartbeat_interval = 60
 # Optional: Enable logging (default: false)
 enable_logging = true
 
-# Optional: License metadata
+# Optional: License metadata (for testing)
 license_id = "LICENSE-12345"
 client_id = "CLIENT-67890"
 expiry_date = "2025-12-31"
@@ -19,5 +20,5 @@ signature = "test-signature"
 [database]
 # Use "sqlite" for development and "postgres" for production
 db_type = "sqlite"
-sqlite_url = "sqlite://talos_dev.db"
-postgres_url = "postgres://user:password@localhost/talos_db"
+sqlite_url = "sqlite://talos.db"
+# postgres_url = "postgres://username:password@localhost/talos_db"
