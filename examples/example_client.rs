@@ -1,6 +1,6 @@
-use talos::client::client::License; // Adjusted import path
-use std::fs;
 use std::error::Error;
+use std::fs;
+use talos::client::client::License; // Adjusted import path
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

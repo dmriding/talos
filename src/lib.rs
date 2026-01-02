@@ -6,10 +6,13 @@ pub mod hardware;
 
 // Client-related modules
 pub mod client {
-    pub mod client;
     pub mod encrypted_storage;
     pub mod heartbeat;
     pub mod key_generation;
+    pub mod license;
+
+    // Re-export for backwards compatibility
+    pub use license as client;
 }
 
 // Server-related modules

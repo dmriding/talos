@@ -6,7 +6,7 @@ use sqlx::sqlite::SqlitePoolOptions;
 
 use talos::errors::{LicenseError, LicenseResult};
 use talos::server::database::{Database, License};
-use talos::server::handlers::{AppState, HeartbeatRequest, HeartbeatResponse, heartbeat_handler};
+use talos::server::handlers::{heartbeat_handler, AppState, HeartbeatRequest, HeartbeatResponse};
 
 /// Helper: create an in-memory SQLite `Database` with the `licenses` table
 /// and return it as Arc<Database>.
@@ -41,7 +41,11 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
 }
 
 /// Seed a single active license into the DB so heartbeat has something to update.
-async fn insert_active_license(db: &Database, license_id: &str, client_id: &str) -> LicenseResult<()> {
+async fn insert_active_license(
+    db: &Database,
+    license_id: &str,
+    client_id: &str,
+) -> LicenseResult<()> {
     let now = Utc::now().naive_utc();
 
     let license = License {
@@ -109,8 +113,7 @@ async fn invalid_heartbeat_fails() -> LicenseResult<()> {
         client_id: "BAD_CLIENT".to_string(),
     };
 
-    let Json(HeartbeatResponse { success }) =
-        heartbeat_handler(State(state), Json(req)).await?;
+    let Json(HeartbeatResponse { success }) = heartbeat_handler(State(state), Json(req)).await?;
 
     assert!(
         !success,

@@ -11,13 +11,13 @@
 use crate::errors::{LicenseError, LicenseResult};
 use ring::digest;
 
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
 /// Platform-specific hardware ID providers
 #[cfg(target_os = "windows")]
 mod windows;
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "linux")]
-mod linux;
 
 /// Returns a *consistent hashed fingerprint* based on the device's hardware.
 ///

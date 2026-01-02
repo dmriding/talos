@@ -23,13 +23,14 @@ pub fn get_cpu_id() -> Result<String, Box<dyn Error>> {
 ///
 /// Uses `ioreg -l` and searches for `IOPlatformSerialNumber`.
 pub fn get_motherboard_id() -> Result<String, Box<dyn Error>> {
-    let output = Command::new("ioreg")
-        .args(&["-l"])
-        .output()?;
+    let output = Command::new("ioreg").args(&["-l"]).output()?;
 
     let result = String::from_utf8_lossy(&output.stdout);
 
-    if let Some(line) = result.lines().find(|line| line.contains("IOPlatformSerialNumber")) {
+    if let Some(line) = result
+        .lines()
+        .find(|line| line.contains("IOPlatformSerialNumber"))
+    {
         let value = line
             .split('=')
             .nth(1)

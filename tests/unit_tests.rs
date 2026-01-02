@@ -9,11 +9,8 @@ use talos::client::client::License;
 use talos::hardware::get_hardware_id;
 use talos::server::database::Database;
 use talos::server::handlers::{
-    activate_license_handler,
-    deactivate_license_handler,
-    heartbeat_handler,
-    validate_license_handler,
-    AppState,
+    activate_license_handler, deactivate_license_handler, heartbeat_handler,
+    validate_license_handler, AppState,
 };
 
 /// Helper: create an in-memory SQLite `Database` with the `licenses` table
@@ -93,8 +90,14 @@ async fn test_license_activation() {
 
     // Activate the license (hits real server)
     let activation_result = license.activate().await;
-    assert!(activation_result.is_ok(), "License activation should succeed");
-    assert!(license.is_active, "License should be active after activation");
+    assert!(
+        activation_result.is_ok(),
+        "License activation should succeed"
+    );
+    assert!(
+        license.is_active,
+        "License should be active after activation"
+    );
     assert_eq!(
         license.client_id, current_hardware_id,
         "License should be bound to the correct hardware ID"
@@ -122,7 +125,10 @@ async fn test_license_validation() {
 
     // Validate on correct machine
     let validation_result = license.validate().await;
-    assert!(validation_result.is_ok(), "License validation should succeed");
+    assert!(
+        validation_result.is_ok(),
+        "License validation should succeed"
+    );
 
     // Now simulate running on a different machine by tampering client_id
     let mut modified_license = license.clone();
@@ -152,7 +158,10 @@ async fn test_license_deactivation() {
 
     // Activate first to have an active record in DB
     license.activate().await.expect("Activation should succeed");
-    assert!(license.is_active, "License should be active before deactivation");
+    assert!(
+        license.is_active,
+        "License should be active before deactivation"
+    );
 
     // Deactivate the license (server & local)
     let deactivation_result = license.deactivate().await;

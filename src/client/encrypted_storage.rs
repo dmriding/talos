@@ -113,9 +113,7 @@ mod tests {
             .await
             .expect("save should succeed");
 
-        let loaded = load_license_from_disk()
-            .await
-            .expect("load should succeed");
+        let loaded = load_license_from_disk().await.expect("load should succeed");
 
         assert_eq!(loaded.license_id, license.license_id);
         assert_eq!(loaded.client_id, license.client_id);

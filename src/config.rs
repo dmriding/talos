@@ -20,8 +20,7 @@ struct TalosConfig {
 /// - If individual keys are missing, we leave them as `None`.
 fn load_config() -> TalosConfig {
     let builder = Config::builder().add_source(
-        config::File::with_name("config")
-            .required(false), // don't crash if config.toml is missing
+        config::File::with_name("config").required(false), // don't crash if config.toml is missing
     );
 
     let built = match builder.build() {

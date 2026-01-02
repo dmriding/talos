@@ -10,12 +10,8 @@ use sqlx::sqlite::SqlitePoolOptions;
 use talos::errors::LicenseResult;
 use talos::server::database::Database;
 use talos::server::handlers::{
-    activate_license_handler,
-    deactivate_license_handler,
-    validate_license_handler,
-    AppState,
-    LicenseRequest,
-    LicenseResponse,
+    activate_license_handler, deactivate_license_handler, validate_license_handler, AppState,
+    LicenseRequest, LicenseResponse,
 };
 
 /// Helper: create an in-memory SQLite Database with the licenses table.

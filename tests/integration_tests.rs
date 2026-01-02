@@ -9,11 +9,8 @@ use talos::client::client::License;
 use talos::hardware::get_hardware_id;
 use talos::server::database::Database;
 use talos::server::handlers::{
-    activate_license_handler,
-    deactivate_license_handler,
-    heartbeat_handler,
-    validate_license_handler,
-    AppState,
+    activate_license_handler, deactivate_license_handler, heartbeat_handler,
+    validate_license_handler, AppState,
 };
 
 /// Helper: create an in-memory SQLite `Database` with the `licenses` table
@@ -101,7 +98,10 @@ async fn integration_test_license_lifecycle() {
         "License activation should succeed: {:?}",
         activation_result.err()
     );
-    assert!(license.is_active, "License should be active after activation");
+    assert!(
+        license.is_active,
+        "License should be active after activation"
+    );
 
     // --- VALIDATE ---
     let validation_result = license.validate().await;
