@@ -4,6 +4,7 @@ use axum::{routing::post, Router};
 use tokio::net::TcpListener;
 use tracing::info;
 
+use talos::config::init_config;
 use talos::errors::{LicenseError, LicenseResult};
 use talos::server::database::Database;
 use talos::server::handlers::{
@@ -13,13 +14,16 @@ use talos::server::handlers::{
 
 #[tokio::main]
 async fn main() -> LicenseResult<()> {
-    // Simple logging init.
-    // Respects RUST_LOG, e.g.:
-    //   RUST_LOG=info talos_server
-    tracing_subscriber::fmt::init();
+    // Load and validate configuration first
+    let config = init_config()?;
 
-    // Initialize the database from config.toml
-    let db = Database::new().await?; // returns Arc<Database>
+    // Initialize logging based on config
+    if config.logging.enabled {
+        tracing_subscriber::fmt::init();
+    }
+
+    // Initialize the database from config
+    let db = Database::new().await?;
 
     // Build shared app state
     let state = AppState { db };
@@ -32,15 +36,18 @@ async fn main() -> LicenseResult<()> {
         .route("/heartbeat", post(heartbeat_handler))
         .with_state(state);
 
-    // Bind to an address using TcpListener
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    // Bind to address from config
+    let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port)
+        .parse()
+        .map_err(|e| LicenseError::ConfigError(format!("invalid server address: {e}")))?;
+
     let listener = TcpListener::bind(addr)
         .await
-        .map_err(|e| LicenseError::ServerError(format!("failed to bind: {e}")))?;
+        .map_err(|e| LicenseError::ServerError(format!("failed to bind to {}: {}", addr, e)))?;
 
     info!("Talos server listening on http://{}", addr);
 
-    // Serve the application using axum::serve
+    // Serve the application
     axum::serve(listener, app.into_make_service())
         .await
         .map_err(|e| LicenseError::ServerError(format!("server failed: {e}")))?;

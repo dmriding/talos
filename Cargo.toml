@@ -12,6 +12,23 @@ homepage = "https://github.com/dmriding/talos"
 keywords = ["licensing", "rust", "security", "software-protection"]
 categories = ["access-control", "cryptography", "software-development"]
 
+# === Feature Flags ===
+[features]
+default = ["server", "sqlite"]
+
+# Core server functionality (handlers, routes, database abstraction)
+server = ["dep:axum", "dep:tower", "dep:hyper", "dep:sqlx"]
+
+# Database backends (at least one required when using server)
+sqlite = ["sqlx?/sqlite"]
+postgres = ["sqlx?/postgres"]
+
+# Future features (reserved, not yet implemented)
+# jwt-auth = ["dep:jsonwebtoken"]
+# admin-api = []
+# background-jobs = ["dep:tokio-cron-scheduler"]
+# quota-tracking = []
+
 [dependencies]
 # === Core Dependencies ===
 tokio = { version = "1.41.1", features = ["full"] }
@@ -43,21 +60,19 @@ lazy_static = "1.4.0"
 # === Error Derive ===
 thiserror = "2.0.17"
 
-# === Web Framework Dependencies ===
-axum = { version = "0.7", features = ["macros"] }
-tower = "0.5.1"
-hyper = { version = "1.5.0" }
+# === Web Framework Dependencies (optional, requires "server" feature) ===
+axum = { version = "0.7", features = ["macros"], optional = true }
+tower = { version = "0.5.1", optional = true }
+hyper = { version = "1.5.0", optional = true }
 uuid = { version = "1.11.0", features = ["v4"] }
 tokio-util = "0.7.12"
 
-# === Database Dependencies ===
+# === Database Dependencies (optional, requires "server" feature) ===
 sqlx = { version = "0.8.2", features = [
     "runtime-tokio-rustls",
     "macros",
-    "sqlite",
-    "postgres",
     "chrono",
-] }
+], optional = true }
 
 # === Date and Time Utilities ===
 chrono = { version = "0.4.38", features = ["serde"] }
@@ -70,6 +85,7 @@ tokio-test = "0.4.4"
 [[bin]]
 name = "talos_server"
 path = "src/server/main.rs"
+required-features = ["server"]
 
 [[bin]]
 name = "talos_client"
