@@ -272,7 +272,7 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 
 ## Contributing
 
-PRs, issues, and discussions are all welcome. See [CONTRIBUTING.md](contributing.md) for guidelines.
+PRs, issues, and discussions are all welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
