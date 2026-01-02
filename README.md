@@ -1,7 +1,7 @@
 # Talos — Secure Rust Licensing System
 
 ![Build Status](https://github.com/dmriding/talos/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/github/license/dmriding/talos)
+![License](https://img.shields.io/badge/license-MIT-blue)
 ![Rust Version](https://img.shields.io/badge/rust-stable-blue)
 
 **Talos** is a Rust-based secure licensing framework providing:
