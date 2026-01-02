@@ -232,7 +232,22 @@ bandwidth_gb = 0  # unlimited
 
 ## Phase 2: Device Management (P0 - Critical)
 
-### 2.1 Hardware Binding System
+### 2.1 Rate Limiting
+
+**Protect public endpoints from brute force attacks**
+
+- [ ] Add `tower-governor` or similar crate as optional dependency
+- [ ] Create `src/server/rate_limit.rs` module
+- [ ] Implement rate limiting middleware for Axum
+- [ ] Configure limits per endpoint:
+  - `/validate`: 100/minute per IP
+  - `/heartbeat`: 60/minute per IP
+  - `/bind`, `/release`: 10/minute per IP
+- [ ] Add configuration options for limits in `config.toml`
+- [ ] Return 429 Too Many Requests with `Retry-After` header
+- [ ] Write integration tests for rate limiting
+
+### 2.2 Hardware Binding System
 
 #### Client Bind Endpoint
 - [ ] Implement `POST /api/v1/client/bind` handler
@@ -264,7 +279,7 @@ bandwidth_gb = 0  # unlimited
 - [ ] Add JWT authentication requirement
 - [ ] Write integration tests
 
-### 2.2 Updated Validation Flow
+### 2.3 Updated Validation Flow
 
 #### Client Validate Endpoint
 - [ ] Implement `POST /api/v1/client/validate` handler
@@ -288,7 +303,7 @@ bandwidth_gb = 0  # unlimited
 - [ ] If bound to other hardware: return ALREADY_BOUND error
 - [ ] Write integration tests
 
-### 2.3 Updated Heartbeat
+### 2.4 Updated Heartbeat
 
 - [ ] Update `POST /api/v1/client/heartbeat` to use `license_key`
 - [ ] Verify hardware_id matches binding
@@ -416,19 +431,7 @@ bandwidth_gb = 0  # unlimited
 - [ ] Add JWT authentication requirement
 - [ ] Write integration tests
 
-### 6.2 Rate Limiting
-
-- [ ] Add `tower-governor` or similar crate
-- [ ] Implement rate limiting middleware
-- [ ] Configure limits per endpoint:
-  - `/validate`: 100/minute per IP
-  - `/heartbeat`: 60/minute per IP
-  - `/bind`, `/release`: 10/minute per IP
-- [ ] Add configuration options for limits
-- [ ] Return 429 Too Many Requests with retry-after header
-- [ ] Write integration tests
-
-### 6.3 Request Validation
+### 6.2 Request Validation
 
 - [ ] Add input validation for all endpoints
 - [ ] Validate UUID formats
@@ -566,7 +569,7 @@ Phase 1.4 (Tiers) ────────────────────�
 Phase 1.5 (Admin API) ◄──────────────────────────────────┘
          │
          ▼
-Phase 2 (Device Management) ──────────────────────────────┐
+Phase 2 (Device Mgmt + Rate Limiting) ────────────────────┐
          │                                                │
          ▼                                                │
 Phase 3 (Feature Gating) ─────────────────────────────────┤
@@ -578,7 +581,7 @@ Phase 4 (Lifecycle) ────────────────────
 Phase 5 (Background Jobs) ────────────────────────────────┤
          │                                                │
          ▼                                                │
-Phase 6 (Security) ◄──────────────────────────────────────┘
+Phase 6 (Blacklist & Validation) ◄────────────────────────┘
          │
          ▼
 Phase 7 (Documentation)
