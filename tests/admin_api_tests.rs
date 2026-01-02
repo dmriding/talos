@@ -2,6 +2,8 @@
 //!
 //! These tests require the `admin-api` feature to be enabled.
 
+#![cfg(feature = "admin-api")]
+
 use axum::{
     body::Body,
     http::{Request, StatusCode},

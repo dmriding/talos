@@ -1,7 +1,7 @@
-use axum::{
-    routing::{get, patch, post},
-    Router,
-};
+use axum::{routing::post, Router};
+
+#[cfg(feature = "admin-api")]
+use axum::routing::{get, patch};
 
 use crate::server::handlers::{
     activate_license_handler, deactivate_license_handler, heartbeat_handler,
