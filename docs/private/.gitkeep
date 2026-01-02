@@ -1,0 +1,5 @@
+# Private Documentation
+
+This folder contains private/internal documentation that is not published with the open source project.
+
+Contents are gitignored - only this .gitkeep file is tracked.

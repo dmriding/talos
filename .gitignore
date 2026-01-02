@@ -64,6 +64,10 @@ desktop.ini
 doc/
 *.md.bk
 
+# Private documentation (Keryx integration specs, internal notes)
+docs/private/*
+!docs/private/.gitkeep
+
 # Rustfmt and Clippy
 rustfmt.toml
 clippy.toml
