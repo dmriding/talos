@@ -115,17 +115,19 @@ enabled = false
 - [x] Add `LicenseBindingHistory` struct and `BindingAction`/`PerformedBy` enums
 - [x] Write tests for all new database methods (12 tests)
 
-### 1.2 License Key Generation
+### 1.2 License Key Generation ✅
 
-- [ ] Create `src/license_key.rs` module
-- [ ] Implement character set (excluding ambiguous: 0, O, I, L, 1)
-- [ ] Implement `generate_license_key()` function with cryptographic randomness
-- [ ] Add configurable prefix via config (default: "LIC")
-- [ ] Add configurable segment count and length via config
-- [ ] Add key format validation function
-- [ ] Add collision detection (check DB before returning)
-- [ ] Write unit tests for key generation uniqueness
-- [ ] Write unit tests for key format validation
+- [x] Create `src/license_key.rs` module
+- [x] Implement character set (excluding ambiguous: 0, O, I, L, 1)
+- [x] Implement `generate_license_key()` function with cryptographic randomness
+- [x] Add configurable prefix via config (default: "LIC")
+- [x] Add configurable segment count and length via config
+- [x] Add key format validation function (`validate_license_key_format()`)
+- [x] Add collision detection (`generate_unique_license_key()` with async exists check)
+- [x] Write unit tests for key generation uniqueness (12 tests)
+- [x] Write unit tests for key format validation
+- [x] Add `parse_license_key()` helper function
+- [x] Add convenience functions using global config (`generate_license_key_from_config()`, `validate_license_key_format_from_config()`)
 
 ```rust
 // Example usage - prefix is configurable, not hardcoded

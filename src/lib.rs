@@ -26,6 +26,7 @@ pub mod config;
 pub mod encryption;
 pub mod errors;
 pub mod hardware;
+pub mod license_key;
 
 // Client-related modules (always available)
 pub mod client {
