@@ -36,6 +36,7 @@
 
 ## Checklist
 
+- [ ] All commits are signed (required)
 - [ ] My code follows the project's style guidelines
 - [ ] I have run `cargo fmt` and `cargo clippy`
 - [ ] I have updated documentation as needed

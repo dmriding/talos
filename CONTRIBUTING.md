@@ -58,6 +58,32 @@ By participating in this project, you agree to maintain a respectful and inclusi
    cargo build --features postgres
    ```
 
+### Signed Commits (Required)
+
+All commits must be signed. Unsigned commits will be rejected by the repository.
+
+**Setting up commit signing:**
+
+1. **Generate a GPG key** (if you don't have one):
+   ```bash
+   gpg --full-generate-key
+   ```
+
+2. **Get your GPG key ID**:
+   ```bash
+   gpg --list-secret-keys --keyid-format=long
+   ```
+
+3. **Configure Git to use your key**:
+   ```bash
+   git config --global user.signingkey YOUR_KEY_ID
+   git config --global commit.gpgsign true
+   ```
+
+4. **Add your GPG key to GitHub**: Go to Settings > SSH and GPG keys > New GPG key
+
+For more details, see [GitHub's guide on signing commits](https://docs.github.com/en/authentication/managing-commit-signature-verification).
+
 ### Commit Messages
 
 Write clear, concise commit messages:
