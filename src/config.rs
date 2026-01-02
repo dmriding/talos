@@ -45,6 +45,8 @@ pub struct TalosConfig {
     pub logging: LoggingConfig,
     /// JWT authentication configuration (requires "jwt-auth" feature)
     pub auth: AuthConfig,
+    /// Rate limiting configuration (requires "rate-limiting" feature)
+    pub rate_limit: RateLimitConfig,
     /// Tier configurations (optional, keyed by tier name)
     pub tiers: HashMap<String, TierConfig>,
 }
@@ -164,6 +166,36 @@ impl Default for AuthConfig {
     }
 }
 
+/// Rate limiting configuration.
+///
+/// Used when the `rate-limiting` feature is enabled.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct RateLimitConfig {
+    /// Enable rate limiting for public endpoints
+    pub enabled: bool,
+    /// Requests per minute for /validate endpoint
+    pub validate_rpm: u32,
+    /// Requests per minute for /heartbeat endpoint
+    pub heartbeat_rpm: u32,
+    /// Requests per minute for /bind and /release endpoints
+    pub bind_rpm: u32,
+    /// Burst size (allows short bursts above the limit)
+    pub burst_size: u32,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            validate_rpm: 100,
+            heartbeat_rpm: 60,
+            bind_rpm: 10,
+            burst_size: 5,
+        }
+    }
+}
+
 impl TalosConfig {
     /// Load configuration from file and environment.
     ///
@@ -205,6 +237,16 @@ impl TalosConfig {
             .set_default("auth.jwt_audience", "talos-api")
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             .set_default("auth.token_expiration_secs", 3600)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("rate_limit.enabled", true)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("rate_limit.validate_rpm", 100)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("rate_limit.heartbeat_rpm", 60)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("rate_limit.bind_rpm", 10)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("rate_limit.burst_size", 5)
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             // Load from config.toml (optional)
             .add_source(config::File::with_name("config").required(false))

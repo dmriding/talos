@@ -76,6 +76,9 @@ doc/
 docs/private/*
 !docs/private/.gitkeep
 
+# Claude AI local settings (personal preferences)
+.claude/settings.local.json
+
 # Rustfmt and Clippy
 rustfmt.toml
 clippy.toml

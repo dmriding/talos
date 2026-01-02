@@ -233,86 +233,85 @@ bandwidth_gb = 0  # unlimited
 
 ---
 
-## Phase 2: Device Management (P0 - Critical)
+## Phase 2: Device Management (P0 - Critical) ✅
 
-### 2.1 Rate Limiting
+### 2.1 Rate Limiting ✅
 
 **Protect public endpoints from brute force attacks**
 
-- [ ] Add `tower-governor` or similar crate as optional dependency
-- [ ] Create `src/server/rate_limit.rs` module
-- [ ] Implement rate limiting middleware for Axum
-- [ ] Configure limits per endpoint:
-  - `/validate`: 100/minute per IP
-  - `/heartbeat`: 60/minute per IP
-  - `/bind`, `/release`: 10/minute per IP
-- [ ] Add configuration options for limits in `config.toml`
-- [ ] Return 429 Too Many Requests with `Retry-After` header
-- [ ] Write integration tests for rate limiting
+- [x] Add `tower-governor` crate as optional dependency (`rate-limiting` feature)
+- [x] Add `governor` crate for rate limiting primitives
+- [x] Create `src/server/rate_limit.rs` module
+- [x] Implement rate limiting middleware for Axum using `SmartIpKeyExtractor`
+- [x] Configure limits per endpoint type via `RateLimitConfig`:
+  - `/validate`: 100/minute per IP (configurable)
+  - `/heartbeat`: 60/minute per IP (configurable)
+  - `/bind`, `/release`: 10/minute per IP (configurable)
+- [x] Add configuration options in `TalosConfig.rate_limit`
+- [x] Return 429 Too Many Requests with `Retry-After` header
+- [x] Write unit tests for rate limiting (6 tests)
 
-### 2.2 Hardware Binding System
+### 2.2 Hardware Binding System ✅
 
-#### Client Bind Endpoint
-- [ ] Implement `POST /api/v1/client/bind` handler
-- [ ] Accept `license_key`, `hardware_id`, `device_name`, `device_info`
-- [ ] Check if license exists and is valid
-- [ ] Check if license is already bound to different hardware
-- [ ] Set `hardware_id`, `device_name`, `device_info`, `bound_at`
-- [ ] Record binding in `license_binding_history`
-- [ ] Return success with license details or error with bound device name
-- [ ] No authentication required (rate-limited)
-- [ ] Write integration tests
+#### Client Bind Endpoint ✅
+- [x] Implement `POST /api/v1/client/bind` handler
+- [x] Accept `license_key`, `hardware_id`, `device_name`, `device_info`
+- [x] Check if license exists and is valid (not expired, revoked, suspended, blacklisted)
+- [x] Check if license is already bound to different hardware
+- [x] Set `hardware_id`, `device_name`, `device_info`, `bound_at`
+- [x] Record binding in `license_binding_history`
+- [x] Return success with license details (id, features, tier, expires_at) or error with bound device name
+- [x] No authentication required (rate-limited via `rate-limiting` feature)
+- [x] Write unit tests (5 tests in client_api.rs)
 
-#### Client Release Endpoint
-- [ ] Implement `POST /api/v1/client/release` handler
-- [ ] Accept `license_key`, `hardware_id`
-- [ ] Verify `hardware_id` matches current binding
-- [ ] Clear hardware binding fields
-- [ ] Record release in `license_binding_history`
-- [ ] Return success confirmation
-- [ ] No authentication required (rate-limited)
-- [ ] Write integration tests
+#### Client Release Endpoint ✅
+- [x] Implement `POST /api/v1/client/release` handler
+- [x] Accept `license_key`, `hardware_id`
+- [x] Verify `hardware_id` matches current binding
+- [x] Clear hardware binding fields
+- [x] Record release in `license_binding_history`
+- [x] Return success confirmation
+- [x] No authentication required (rate-limited)
 
-#### Admin Force Release Endpoint
-- [ ] Implement `POST /api/v1/licenses/{license_id}/release` handler
-- [ ] Accept `reason` parameter
-- [ ] Force unbind regardless of hardware_id
-- [ ] Record admin release in `license_binding_history` with `performed_by: "admin"`
-- [ ] Return previous binding details
-- [ ] Add JWT authentication requirement
-- [ ] Write integration tests
+#### Admin Force Release Endpoint ✅
+- [x] Implement `POST /api/v1/licenses/{license_id}/release` handler
+- [x] Accept `reason` parameter for audit trail
+- [x] Force unbind regardless of hardware_id
+- [x] Record admin release in `license_binding_history` with `performed_by: "admin"`
+- [x] Return previous binding details (hardware_id, device_name)
+- [x] Add to admin routes (JWT authentication when both features enabled)
 
-### 2.3 Updated Validation Flow
+### 2.3 Updated Validation Flow ✅
 
-#### Client Validate Endpoint
-- [ ] Implement `POST /api/v1/client/validate` handler
-- [ ] Accept `license_key`, `hardware_id`
-- [ ] Check license exists
-- [ ] Check license not expired
-- [ ] Check license not revoked/suspended (handle grace period)
-- [ ] Check license is bound
-- [ ] Check hardware_id matches binding
-- [ ] Check not blacklisted
-- [ ] Update `last_seen_at` timestamp
-- [ ] Return validation result with features and tier
-- [ ] Return appropriate error codes for each failure case
-- [ ] No authentication required (rate-limited)
-- [ ] Write integration tests for all validation paths
+#### Client Validate Endpoint ✅
+- [x] Implement `POST /api/v1/client/validate` handler
+- [x] Accept `license_key`, `hardware_id`
+- [x] Check license exists → `LICENSE_NOT_FOUND`
+- [x] Check license not blacklisted → `LICENSE_BLACKLISTED`
+- [x] Check license not revoked → `LICENSE_REVOKED`
+- [x] Check license not expired → `LICENSE_EXPIRED`
+- [x] Check license not suspended (handle grace period with warning) → `LICENSE_SUSPENDED`
+- [x] Check license is bound → `NOT_BOUND`
+- [x] Check hardware_id matches binding → `HARDWARE_MISMATCH`
+- [x] Check status is active → `LICENSE_INACTIVE`
+- [x] Update `last_seen_at` timestamp
+- [x] Return validation result with features, tier, expires_at, grace_period_ends_at, warning
+- [x] Return appropriate `ClientErrorCode` for each failure case
+- [x] No authentication required (rate-limited)
 
-#### Validate-or-Bind Convenience Endpoint
-- [ ] Implement `POST /api/v1/client/validate-or-bind` handler
-- [ ] If bound to this hardware: validate and return
-- [ ] If unbound: bind first, then validate
-- [ ] If bound to other hardware: return ALREADY_BOUND error
-- [ ] Write integration tests
+#### Validate-or-Bind Convenience Endpoint ✅
+- [x] Implement `POST /api/v1/client/validate-or-bind` handler
+- [x] If bound to this hardware: validate and return
+- [x] If unbound: bind first, then validate
+- [x] If bound to other hardware: return `ALREADY_BOUND` error with bound device name
 
-### 2.4 Updated Heartbeat
+### 2.4 Updated Heartbeat ✅
 
-- [ ] Update `POST /api/v1/client/heartbeat` to use `license_key`
-- [ ] Verify hardware_id matches binding
-- [ ] Update `last_seen_at` timestamp
-- [ ] Return server timestamp
-- [ ] Write integration tests
+- [x] Implement `POST /api/v1/client/heartbeat` handler using `license_key`
+- [x] Verify license exists and is bound
+- [x] Verify `hardware_id` matches binding
+- [x] Update `last_seen_at` timestamp
+- [x] Return server timestamp in RFC 3339 format
 
 ---
 

@@ -582,6 +582,85 @@ pub async fn update_license_handler(
     Ok(Json(license.into()))
 }
 
+/// Request for admin force release.
+#[derive(Debug, Deserialize)]
+pub struct AdminReleaseRequest {
+    /// Reason for force release (optional, for audit)
+    pub reason: Option<String>,
+}
+
+/// Response from admin release.
+#[derive(Debug, Serialize)]
+pub struct AdminReleaseResponse {
+    pub success: bool,
+    pub message: String,
+    pub previous_hardware_id: Option<String>,
+    pub previous_device_name: Option<String>,
+}
+
+/// Admin force release a license from hardware.
+///
+/// `POST /api/v1/licenses/{license_id}/release`
+///
+/// This endpoint allows administrators to force-release a license from its
+/// bound hardware, useful when a user loses access to their device.
+pub async fn admin_release_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<AdminReleaseRequest>,
+) -> Result<Json<AdminReleaseResponse>, AdminError> {
+    use crate::server::database::{BindingAction, PerformedBy};
+
+    info!("Admin release request for license_id={}", license_id);
+
+    // Get the license
+    let license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
+
+    // Check if bound
+    if !license.is_bound() {
+        return Err(AdminError::BadRequest(
+            "License is not currently bound".to_string(),
+        ));
+    }
+
+    // Save previous binding info for response
+    let previous_hardware_id = license.hardware_id.clone();
+    let previous_device_name = license.device_name.clone();
+
+    // Release the license
+    state.db.release_license(&license_id).await?;
+
+    // Record in binding history
+    let _ = state
+        .db
+        .record_binding_history(
+            &license_id,
+            BindingAction::AdminRelease,
+            previous_hardware_id.as_deref(),
+            previous_device_name.as_deref(),
+            license.device_info.as_deref(),
+            PerformedBy::Admin,
+            payload.reason.as_deref(),
+        )
+        .await;
+
+    info!(
+        "Admin released license {} from hardware {:?}",
+        license_id, previous_hardware_id
+    );
+
+    Ok(Json(AdminReleaseResponse {
+        success: true,
+        message: "License released successfully".to_string(),
+        previous_hardware_id,
+        previous_device_name,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
