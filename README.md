@@ -130,6 +130,34 @@ cargo build
 
 ---
 
+## Feature Flags
+
+Talos uses Cargo feature flags to let you include only what you need:
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `server` | Yes | Server components (handlers, database) |
+| `sqlite` | Yes | SQLite database backend |
+| `postgres` | No | PostgreSQL database backend |
+
+### Examples
+
+```toml
+# Default: server + SQLite
+talos = { git = "https://github.com/dmriding/talos" }
+
+# Client-only (no server components)
+talos = { git = "https://github.com/dmriding/talos", default-features = false }
+
+# Server with PostgreSQL instead of SQLite
+talos = { git = "https://github.com/dmriding/talos", default-features = false, features = ["server", "postgres"] }
+
+# Server with both SQLite and PostgreSQL
+talos = { git = "https://github.com/dmriding/talos", features = ["postgres"] }
+```
+
+---
+
 ## Quick Start
 
 ### 1. Configure

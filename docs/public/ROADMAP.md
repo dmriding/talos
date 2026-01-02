@@ -41,17 +41,15 @@ This roadmap outlines all tasks to evolve Talos into a full-featured, production
 
 Structure the library so advanced features are opt-in:
 
-- [ ] Define feature flags in `Cargo.toml`:
-  - `default = ["server"]` - Basic server functionality
-  - `jwt-auth` - JWT authentication middleware
-  - `admin-api` - Full CRUD admin endpoints
-  - `background-jobs` - Scheduled job runner
-  - `quota-tracking` - Bandwidth/usage quota system
-  - `postgres` - PostgreSQL support (already exists)
-  - `sqlite` - SQLite support (already exists)
-- [ ] Gate code behind `#[cfg(feature = "...")]` attributes
-- [ ] Document feature combinations in README
-- [ ] Ensure `cargo build` works with minimal features
+- [x] Define feature flags in `Cargo.toml`:
+  - `default = ["server", "sqlite"]` - Basic server functionality with SQLite
+  - `server` - Server components (handlers, database)
+  - `sqlite` - SQLite database backend
+  - `postgres` - PostgreSQL database backend
+  - *(reserved for future)* `jwt-auth`, `admin-api`, `background-jobs`, `quota-tracking`
+- [x] Gate code behind `#[cfg(feature = "...")]` attributes
+- [x] Document feature combinations in README
+- [x] Ensure `cargo build` works with minimal features
 
 ### 0.2 Configuration System Enhancement
 

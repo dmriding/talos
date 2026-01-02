@@ -1,8 +1,14 @@
 use chrono::{NaiveDateTime, Utc};
 use config::Config;
-use sqlx::{query, query_as, FromRow, PgPool, SqlitePool};
+use sqlx::{query, query_as, FromRow};
 use std::sync::Arc;
 use tracing::error;
+
+#[cfg(feature = "sqlite")]
+use sqlx::SqlitePool;
+
+#[cfg(feature = "postgres")]
+use sqlx::PgPool;
 
 use crate::errors::{LicenseError, LicenseResult};
 
@@ -19,16 +25,19 @@ pub struct License {
     pub expires_at: Option<NaiveDateTime>,
     pub hardware_id: Option<String>,
     pub signature: Option<String>,
-    pub last_heartbeat: Option<NaiveDateTime>, // heartbeat timestamp
+    pub last_heartbeat: Option<NaiveDateTime>,
 }
 
 /// Unified database abstraction over SQLite and Postgres.
 ///
-/// For the MVP you can run purely on SQLite, but this allows switching
-/// to Postgres without touching the higher layers.
+/// Available variants depend on enabled features:
+/// - `sqlite` feature enables `Database::SQLite`
+/// - `postgres` feature enables `Database::Postgres`
 #[derive(Debug, Clone)]
 pub enum Database {
+    #[cfg(feature = "sqlite")]
     SQLite(SqlitePool),
+    #[cfg(feature = "postgres")]
     Postgres(PgPool),
 }
 
@@ -50,6 +59,7 @@ impl Database {
             .map_err(|e| LicenseError::ConfigError(format!("missing database.db_type: {e}")))?;
 
         match db_type.as_str() {
+            #[cfg(feature = "sqlite")]
             "sqlite" => {
                 let sqlite_url: String = settings.get("database.sqlite_url").map_err(|e| {
                     LicenseError::ConfigError(format!("missing database.sqlite_url: {e}"))
@@ -62,6 +72,11 @@ impl Database {
 
                 Ok(Arc::new(Database::SQLite(pool)))
             }
+            #[cfg(not(feature = "sqlite"))]
+            "sqlite" => Err(LicenseError::ConfigError(
+                "SQLite support not compiled in. Enable the 'sqlite' feature.".to_string(),
+            )),
+            #[cfg(feature = "postgres")]
             "postgres" => {
                 let postgres_url: String = settings.get("database.postgres_url").map_err(|e| {
                     LicenseError::ConfigError(format!("missing database.postgres_url: {e}"))
@@ -74,6 +89,10 @@ impl Database {
 
                 Ok(Arc::new(Database::Postgres(pool)))
             }
+            #[cfg(not(feature = "postgres"))]
+            "postgres" => Err(LicenseError::ConfigError(
+                "PostgreSQL support not compiled in. Enable the 'postgres' feature.".to_string(),
+            )),
             other => Err(LicenseError::ConfigError(format!(
                 "unsupported database type: {other}"
             ))),
@@ -87,6 +106,7 @@ impl Database {
     /// - if it exists, the fields are updated
     pub async fn insert_license(&self, license: License) -> LicenseResult<()> {
         match self {
+            #[cfg(feature = "sqlite")]
             Database::SQLite(pool) => {
                 query(
                     r#"
@@ -129,6 +149,7 @@ impl Database {
                     LicenseError::ServerError(format!("database error: {e}"))
                 })?;
             }
+            #[cfg(feature = "postgres")]
             Database::Postgres(pool) => {
                 query(
                     r#"
@@ -184,6 +205,7 @@ impl Database {
     /// - `Err(LicenseError::ServerError)` on DB failure
     pub async fn get_license(&self, license_id: &str) -> LicenseResult<Option<License>> {
         match self {
+            #[cfg(feature = "sqlite")]
             Database::SQLite(pool) => {
                 let license = query_as::<_, License>("SELECT * FROM licenses WHERE license_id = ?")
                     .bind(license_id)
@@ -196,6 +218,7 @@ impl Database {
 
                 Ok(license)
             }
+            #[cfg(feature = "postgres")]
             Database::Postgres(pool) => {
                 let license =
                     query_as::<_, License>("SELECT * FROM licenses WHERE license_id = $1")
@@ -226,6 +249,7 @@ impl Database {
         let now = Utc::now().naive_utc();
 
         let rows_affected = match self {
+            #[cfg(feature = "sqlite")]
             Database::SQLite(pool) => query(
                 "UPDATE licenses \
                      SET last_heartbeat = ? \
@@ -241,6 +265,7 @@ impl Database {
                 LicenseError::ServerError(format!("database error: {e}"))
             })?
             .rows_affected(),
+            #[cfg(feature = "postgres")]
             Database::Postgres(pool) => query(
                 "UPDATE licenses \
                      SET last_heartbeat = $1 \
