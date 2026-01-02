@@ -51,34 +51,26 @@ impl Database {
 
         match db_type.as_str() {
             "sqlite" => {
-                let sqlite_url: String = settings
-                    .get("database.sqlite_url")
-                    .map_err(|e| {
-                        LicenseError::ConfigError(format!("missing database.sqlite_url: {e}"))
-                    })?;
+                let sqlite_url: String = settings.get("database.sqlite_url").map_err(|e| {
+                    LicenseError::ConfigError(format!("missing database.sqlite_url: {e}"))
+                })?;
 
-                let pool = SqlitePool::connect(&sqlite_url)
-                    .await
-                    .map_err(|e| {
-                        error!("Failed to connect to SQLite: {e}");
-                        LicenseError::ServerError(format!("failed to connect to SQLite: {e}"))
-                    })?;
+                let pool = SqlitePool::connect(&sqlite_url).await.map_err(|e| {
+                    error!("Failed to connect to SQLite: {e}");
+                    LicenseError::ServerError(format!("failed to connect to SQLite: {e}"))
+                })?;
 
                 Ok(Arc::new(Database::SQLite(pool)))
             }
             "postgres" => {
-                let postgres_url: String = settings
-                    .get("database.postgres_url")
-                    .map_err(|e| {
-                        LicenseError::ConfigError(format!("missing database.postgres_url: {e}"))
-                    })?;
+                let postgres_url: String = settings.get("database.postgres_url").map_err(|e| {
+                    LicenseError::ConfigError(format!("missing database.postgres_url: {e}"))
+                })?;
 
-                let pool = PgPool::connect(&postgres_url)
-                    .await
-                    .map_err(|e| {
-                        error!("Failed to connect to PostgreSQL: {e}");
-                        LicenseError::ServerError(format!("failed to connect to PostgreSQL: {e}"))
-                    })?;
+                let pool = PgPool::connect(&postgres_url).await.map_err(|e| {
+                    error!("Failed to connect to PostgreSQL: {e}");
+                    LicenseError::ServerError(format!("failed to connect to PostgreSQL: {e}"))
+                })?;
 
                 Ok(Arc::new(Database::Postgres(pool)))
             }
@@ -193,30 +185,27 @@ impl Database {
     pub async fn get_license(&self, license_id: &str) -> LicenseResult<Option<License>> {
         match self {
             Database::SQLite(pool) => {
-                let license = query_as::<_, License>(
-                    "SELECT * FROM licenses WHERE license_id = ?",
-                )
-                .bind(license_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| {
-                    error!("SQLite get_license failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?;
+                let license = query_as::<_, License>("SELECT * FROM licenses WHERE license_id = ?")
+                    .bind(license_id)
+                    .fetch_optional(pool)
+                    .await
+                    .map_err(|e| {
+                        error!("SQLite get_license failed: {e}");
+                        LicenseError::ServerError(format!("database error: {e}"))
+                    })?;
 
                 Ok(license)
             }
             Database::Postgres(pool) => {
-                let license = query_as::<_, License>(
-                    "SELECT * FROM licenses WHERE license_id = $1",
-                )
-                .bind(license_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| {
-                    error!("Postgres get_license failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?;
+                let license =
+                    query_as::<_, License>("SELECT * FROM licenses WHERE license_id = $1")
+                        .bind(license_id)
+                        .fetch_optional(pool)
+                        .await
+                        .map_err(|e| {
+                            error!("Postgres get_license failed: {e}");
+                            LicenseError::ServerError(format!("database error: {e}"))
+                        })?;
 
                 Ok(license)
             }
@@ -237,40 +226,36 @@ impl Database {
         let now = Utc::now().naive_utc();
 
         let rows_affected = match self {
-            Database::SQLite(pool) => {
-                query(
-                    "UPDATE licenses \
+            Database::SQLite(pool) => query(
+                "UPDATE licenses \
                      SET last_heartbeat = ? \
                      WHERE license_id = ? AND client_id = ?",
-                )
-                .bind(now)
-                .bind(license_id)
-                .bind(client_id)
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    error!("SQLite update_last_heartbeat failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?
-                .rows_affected()
-            }
-            Database::Postgres(pool) => {
-                query(
-                    "UPDATE licenses \
+            )
+            .bind(now)
+            .bind(license_id)
+            .bind(client_id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                error!("SQLite update_last_heartbeat failed: {e}");
+                LicenseError::ServerError(format!("database error: {e}"))
+            })?
+            .rows_affected(),
+            Database::Postgres(pool) => query(
+                "UPDATE licenses \
                      SET last_heartbeat = $1 \
                      WHERE license_id = $2 AND client_id = $3",
-                )
-                .bind(now)
-                .bind(license_id)
-                .bind(client_id)
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    error!("Postgres update_last_heartbeat failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?
-                .rows_affected()
-            }
+            )
+            .bind(now)
+            .bind(license_id)
+            .bind(client_id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                error!("Postgres update_last_heartbeat failed: {e}");
+                LicenseError::ServerError(format!("database error: {e}"))
+            })?
+            .rows_affected(),
         };
 
         Ok(rows_affected > 0)

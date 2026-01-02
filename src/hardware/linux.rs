@@ -8,7 +8,10 @@ use std::process::Command;
 pub fn get_cpu_id() -> Result<String, Box<dyn Error>> {
     // Primary path: /proc/cpuinfo
     if let Ok(cpuinfo) = fs::read_to_string("/proc/cpuinfo") {
-        if let Some(line) = cpuinfo.lines().find(|l| l.to_lowercase().starts_with("model name")) {
+        if let Some(line) = cpuinfo
+            .lines()
+            .find(|l| l.to_lowercase().starts_with("model name"))
+        {
             let value = line.split(':').nth(1).unwrap_or("").trim().to_string();
             if !value.is_empty() {
                 return Ok(value);

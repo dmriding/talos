@@ -3,16 +3,12 @@ use std::net::SocketAddr;
 use axum::{routing::post, Router};
 use tokio::net::TcpListener;
 use tracing::info;
-use tracing_subscriber;
 
 use talos::errors::{LicenseError, LicenseResult};
 use talos::server::database::Database;
 use talos::server::handlers::{
-    activate_license_handler,
-    deactivate_license_handler,
-    heartbeat_handler,
-    validate_license_handler,
-    AppState,
+    activate_license_handler, deactivate_license_handler, heartbeat_handler,
+    validate_license_handler, AppState,
 };
 
 #[tokio::main]

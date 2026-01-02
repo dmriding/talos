@@ -1,108 +1,101 @@
-# Talos 🛡️ — Secure Rust Licensing System
+# Talos — Secure Rust Licensing System
+
 ![Build Status](https://github.com/dmriding/talos/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/github/license/dmriding/talos)
 ![Rust Version](https://img.shields.io/badge/rust-stable-blue)
-![Crates.io](https://img.shields.io/crates/v/talos)
-![Docs](https://docs.rs/talos/badge.svg)
 
 **Talos** is a Rust-based secure licensing framework providing:
 
-- Hardware-bound licensing  
-- Encrypted license storage  
-- License activation/validation  
-- Heartbeat-based liveness checks  
-- A lightweight Axum server backend  
-- A robust async client library  
+- Hardware-bound licensing
+- Encrypted license storage
+- License activation/validation
+- Heartbeat-based liveness checks
+- A lightweight Axum server backend
+- A robust async client library
 
-Your software gets a reliable, secure “gatekeeper,” inspired by **Talos**, the mythological bronze guardian who protected Crete.
+Your software gets a reliable, secure "gatekeeper," inspired by **Talos**, the mythological bronze guardian who protected Crete.
 
 ---
 
-## 🔥 Overview
+## Overview
 
 Talos offers:
 
-- A **client library** for embedding license logic inside your application  
-- A **server component** for verifying, activating, and tracking licenses  
-- Full async, cross-platform compatibility (Windows, macOS, Linux)  
+- A **client library** for embedding license logic inside your application
+- A **server component** for verifying, activating, and tracking licenses
+- Full async, cross-platform compatibility (Windows, macOS, Linux)
 - Strong cryptography (AES-256-GCM + SHA-256 hardware fingerprinting)
 
 Talos is built to be **easy to integrate yet extremely hard to bypass**.
 
 ---
 
-## ⭐ Key Features
+## Key Features
 
-- **💻 Hardware Binding** — Licenses tied to CPU + motherboard fingerprint  
-- **🔐 AES-256-GCM Encrypted Storage** — License files encrypted locally  
-- **🌐 Networked License Control** — Activate/validate/deactivate remotely  
-- **❤️ Heartbeat System** — Keeps licenses alive and trackable  
-- **🗄️ SQLite & Postgres Support** — Choose your storage  
-- **🛠️ Self-Hostable** — Easy to deploy, zero dependencies  
-- **⚡ Fully Async** — Powered by `tokio`, `axum`, `reqwest`, `sqlx`  
-- **🧪 Strong Test Coverage** — Unit tests + integration tests
+- **Hardware Binding** — Licenses tied to CPU + motherboard fingerprint
+- **AES-256-GCM Encrypted Storage** — License files encrypted locally
+- **Networked License Control** — Activate/validate/deactivate remotely
+- **Heartbeat System** — Keeps licenses alive and trackable
+- **SQLite & Postgres Support** — Choose your storage backend
+- **Self-Hostable** — Easy to deploy, zero external dependencies
+- **Fully Async** — Powered by `tokio`, `axum`, `reqwest`, `sqlx`
+- **Strong Test Coverage** — Unit tests + integration tests
 
 ---
 
-## 🧠 How It Works
+## How It Works
 
-1. Talos generates a **hardware fingerprint** using CPU + motherboard identifiers (hashed via SHA-256).  
-2. License data is encrypted locally using **AES-256-GCM**.  
-3. Client communicates with the server using HTTPS via `reqwest`.  
-4. Server stores licenses and heartbeat timestamps via SQLx.  
+1. Talos generates a **hardware fingerprint** using CPU + motherboard identifiers (hashed via SHA-256).
+2. License data is encrypted locally using **AES-256-GCM**.
+3. Client communicates with the server using HTTPS via `reqwest`.
+4. Server stores licenses and heartbeat timestamps via SQLx.
 5. A small REST API allows:
-   - Activation  
-   - Validation  
-   - Deactivation  
-   - Heartbeat updates  
+   - Activation
+   - Validation
+   - Deactivation
+   - Heartbeat updates
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```plaintext
 talos/
 ├── src/
 │   ├── client/
-│   │   ├── client.rs              # License struct + client operations
-│   │   ├── encrypted_storage.rs   # AES-256-GCM encrypted local storage
-│   │   ├── heartbeat.rs           # Heartbeat HTTP operations
-│   │   ├── key_generation.rs      # Example/demo key helpers
-│   │   └── main.rs                # Example client binary
+│   │   ├── license.rs            # License struct + client operations
+│   │   ├── encrypted_storage.rs  # AES-256-GCM encrypted local storage
+│   │   ├── heartbeat.rs          # Heartbeat HTTP operations
+│   │   ├── key_generation.rs     # Device key helpers
+│   │   └── main.rs               # Example client binary
 │   ├── server/
-│   │   ├── database.rs            # SQLite/Postgres abstraction
-│   │   ├── handlers.rs            # Axum handlers for /activate, /validate...
-│   │   ├── routes.rs              # Router builder
-│   │   ├── server_sim.rs          # In-memory simulation for tests
-│   │   └── main.rs                # Server binary
-│   ├── config.rs                  # Config loader (config.toml + env vars)
-│   ├── encryption.rs              # AES-256-GCM utilities
-│   ├── errors.rs                  # Custom LicenseError type
-│   ├── hardware.rs                # Cross-platform hardware fingerprinting
-│   └── lib.rs                     # Library entry point
-├── tests/
-│   ├── config_tests.rs
-│   ├── encrypted_storage_tests.rs
-│   ├── heartbeat_tests.rs
-│   ├── integration_tests.rs
-│   ├── server_tests.rs
-│   └── unit_tests.rs
-├── examples/
-│   └── manual_activate.rs         # Full client→server lifecycle example
-├── migrations/
-│   ├── 20241114103315_init.sql
-│   └── README.md
-├── config.toml
+│   │   ├── database.rs           # SQLite/Postgres abstraction
+│   │   ├── handlers.rs           # Axum handlers for /activate, /validate...
+│   │   ├── server_sim.rs         # In-memory simulation for tests
+│   │   └── main.rs               # Server binary
+│   ├── config.rs                 # Config loader (config.toml + env vars)
+│   ├── encryption.rs             # AES-256-GCM utilities
+│   ├── errors.rs                 # Custom LicenseError type
+│   ├── hardware.rs               # Cross-platform hardware fingerprinting
+│   └── lib.rs                    # Library entry point
+├── tests/                        # Unit and integration tests
+├── examples/                     # Usage examples
+├── migrations/                   # Database migrations
+├── docs/
+│   └── public/
+│       └── ROADMAP.md            # Development roadmap
+├── config.toml.example           # Example configuration
+├── .env.example                  # Example environment variables
 ├── Cargo.toml
 └── README.md
 ```
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
-- Rust (stable)  
-- SQLite **or** PostgreSQL  
+- Rust (stable)
+- SQLite **or** PostgreSQL
 - `sqlx-cli` (for running migrations)
 
 Install Rust:
@@ -120,7 +113,7 @@ cargo install sqlx-cli
 
 ---
 
-## 📦 Installation
+## Installation
 
 Add Talos to your project:
 
@@ -137,12 +130,45 @@ cargo build
 
 ---
 
-## 🧑‍💻 Client Usage
+## Quick Start
 
-### Quick Start
+### 1. Configure
+
+Copy the example configuration files:
+
+```sh
+cp config.toml.example config.toml
+cp .env.example .env
+```
+
+Edit `config.toml` as needed:
+
+```toml
+server_url = "http://127.0.0.1:8080"
+heartbeat_interval = 60
+enable_logging = true
+
+[database]
+db_type = "sqlite"
+sqlite_url = "sqlite://talos.db"
+```
+
+### 2. Run Migrations
+
+```sh
+sqlx migrate run
+```
+
+### 3. Start the Server
+
+```sh
+cargo run --bin talos_server
+```
+
+### 4. Use the Client
 
 ```rust
-use talos::client::client::License;
+use talos::client::license::License;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -170,7 +196,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-Run the provided manual example:
+Or run the provided example:
 
 ```sh
 cargo run --example manual_activate
@@ -178,44 +204,14 @@ cargo run --example manual_activate
 
 ---
 
-## 🖥️ Running the Server
+## Server API Endpoints
 
-### 1. Configure
-
-`config.toml`:
-
-```toml
-server_url = "http://127.0.0.1:8080"
-heartbeat_interval = 60
-enable_logging = true
-
-[database]
-db_type = "sqlite"
-sqlite_url = "sqlite://talos_dev.db"
-```
-
-### 2. Run Migrations
-
-```sh
-sqlx migrate run
-```
-
-### 3. Start Server
-
-```sh
-cargo run --bin talos_server
-```
-
----
-
-## 🔌 Server API Endpoints
-
-| Method | Endpoint      | Description |
-|--------|---------------|-------------|
-| POST   | `/activate`   | Activate a license |
-| POST   | `/validate`   | Validate if a license is active |
-| POST   | `/deactivate` | Deactivate a license |
-| POST   | `/heartbeat`  | Send heartbeat ping |
+| Method | Endpoint      | Description              |
+|--------|---------------|--------------------------|
+| POST   | `/activate`   | Activate a license       |
+| POST   | `/validate`   | Validate if license is active |
+| POST   | `/deactivate` | Deactivate a license     |
+| POST   | `/heartbeat`  | Send heartbeat ping      |
 
 All requests use:
 
@@ -236,51 +232,50 @@ curl -X POST http://127.0.0.1:8080/validate \
 
 ---
 
-## 🧪 Testing
+## Testing
 
-Run everything:
+Run all tests:
 
 ```sh
 cargo test
 ```
 
-All unit + integration tests run automatically.
+Run with logging:
+
+```sh
+RUST_LOG=info cargo test
+```
 
 ---
 
-## 🧭 Roadmap
+## Roadmap
 
-### Phase 1 — MVP (Complete)
-- Activation/validation/deactivation  
-- Heartbeat  
-- Hardware binding  
-- Encrypted storage  
-- Config system  
+See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-### Phase 2 — Self-Hosted Extensions
-- Admin dashboard  
-- Docker deployment  
-- Auth tokens for API  
+**Current Status: Phase 1 Complete (MVP)**
 
-### Phase 3 — SaaS Launch
-- Billing integration  
-- Web dashboard  
-- Multi-tenant support  
+- Activation/validation/deactivation
+- Heartbeat mechanism
+- Hardware binding
+- Encrypted storage
+- Configuration system
 
-### Phase 4 — Security Layer
-- Signed licenses (Ed25519)  
-- Offline support  
-- Key rotation  
-- Anti-tamper work  
+**Upcoming:**
+
+- Admin API (CRUD operations)
+- JWT authentication
+- Configurable license key generation
+- Feature gating
+- Background jobs for expiration handling
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-PRs, issues, discussions — all welcome.
+PRs, issues, and discussions are all welcome. See [CONTRIBUTING.md](contributing.md) for guidelines.
 
 ---
 
-## 📄 License
+## License
 
-MIT License — see `LICENSE` for details.
+MIT License — see [LICENSE](LICENSE) for details.

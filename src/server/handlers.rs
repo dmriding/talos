@@ -16,9 +16,7 @@ use crate::server::database::{Database, License};
 /// Shared application state for handlers.
 ///
 /// Right now this only wraps the database, but later you can add:
-/// - config
-/// - key material
-/// - metrics handles
+/// config, key material, metrics handles, etc.
 /// without touching every handler signature.
 #[derive(Clone)]
 pub struct AppState {

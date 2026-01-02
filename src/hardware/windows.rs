@@ -9,12 +9,7 @@ fn try_wmic(args: &[&str]) -> Option<String> {
     let text = String::from_utf8_lossy(&output.stdout);
 
     // WMIC output usually has header in first line, value in second line.
-    let value = text
-        .lines()
-        .nth(1)
-        .unwrap_or("")
-        .trim()
-        .to_string();
+    let value = text.lines().nth(1).unwrap_or("").trim().to_string();
 
     if value.is_empty() {
         None
@@ -26,7 +21,7 @@ fn try_wmic(args: &[&str]) -> Option<String> {
 /// Fallback: parse WMIC in list format (`key=value`).
 fn try_wmic_list(class: &str, key: &str) -> Option<String> {
     let output = Command::new("wmic")
-        .args(&[class, "get", "/format:list"])
+        .args([class, "get", "/format:list"])
         .output()
         .ok()?;
 
