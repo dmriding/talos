@@ -90,17 +90,16 @@ The Django Admin Portal manages the backend infrastructure for Keryx's paid tier
 ## Service Responsibilities
 
 ### Django Admin Portal
-
 - **Payment processing** (Stripe webhooks)
 - **Customer portal** (self-service dashboard)
-- **Relay health polling** (background task -> Redis)
 - **Relay routing** (which relays org can access)
-- **Usage tracking** (read from Redis, store in PostgreSQL)
+- **Usage tracking** (read from Redis, sync to Talos)
 - **Talos communication** (issue/update/revoke licenses via HTTP)
 - **Admin UI** (manage orgs, users, relays)
 
-### Talos License Server
+**Note:** Relay health polling is handled by the Rust signal server (Phase 7d), not Django.
 
+### Talos License Server
 - **License issuance** (Django calls Talos API to create licenses)
 - **License validation** (CLI validates directly with Talos)
 - **Device management** (track activated devices per license)
@@ -109,11 +108,11 @@ The Django Admin Portal manages the backend infrastructure for Keryx's paid tier
 - **License storage** (Talos maintains license database)
 
 ### Rust Signal Server
-
 - **WebSocket signaling** (real-time P2P coordination)
 - **Room management** (create/join rooms)
 - **Relay token generation** (JWT for relay auth)
-- **Read relay health from Redis** (pick healthy relay)
+- **Relay health polling** (QUIC ping every 30s, cached in memory)
+- **Exposes `/health/relays`** (Django/admin can read this for status)
 
 ---
 
@@ -147,29 +146,29 @@ def get_talos_jwt():
 
 ### Admin Endpoints (called by Django)
 
-| Method | Endpoint                                  | Purpose                          |
-| ------ | ----------------------------------------- | -------------------------------- |
-| POST   | `/api/v1/licenses`                        | Create single license            |
-| POST   | `/api/v1/licenses/batch`                  | Create multiple licenses         |
-| GET    | `/api/v1/licenses?org_id={id}`            | List org's licenses              |
-| GET    | `/api/v1/licenses/{license_id}`           | Get license details              |
-| PATCH  | `/api/v1/licenses/{license_id}`           | Update tier/features             |
-| POST   | `/api/v1/licenses/{license_id}/revoke`    | Suspend/revoke license           |
-| POST   | `/api/v1/licenses/{license_id}/reinstate` | Reinstate suspended license      |
-| POST   | `/api/v1/licenses/{license_id}/extend`    | Extend expiry date               |
-| POST   | `/api/v1/licenses/{license_id}/release`   | Admin force unbind from hardware |
-| POST   | `/api/v1/licenses/{license_id}/blacklist` | Permanently ban                  |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/licenses` | Create single license |
+| POST | `/api/v1/licenses/batch` | Create multiple licenses |
+| GET | `/api/v1/licenses?org_id={id}` | List org's licenses |
+| GET | `/api/v1/licenses/{license_id}` | Get license details |
+| PATCH | `/api/v1/licenses/{license_id}` | Update tier/features |
+| POST | `/api/v1/licenses/{license_id}/revoke` | Suspend/revoke license |
+| POST | `/api/v1/licenses/{license_id}/reinstate` | Reinstate suspended license |
+| POST | `/api/v1/licenses/{license_id}/extend` | Extend expiry date |
+| POST | `/api/v1/licenses/{license_id}/release` | Admin force unbind from hardware |
+| POST | `/api/v1/licenses/{license_id}/blacklist` | Permanently ban |
 
 ### Client Endpoints (called by Keryx CLI)
 
-| Method | Endpoint                          | Purpose                          |
-| ------ | --------------------------------- | -------------------------------- |
-| POST   | `/api/v1/client/bind`             | Bind license to hardware         |
-| POST   | `/api/v1/client/release`          | Release license from hardware    |
-| POST   | `/api/v1/client/validate`         | Validate license (must be bound) |
-| POST   | `/api/v1/client/validate-or-bind` | Validate or auto-bind if unbound |
-| POST   | `/api/v1/client/validate-feature` | Check specific feature access    |
-| POST   | `/api/v1/client/heartbeat`        | Liveness ping                    |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/client/bind` | Bind license to hardware |
+| POST | `/api/v1/client/release` | Release license from hardware |
+| POST | `/api/v1/client/validate` | Validate license (must be bound) |
+| POST | `/api/v1/client/validate-or-bind` | Validate or auto-bind if unbound |
+| POST | `/api/v1/client/validate-feature` | Check specific feature access |
+| POST | `/api/v1/client/heartbeat` | Liveness ping |
 
 ---
 
@@ -783,15 +782,15 @@ def get_tier_limits(tier_name: str) -> dict:
 
 Django will manage these **existing tables** (already deployed to production):
 
-| Table            | Purpose                                                           |
-| ---------------- | ----------------------------------------------------------------- |
-| `organizations`  | Billing entities with tier, bandwidth limits, Stripe IDs          |
-| `users`          | User accounts linked to orgs, password hash, JWT token versioning |
-| `sessions`       | Active WebSocket connections (peer tracking)                      |
-| `rooms`          | P2P room codes with 23hr expiry                                   |
-| `usage_records`  | Transfer logs (bytes, speed, connection type) for billing         |
-| `relay_servers`  | Relay server registry (public/private, region, health status)     |
-| `relay_sessions` | Relay usage tracking for bandwidth billing                        |
+| Table | Purpose |
+|-------|---------|
+| `organizations` | Billing entities with tier, bandwidth limits, Stripe IDs |
+| `users` | User accounts linked to orgs, password hash, JWT token versioning |
+| `sessions` | Active WebSocket connections (peer tracking) |
+| `rooms` | P2P room codes with 23hr expiry |
+| `usage_records` | Transfer logs (bytes, speed, connection type) for billing |
+| `relay_servers` | Relay server registry (public/private, region, health status) |
+| `relay_sessions` | Relay usage tracking for bandwidth billing |
 
 ### Database Additions
 
@@ -829,87 +828,50 @@ CREATE INDEX idx_org_licenses_talos_id ON organization_licenses(talos_license_id
 
 ## Priority 1: Infrastructure Foundation
 
-### 1.1 Relay Server Health Polling
+### 1.1 Relay Server Health (Read from Signal Server)
 
-**Purpose:** Keep Redis updated with relay health so Rust signal server can route clients to healthy relays.
+**Note:** Relay health polling is already implemented in the Rust signal server (Phase 7d).
+The signal server polls relays via QUIC ping every 30 seconds and exposes the results via `GET /health/relays`.
 
-**Implementation:**
-
-- Background task (Celery or Django-Q) running every 30 seconds
-- Query active relays from database
-- HTTP health check each relay endpoint
-- Write results to Redis with TTL
-- Update database with last check timestamp
+Django should **read** relay health from the signal server, not poll relays directly.
 
 ```python
-# tasks/relay_health.py
+# services/relay_health.py
 
-from celery import shared_task
 import requests
-import json
-import redis
-from datetime import datetime
+import logging
 from django.conf import settings
 
-from apps.relays.models import RelayServer
-
-redis_client = redis.from_url(settings.REDIS_URL)
+logger = logging.getLogger(__name__)
 
 
-@shared_task
-def poll_relay_health():
+def get_relay_health() -> dict:
     """
-    Poll all active relay servers and update Redis with health status.
-    Runs every 30 seconds via Celery Beat.
+    Fetch relay health from signal server.
+    Signal server does the actual QUIC probing.
     """
-    relays = RelayServer.objects.filter(is_active=True)
-
-    for relay in relays:
-        try:
-            response = requests.get(
-                f"https://{relay.url}/health",
-                timeout=5
-            )
-            response.raise_for_status()
-
-            latency_ms = response.elapsed.total_seconds() * 1000
-            health_data = response.json()
-
-            health_status = {
-                "url": relay.url,
-                "region": relay.region,
-                "latency_ms": round(latency_ms, 2),
-                "connections": health_data.get("connections", 0),
-                "max_connections": relay.max_connections,
-                "healthy": True,
-                "checked_at": datetime.utcnow().isoformat()
-            }
-
-            # Update database
-            relay.last_health_check = datetime.utcnow()
-            relay.is_healthy = True
-            relay.current_connections = health_data.get("connections", 0)
-            relay.save(update_fields=['last_health_check', 'is_healthy', 'current_connections'])
-
-        except Exception as e:
-            health_status = {
-                "url": relay.url,
-                "region": relay.region,
-                "healthy": False,
-                "error": str(e),
-                "checked_at": datetime.utcnow().isoformat()
-            }
-
-            relay.is_healthy = False
-            relay.save(update_fields=['is_healthy'])
-
-        # Write to Redis with 60s TTL
-        redis_client.setex(
-            f"relay:health:{relay.region}",
-            60,
-            json.dumps(health_status)
+    try:
+        response = requests.get(
+            f"{settings.SIGNAL_SERVER_URL}/health/relays",
+            timeout=5
         )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Failed to fetch relay health: {e}")
+        return {}
+
+
+def get_healthy_relays() -> list:
+    """Get list of healthy relay URLs."""
+    health = get_relay_health()
+    return [
+        relay for relay in health.get("relays", [])
+        if relay.get("status") == "healthy"
+    ]
 ```
+
+For admin display, Django can fetch and display relay health on demand from the signal server.
 
 ### 1.2 Django Admin Models
 
@@ -1703,16 +1665,16 @@ def available_relays(request):
 
 ## Tech Stack
 
-| Component        | Technology                                    |
-| ---------------- | --------------------------------------------- |
-| Framework        | Django 5.x                                    |
-| Admin UI         | Django Admin + django-unfold (modern styling) |
-| API              | Django REST Framework                         |
-| Background Tasks | Celery + Redis (or Django-Q)                  |
-| Payments         | stripe-python                                 |
-| Cache            | redis-py                                      |
-| Database         | psycopg (PostgreSQL 16)                       |
-| Talos Client     | requests + PyJWT                              |
+| Component | Technology |
+|-----------|------------|
+| Framework | Django 5.x |
+| Admin UI | Django Admin + django-unfold (modern styling) |
+| API | Django REST Framework |
+| Background Tasks | Celery + Redis (or Django-Q) |
+| Payments | stripe-python |
+| Cache | redis-py |
+| Database | psycopg (PostgreSQL 16) |
+| Talos Client | requests + PyJWT |
 
 ---
 
@@ -1736,6 +1698,9 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 STRIPE_PRICE_STARTER=price_xxx
 STRIPE_PRICE_PRO=price_xxx
 STRIPE_PRICE_TEAM=price_xxx
+
+# Signal Server (for relay health API)
+SIGNAL_SERVER_URL=https://signal.netviper.cloud
 
 # JWT Secrets
 RELAY_JWT_SECRET=<shared-with-relay-servers>
@@ -1774,10 +1739,7 @@ relay:sessions:{region}         -> Hash { room_code -> session_json }
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
-    'poll-relay-health': {
-        'task': 'tasks.relay_health.poll_relay_health',
-        'schedule': 30.0,  # Every 30 seconds
-    },
+    # Note: Relay health polling is done by the Rust signal server, not Django
     'sync-usage-to-talos': {
         'task': 'tasks.usage_sync.sync_usage_to_talos',
         'schedule': 300.0,  # Every 5 minutes
@@ -1790,15 +1752,13 @@ CELERY_BEAT_SCHEDULE = {
 ## Checklist
 
 ### Priority 1: Infrastructure
-
 - [ ] Django project setup with PostgreSQL connection
 - [ ] Django Admin models for all existing tables
 - [ ] Celery/Django-Q setup for background tasks
-- [ ] Relay health polling task (30s interval)
-- [ ] Redis integration for health cache
+- [ ] Redis integration for usage tracking
+- [ ] Signal server URL config for reading relay health
 
 ### Priority 2: Talos Integration
-
 - [ ] TalosClient service class with stubs
 - [ ] Tier configuration module
 - [ ] Create license(s) on checkout complete (batch for multi-seat)
@@ -1811,7 +1771,6 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Blacklist/ban functionality
 
 ### Priority 3: Payments
-
 - [ ] Stripe webhook endpoint
 - [ ] Handle checkout.session.completed -> Talos issue
 - [ ] Handle subscription.updated -> Talos update
@@ -1820,7 +1779,6 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Handle invoice.payment_failed -> Talos suspend
 
 ### Priority 4: Customer Portal
-
 - [ ] User authentication (login/logout)
 - [ ] Dashboard overview page
 - [ ] Licenses management page (list, view binding status, release)
@@ -1828,7 +1786,6 @@ CELERY_BEAT_SCHEDULE = {
 - [ ] Billing/upgrade page (Stripe portal, add/remove licenses)
 
 ### Priority 5: Relay Routing
-
 - [ ] Available relays API endpoint
 - [ ] Relay token generation endpoint
 - [ ] Bandwidth quota enforcement

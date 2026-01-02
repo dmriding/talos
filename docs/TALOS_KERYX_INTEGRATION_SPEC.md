@@ -11,6 +11,32 @@ This document specifies the features and API endpoints that need to be added to 
 - Keryx CLI validates directly with Talos (no Django in the validation path)
 - Django and Talos share the same PostgreSQL database
 
+**Scope of Talos:**
+
+- License CRUD operations
+- License validation (is license valid? is hardware bound?)
+- Feature gating (does license include feature X?)
+- Device binding/release
+- Bandwidth quota enforcement (stores usage, Django syncs from Redis)
+
+**NOT in Talos (handled by Signal Server / Django):**
+
+- Real-time usage tracking (relay servers write to Redis)
+- Relay health monitoring (signal server polls relays, exposes `/health/relays`)
+- Real-time session management
+
+**Bandwidth Enforcement Flow:**
+
+```
+Relay Server → Redis (INCRBY bytes)
+     ↓
+Django (periodic sync) → Talos (/usage endpoint)
+     ↓
+Keryx CLI → Talos (/validate-feature relay)
+     ↓
+Talos checks: quota_exceeded? → deny relay feature
+```
+
 ---
 
 ## Architecture
@@ -67,7 +93,7 @@ This document specifies the features and API endpoints that need to be added to 
 | **JWT service authentication**          | No                  | Yes                                    | P0       |
 | **Revoke with grace period**            | No                  | Yes                                    | P1       |
 | **Extend expiry**                       | No                  | Yes                                    | P1       |
-| **Usage/limits tracking**               | No                  | Yes                                    | P1       |
+| **Usage/bandwidth tracking**            | No                  | Yes                                    | P1       |
 | **Blacklist/ban**                       | No                  | Yes                                    | P2       |
 | **Org-based grouping**                  | No                  | Yes (licenses belong to org)           | P0       |
 | **Metadata storage**                    | No                  | Yes (Stripe IDs)                       | P1       |
@@ -204,6 +230,12 @@ CREATE TABLE licenses (
     issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ,                        -- NULL = never expires
 
+    -- Bandwidth/quota (synced from Redis by Django)
+    bandwidth_used_bytes BIGINT NOT NULL DEFAULT 0,
+    bandwidth_limit_bytes BIGINT NOT NULL DEFAULT 0,
+    quota_exceeded BOOLEAN NOT NULL DEFAULT FALSE,
+    quota_restricted_features JSONB NOT NULL DEFAULT '[]',  -- ["relay"] when quota exceeded
+
     -- Suspension/revocation
     suspended_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ,
@@ -319,6 +351,7 @@ Base path: `/api/v1`
 | POST   | `/api/v1/licenses/{license_id}/extend`    | Extend expiry            |
 | POST   | `/api/v1/licenses/{license_id}/release`   | Admin force unbind       |
 | POST   | `/api/v1/licenses/{license_id}/blacklist` | Permanent ban            |
+| PATCH  | `/api/v1/licenses/{license_id}/usage`     | Update bandwidth usage   |
 
 ---
 
@@ -383,12 +416,11 @@ Creates a single new license. Each license is hardware-bound (1 key = 1 device).
   "tier": "pro",
   "status": "active",
   "features": ["relay", "priority_support"],
-  "limits": {
-    "bandwidth_gb": 500,
-    "max_users": 5
-  },
-  "max_devices": 5,
-  "active_devices": 2,
+  "is_bound": true,
+  "hardware_id": "sha256:abc123...",
+  "device_name": "David's Laptop",
+  "bound_at": "2025-01-01T10:00:00Z",
+  "last_seen_at": "2025-01-15T14:30:00Z",
   "issued_at": "2025-01-01T00:00:00Z",
   "expires_at": "2025-02-01T00:00:00Z",
   "bandwidth_used_bytes": 107374182400,
@@ -499,7 +531,7 @@ Extends expiry date (e.g., when monthly invoice is paid).
 
 ---
 
-### Update Usage/Limits
+### Update Usage
 
 **PATCH** `/api/v1/licenses/{license_id}/usage`
 
@@ -531,7 +563,7 @@ Updates bandwidth usage. Django calls this periodically to sync usage from Redis
 - If `bandwidth_used_bytes >= bandwidth_limit_bytes`:
   - Sets `quota_exceeded: true`
   - Sets `quota_restricted_features: ["relay"]`
-- Validation endpoint will deny access to restricted features
+- Subsequent `/validate-feature relay` calls will be denied
 
 ---
 
@@ -1022,45 +1054,79 @@ fn generate_license_key() -> String {
 
 ## Tier Configuration
 
-Talos owns the tier-to-limits mapping. When Django sends `tier: "pro"`, Talos looks up the limits internally:
+Talos owns the tier-to-limits mapping. When Django sends `tier: "pro"`, Talos looks up the limits internally.
 
 ```rust
 // Built-in tier configuration (in Talos)
-const TIER_LIMITS: &[TierConfig] = &[
+// Pricing competitive with Aspera ($0.95/GB) and Signiant ($8,500+/yr)
+// Our cost basis: ~$10/TB (DigitalOcean bandwidth)
+const TIER_CONFIG: &[TierConfig] = &[
     TierConfig {
         name: "free",
+        features: &[],  // No relay access
         bandwidth_gb: 0,
-        max_devices: 1,
-        features: &[],
+        // Note: Free tier uses direct P2P only, no license needed
     },
     TierConfig {
         name: "starter",
-        bandwidth_gb: 50,
-        max_devices: 2,
         features: &["relay"],
+        bandwidth_gb: 500,  // $29/mo → ~$0.06/GB vs Aspera's $0.95/GB
     },
     TierConfig {
         name: "pro",
-        bandwidth_gb: 500,
-        max_devices: 5,
         features: &["relay", "priority_support"],
+        bandwidth_gb: 2000,  // 2 TB, $99/mo → ~$0.05/GB
     },
     TierConfig {
         name: "team",
-        bandwidth_gb: 2000,
-        max_devices: 25,
         features: &["relay", "priority_support", "dedicated_relay"],
+        bandwidth_gb: 10000,  // 10 TB, $299/mo → ~$0.03/GB
     },
     TierConfig {
         name: "enterprise",
-        bandwidth_gb: 0,  // Custom (set via update_license)
-        max_devices: 100,
         features: &["relay", "priority_support", "dedicated_relay", "sla"],
+        bandwidth_gb: 0,  // Custom - set via metadata or update
     },
 ];
 ```
 
-**Note:** For `enterprise` tier, bandwidth limits can be customized via the `/usage` endpoint.
+When a license is created with a tier, Talos sets `bandwidth_limit_bytes` based on the tier config (e.g., Pro = 2000 \* 1024³ bytes).
+
+**Feature Definitions:**
+| Feature | Description | Gated In |
+|---------|-------------|----------|
+| `relay` | Access to relay servers for NAT fallback | Keryx CLI via `/validate-feature` |
+| `priority_support` | Priority support queue | Django/admin only |
+| `dedicated_relay` | Access to private relay servers | Signal server relay allocation |
+| `sla` | SLA guarantees | Contractual only |
+
+**Bandwidth Limits by Tier:**
+| Tier | Bandwidth/Month | Target Price | Effective Rate | Notes |
+|------|-----------------|--------------|----------------|-------|
+| Free | 0 | $0 | - | No relay access, direct P2P only |
+| Starter | 500 GB | $29/mo | ~$0.06/GB | Entry-level paid tier |
+| Pro | 2 TB | $99/mo | ~$0.05/GB | Most popular tier |
+| Team | 10 TB | $299/mo | ~$0.03/GB | Heavy users, dedicated relay |
+| Enterprise | Custom | Custom | Negotiated | SLA, custom bandwidth |
+
+**Competitive Positioning:**
+
+- **Aspera**: $0.95/GB pay-as-you-go, $239/TB Essentials, $717/yr Standard
+- **Signiant**: $8,500/yr Small Business, $25,000/yr Professional
+- **Keryx**: 10-30x cheaper than Aspera per-GB, ~3x cheaper than Signiant annually
+
+**Infrastructure Costs (for reference):**
+
+- Relay server: ~$84/mo (€78)
+- Signal server: ~$82/mo (€76)
+- Django/Admin: ~$82/mo (€76)
+- **Fixed overhead: ~$248/mo**
+- Bandwidth overage: $0.01/GiB after 4TB/relay
+
+**Break-even:**
+
+- 9 Starter customers, or 3 Pro customers, or 1 Team customer covers infrastructure
+- Bandwidth costs only matter at scale (4TB included per relay)
 
 ---
 
