@@ -31,10 +31,11 @@ pub mod rate_limit;
 // instead of digging into submodules.
 
 pub use client_api::{
-    bind_handler, client_heartbeat_handler, release_handler, validate_handler,
-    validate_or_bind_handler, BindRequest, BindResponse, ClientError, ClientErrorCode,
-    ClientHeartbeatRequest, ClientHeartbeatResponse, ReleaseRequest, ReleaseResponse,
-    ValidateOrBindRequest, ValidateRequest, ValidateResponse,
+    bind_handler, client_heartbeat_handler, release_handler, validate_feature_handler,
+    validate_handler, validate_or_bind_handler, BindRequest, BindResponse, ClientError,
+    ClientErrorCode, ClientHeartbeatRequest, ClientHeartbeatResponse, ReleaseRequest,
+    ReleaseResponse, ValidateFeatureRequest, ValidateFeatureResponse, ValidateOrBindRequest,
+    ValidateRequest, ValidateResponse,
 };
 pub use database::Database;
 pub use handlers::{

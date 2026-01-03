@@ -4,8 +4,8 @@ use axum::{routing::post, Router};
 use axum::routing::{get, patch};
 
 use crate::server::client_api::{
-    bind_handler, client_heartbeat_handler, release_handler, validate_handler,
-    validate_or_bind_handler,
+    bind_handler, client_heartbeat_handler, release_handler, validate_feature_handler,
+    validate_handler, validate_or_bind_handler,
 };
 use crate::server::handlers::{
     activate_license_handler, deactivate_license_handler, heartbeat_handler,
@@ -37,6 +37,7 @@ use crate::server::admin::{
 /// - `POST /api/v1/client/validate` - Validate a license
 /// - `POST /api/v1/client/validate-or-bind` - Validate or auto-bind
 /// - `POST /api/v1/client/heartbeat` - Send heartbeat
+/// - `POST /api/v1/client/validate-feature` - Validate a specific feature
 ///
 /// ## Admin endpoints (requires `admin-api` feature)
 /// - `POST /api/v1/licenses` - Create a license
@@ -60,7 +61,11 @@ pub fn build_router(state: AppState) -> Router {
             "/api/v1/client/validate-or-bind",
             post(validate_or_bind_handler),
         )
-        .route("/api/v1/client/heartbeat", post(client_heartbeat_handler));
+        .route("/api/v1/client/heartbeat", post(client_heartbeat_handler))
+        .route(
+            "/api/v1/client/validate-feature",
+            post(validate_feature_handler),
+        );
 
     // Add admin API routes if feature is enabled
     #[cfg(feature = "admin-api")]

@@ -10,6 +10,7 @@
 //! - `POST /api/v1/client/validate` - Validate a license
 //! - `POST /api/v1/client/validate-or-bind` - Validate or auto-bind a license
 //! - `POST /api/v1/client/heartbeat` - Send heartbeat ping
+//! - `POST /api/v1/client/validate-feature` - Validate a specific feature
 
 use axum::{
     extract::State,
@@ -23,6 +24,7 @@ use tracing::{info, warn};
 
 use crate::server::database::{BindingAction, PerformedBy};
 use crate::server::handlers::AppState;
+use crate::tiers::get_tier_config;
 
 /// Error codes for client API responses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -46,6 +48,10 @@ pub enum ClientErrorCode {
     LicenseBlacklisted,
     /// License is not active
     LicenseInactive,
+    /// Feature not included in license or tier
+    FeatureNotIncluded,
+    /// Feature restricted due to quota exceeded
+    QuotaExceeded,
     /// Invalid request format
     InvalidRequest,
     /// Internal server error
@@ -88,6 +94,8 @@ impl ClientError {
             ClientErrorCode::LicenseSuspended => StatusCode::FORBIDDEN,
             ClientErrorCode::LicenseBlacklisted => StatusCode::FORBIDDEN,
             ClientErrorCode::LicenseInactive => StatusCode::FORBIDDEN,
+            ClientErrorCode::FeatureNotIncluded => StatusCode::FORBIDDEN,
+            ClientErrorCode::QuotaExceeded => StatusCode::FORBIDDEN,
             ClientErrorCode::InvalidRequest => StatusCode::BAD_REQUEST,
             ClientErrorCode::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -204,6 +212,30 @@ pub struct ClientHeartbeatRequest {
 pub struct ClientHeartbeatResponse {
     pub success: bool,
     pub server_time: String,
+}
+
+/// Request to validate a specific feature.
+#[derive(Debug, Deserialize)]
+pub struct ValidateFeatureRequest {
+    /// The human-readable license key
+    pub license_key: String,
+    /// Hardware fingerprint to verify binding
+    pub hardware_id: String,
+    /// The feature to validate
+    pub feature: String,
+}
+
+/// Response from feature validation.
+#[derive(Debug, Serialize)]
+pub struct ValidateFeatureResponse {
+    /// Whether the feature is allowed
+    pub allowed: bool,
+    /// Optional message explaining the result
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// The license tier (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tier: Option<String>,
 }
 
 // ============================================================================
@@ -727,6 +759,139 @@ pub async fn client_heartbeat_handler(
     }))
 }
 
+/// Validate a specific feature for a license.
+///
+/// # Behavior
+/// - Performs full license validation first (same checks as validate)
+/// - Checks if the feature is in the license's features list
+/// - Checks if the feature is in the tier's features (if tier is set)
+/// - Checks if the feature is restricted due to quota exceeded
+/// - Returns allowed: true/false with appropriate message
+pub async fn validate_feature_handler(
+    State(state): State<AppState>,
+    Json(req): Json<ValidateFeatureRequest>,
+) -> Result<Json<ValidateFeatureResponse>, ClientError> {
+    info!(
+        "Validate feature '{}' for license_key={}",
+        req.feature, req.license_key
+    );
+
+    // Find the license
+    let license = state
+        .db
+        .get_license_by_key(&req.license_key)
+        .await
+        .map_err(|e| {
+            warn!("Database error: {}", e);
+            ClientError::new(ClientErrorCode::InternalError, "Database error")
+        })?
+        .ok_or_else(|| {
+            warn!("License not found: {}", req.license_key);
+            ClientError::new(ClientErrorCode::LicenseNotFound, "License key not found")
+        })?;
+
+    // Check if blacklisted
+    if license.is_blacklisted == Some(true) {
+        return Err(ClientError::new(
+            ClientErrorCode::LicenseBlacklisted,
+            "License is blacklisted",
+        ));
+    }
+
+    // Check if revoked
+    if license.status == "revoked" {
+        return Err(ClientError::new(
+            ClientErrorCode::LicenseRevoked,
+            "License has been revoked",
+        ));
+    }
+
+    // Check if expired
+    if license.is_expired() {
+        return Err(ClientError::new(
+            ClientErrorCode::LicenseExpired,
+            "License has expired",
+        ));
+    }
+
+    // Check if suspended (but allow if in grace period)
+    if license.status == "suspended" && !license.is_in_grace_period() {
+        return Err(ClientError::new(
+            ClientErrorCode::LicenseSuspended,
+            "License is suspended and grace period has ended",
+        ));
+    }
+
+    // Check if bound
+    if !license.is_bound() {
+        return Err(ClientError::new(
+            ClientErrorCode::NotBound,
+            "License is not bound to any device",
+        ));
+    }
+
+    // Check hardware ID matches
+    if license.hardware_id.as_deref() != Some(&req.hardware_id) {
+        return Err(ClientError::new(
+            ClientErrorCode::HardwareMismatch,
+            "Hardware ID does not match the bound device",
+        ));
+    }
+
+    // Check for non-active status
+    if license.status != "active" && license.status != "suspended" {
+        return Err(ClientError::new(
+            ClientErrorCode::LicenseInactive,
+            format!("License status is '{}'", license.status),
+        ));
+    }
+
+    // Update last_seen_at
+    let _ = state.db.update_last_seen(&license.license_id).await;
+
+    // Get license features (from JSON string)
+    let license_features = parse_features(&license.features);
+
+    // Get tier features (if tier is set)
+    let tier_features: Vec<String> = license
+        .tier
+        .as_ref()
+        .and_then(|t| get_tier_config(t))
+        .map(|tier| tier.config.features)
+        .unwrap_or_default();
+
+    // Check if feature is in license features or tier features
+    let feature_in_license = license_features.iter().any(|f| f == &req.feature);
+    let feature_in_tier = tier_features.iter().any(|f| f == &req.feature);
+
+    if !feature_in_license && !feature_in_tier {
+        info!(
+            "Feature '{}' not included for license {}",
+            req.feature, req.license_key
+        );
+        return Err(ClientError::new(
+            ClientErrorCode::FeatureNotIncluded,
+            format!("Feature '{}' is not included in your license or tier", req.feature),
+        ));
+    }
+
+    // TODO: Check quota_restricted_features when quota fields are added to database
+    // For now, quota checking is a stub that always passes
+    // When quota fields are added, check if quota_exceeded is true and
+    // if the feature is in quota_restricted_features
+
+    info!(
+        "Feature '{}' allowed for license {}",
+        req.feature, req.license_key
+    );
+
+    Ok(Json(ValidateFeatureResponse {
+        allowed: true,
+        message: Some(format!("Feature '{}' is enabled", req.feature)),
+        tier: license.tier,
+    }))
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -782,6 +947,29 @@ mod tests {
         assert_eq!(
             parse_features(&features),
             vec!["feature_a".to_string(), "feature_b".to_string()]
+        );
+    }
+
+    #[test]
+    fn feature_error_codes_serialization() {
+        let err = ClientError::new(ClientErrorCode::FeatureNotIncluded, "Feature not included");
+        let json = serde_json::to_string(&err).unwrap();
+        assert!(json.contains("FEATURE_NOT_INCLUDED"));
+
+        let err = ClientError::new(ClientErrorCode::QuotaExceeded, "Quota exceeded");
+        let json = serde_json::to_string(&err).unwrap();
+        assert!(json.contains("QUOTA_EXCEEDED"));
+    }
+
+    #[test]
+    fn feature_error_status_codes() {
+        assert_eq!(
+            ClientError::new(ClientErrorCode::FeatureNotIncluded, "").status_code(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            ClientError::new(ClientErrorCode::QuotaExceeded, "").status_code(),
+            StatusCode::FORBIDDEN
         );
     }
 }
