@@ -937,47 +937,43 @@ impl Database {
     ) -> LicenseResult<bool> {
         let rows_affected = match self {
             #[cfg(feature = "sqlite")]
-            Database::SQLite(pool) => {
-                query(
-                    "UPDATE licenses SET \
+            Database::SQLite(pool) => query(
+                "UPDATE licenses SET \
                          bandwidth_used_bytes = ?, \
                          bandwidth_limit_bytes = ?, \
                          quota_exceeded = ? \
                      WHERE license_id = ?",
-                )
-                .bind(bandwidth_used_bytes)
-                .bind(bandwidth_limit_bytes)
-                .bind(quota_exceeded)
-                .bind(license_id)
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    error!("SQLite update_usage failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?
-                .rows_affected()
-            }
+            )
+            .bind(bandwidth_used_bytes)
+            .bind(bandwidth_limit_bytes)
+            .bind(quota_exceeded)
+            .bind(license_id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                error!("SQLite update_usage failed: {e}");
+                LicenseError::ServerError(format!("database error: {e}"))
+            })?
+            .rows_affected(),
             #[cfg(feature = "postgres")]
-            Database::Postgres(pool) => {
-                query(
-                    "UPDATE licenses SET \
+            Database::Postgres(pool) => query(
+                "UPDATE licenses SET \
                          bandwidth_used_bytes = $1, \
                          bandwidth_limit_bytes = $2, \
                          quota_exceeded = $3 \
                      WHERE license_id = $4",
-                )
-                .bind(bandwidth_used_bytes)
-                .bind(bandwidth_limit_bytes)
-                .bind(quota_exceeded)
-                .bind(license_id)
-                .execute(pool)
-                .await
-                .map_err(|e| {
-                    error!("Postgres update_usage failed: {e}");
-                    LicenseError::ServerError(format!("database error: {e}"))
-                })?
-                .rows_affected()
-            }
+            )
+            .bind(bandwidth_used_bytes)
+            .bind(bandwidth_limit_bytes)
+            .bind(quota_exceeded)
+            .bind(license_id)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                error!("Postgres update_usage failed: {e}");
+                LicenseError::ServerError(format!("database error: {e}"))
+            })?
+            .rows_affected(),
         };
 
         Ok(rows_affected > 0)

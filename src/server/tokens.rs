@@ -140,9 +140,15 @@ impl From<ApiToken> for TokenMetadata {
             name: token.name,
             scopes,
             created_at: token.created_at.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-            expires_at: token.expires_at.map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
-            last_used_at: token.last_used_at.map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
-            revoked_at: token.revoked_at.map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+            expires_at: token
+                .expires_at
+                .map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+            last_used_at: token
+                .last_used_at
+                .map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+            revoked_at: token
+                .revoked_at
+                .map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
             created_by: token.created_by,
             is_active,
         }
@@ -251,29 +257,25 @@ impl Database {
 
         let token: Option<ApiToken> = match self {
             #[cfg(feature = "sqlite")]
-            Database::SQLite(pool) => {
-                sqlx::query_as::<_, ApiToken>(
-                    "SELECT id, name, token_hash, scopes, created_at, expires_at, \
+            Database::SQLite(pool) => sqlx::query_as::<_, ApiToken>(
+                "SELECT id, name, token_hash, scopes, created_at, expires_at, \
                             last_used_at, revoked_at, created_by \
                      FROM api_tokens WHERE token_hash = ?",
-                )
-                .bind(&token_hash)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| LicenseError::ServerError(format!("token lookup failed: {e}")))?
-            }
+            )
+            .bind(&token_hash)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| LicenseError::ServerError(format!("token lookup failed: {e}")))?,
             #[cfg(feature = "postgres")]
-            Database::Postgres(pool) => {
-                sqlx::query_as::<_, ApiToken>(
-                    "SELECT id, name, token_hash, scopes, created_at, expires_at, \
+            Database::Postgres(pool) => sqlx::query_as::<_, ApiToken>(
+                "SELECT id, name, token_hash, scopes, created_at, expires_at, \
                             last_used_at, revoked_at, created_by \
                      FROM api_tokens WHERE token_hash = $1",
-                )
-                .bind(&token_hash)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| LicenseError::ServerError(format!("token lookup failed: {e}")))?
-            }
+            )
+            .bind(&token_hash)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| LicenseError::ServerError(format!("token lookup failed: {e}")))?,
         };
 
         if let Some(ref t) = token {
@@ -298,7 +300,9 @@ impl Database {
                     .bind(token_id)
                     .execute(pool)
                     .await
-                    .map_err(|e| LicenseError::ServerError(format!("update last_used failed: {e}")))?;
+                    .map_err(|e| {
+                        LicenseError::ServerError(format!("update last_used failed: {e}"))
+                    })?;
             }
             #[cfg(feature = "postgres")]
             Database::Postgres(pool) => {
@@ -307,7 +311,9 @@ impl Database {
                     .bind(token_id)
                     .execute(pool)
                     .await
-                    .map_err(|e| LicenseError::ServerError(format!("update last_used failed: {e}")))?;
+                    .map_err(|e| {
+                        LicenseError::ServerError(format!("update last_used failed: {e}"))
+                    })?;
             }
         }
 
@@ -318,27 +324,23 @@ impl Database {
     pub async fn list_api_tokens(&self) -> LicenseResult<Vec<ApiToken>> {
         match self {
             #[cfg(feature = "sqlite")]
-            Database::SQLite(pool) => {
-                sqlx::query_as::<_, ApiToken>(
-                    "SELECT id, name, token_hash, scopes, created_at, expires_at, \
+            Database::SQLite(pool) => sqlx::query_as::<_, ApiToken>(
+                "SELECT id, name, token_hash, scopes, created_at, expires_at, \
                             last_used_at, revoked_at, created_by \
                      FROM api_tokens ORDER BY created_at DESC",
-                )
-                .fetch_all(pool)
-                .await
-                .map_err(|e| LicenseError::ServerError(format!("list tokens failed: {e}")))
-            }
+            )
+            .fetch_all(pool)
+            .await
+            .map_err(|e| LicenseError::ServerError(format!("list tokens failed: {e}"))),
             #[cfg(feature = "postgres")]
-            Database::Postgres(pool) => {
-                sqlx::query_as::<_, ApiToken>(
-                    "SELECT id, name, token_hash, scopes, created_at, expires_at, \
+            Database::Postgres(pool) => sqlx::query_as::<_, ApiToken>(
+                "SELECT id, name, token_hash, scopes, created_at, expires_at, \
                             last_used_at, revoked_at, created_by \
                      FROM api_tokens ORDER BY created_at DESC",
-                )
-                .fetch_all(pool)
-                .await
-                .map_err(|e| LicenseError::ServerError(format!("list tokens failed: {e}")))
-            }
+            )
+            .fetch_all(pool)
+            .await
+            .map_err(|e| LicenseError::ServerError(format!("list tokens failed: {e}"))),
         }
     }
 
@@ -346,29 +348,25 @@ impl Database {
     pub async fn get_api_token(&self, token_id: &str) -> LicenseResult<Option<ApiToken>> {
         match self {
             #[cfg(feature = "sqlite")]
-            Database::SQLite(pool) => {
-                sqlx::query_as::<_, ApiToken>(
-                    "SELECT id, name, token_hash, scopes, created_at, expires_at, \
+            Database::SQLite(pool) => sqlx::query_as::<_, ApiToken>(
+                "SELECT id, name, token_hash, scopes, created_at, expires_at, \
                             last_used_at, revoked_at, created_by \
                      FROM api_tokens WHERE id = ?",
-                )
-                .bind(token_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| LicenseError::ServerError(format!("get token failed: {e}")))
-            }
+            )
+            .bind(token_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| LicenseError::ServerError(format!("get token failed: {e}"))),
             #[cfg(feature = "postgres")]
-            Database::Postgres(pool) => {
-                sqlx::query_as::<_, ApiToken>(
-                    "SELECT id, name, token_hash, scopes, created_at, expires_at, \
+            Database::Postgres(pool) => sqlx::query_as::<_, ApiToken>(
+                "SELECT id, name, token_hash, scopes, created_at, expires_at, \
                             last_used_at, revoked_at, created_by \
                      FROM api_tokens WHERE id = $1",
-                )
-                .bind(token_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| LicenseError::ServerError(format!("get token failed: {e}")))
-            }
+            )
+            .bind(token_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| LicenseError::ServerError(format!("get token failed: {e}"))),
         }
     }
 
@@ -553,7 +551,8 @@ pub async fn create_token_handler(
 pub async fn list_tokens_handler(State(state): State<AppState>) -> impl IntoResponse {
     match state.db.list_api_tokens().await {
         Ok(tokens) => {
-            let metadata: Vec<TokenMetadata> = tokens.into_iter().map(TokenMetadata::from).collect();
+            let metadata: Vec<TokenMetadata> =
+                tokens.into_iter().map(TokenMetadata::from).collect();
             let response = ListTokensResponse { tokens: metadata };
             (StatusCode::OK, Json(serde_json::json!(response))).into_response()
         }

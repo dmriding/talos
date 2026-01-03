@@ -77,8 +77,8 @@ pub use validation::{
 };
 
 pub use tokens::{
-    create_token_handler, get_token_handler, list_tokens_handler, revoke_token_handler,
-    ApiToken, CreateTokenRequest, CreateTokenResponse, ListTokensResponse, RevokeTokenResponse,
+    create_token_handler, get_token_handler, list_tokens_handler, revoke_token_handler, ApiToken,
+    CreateTokenRequest, CreateTokenResponse, ListTokensResponse, RevokeTokenResponse,
     TokenMetadata, TokenResponse,
 };
 

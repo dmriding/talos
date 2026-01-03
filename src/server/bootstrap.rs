@@ -53,7 +53,10 @@ pub async fn check_bootstrap_token(db: &Arc<Database>) -> LicenseResult<Option<S
     }
 
     // Create the bootstrap token with full admin access
-    info!("Creating bootstrap admin token from {}", BOOTSTRAP_TOKEN_ENV);
+    info!(
+        "Creating bootstrap admin token from {}",
+        BOOTSTRAP_TOKEN_ENV
+    );
 
     let (token, raw_token) = db
         .create_api_token(
@@ -202,7 +205,9 @@ pub async fn execute_token_command(db: &Database, cmd: TokenCommand) -> LicenseR
             });
 
             let scope_refs: Vec<&str> = scopes.iter().map(|s| s.as_str()).collect();
-            let (token, raw) = db.create_api_token(&name, &scope_refs, expires, None).await?;
+            let (token, raw) = db
+                .create_api_token(&name, &scope_refs, expires, None)
+                .await?;
 
             println!("Token created successfully!");
             println!("───────────────────────────────────────────");
@@ -307,11 +312,7 @@ mod tests {
 
     #[test]
     fn parse_token_list() {
-        let args = vec![
-            "talos".to_string(),
-            "token".to_string(),
-            "list".to_string(),
-        ];
+        let args = vec!["talos".to_string(), "token".to_string(), "list".to_string()];
         assert!(matches!(parse_token_command(&args), TokenCommand::List));
     }
 
