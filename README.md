@@ -279,6 +279,7 @@ cargo run --example manual_activate
 | POST   | `/api/v1/licenses/{id}/usage`         | Update usage/bandwidth metrics     |
 | POST   | `/api/v1/licenses/{id}/validate-feature` | Validate feature access         |
 | POST   | `/api/v1/licenses/{id}/release`       | Release hardware binding           |
+| POST   | `/api/v1/licenses/{id}/blacklist`     | Permanently blacklist a license    |
 
 All client requests use:
 
@@ -325,7 +326,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 5 Complete**
+**Current Status: Phase 6 Complete**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -341,12 +342,14 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - License lifecycle management (suspend, revoke, reinstate, extend)
 - Usage tracking endpoints
 - Background jobs (grace period expiration, license expiration, stale device cleanup)
+- License blacklisting (permanent ban with audit trail)
+- Request validation utilities (UUID, license key, hardware ID, datetime formats)
 
 **Upcoming:**
 
+- OpenAPI documentation
 - Webhook notifications
 - Dashboard UI
-- Analytics and reporting
 
 ---
 

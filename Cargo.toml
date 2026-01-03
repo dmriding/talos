@@ -96,6 +96,9 @@ tokio-cron-scheduler = { version = "0.14", optional = true }
 # === Date and Time Utilities ===
 chrono = { version = "0.4.38", features = ["serde"] }
 
+# === Validation ===
+regex = "1.10"
+
 # === Development Dependencies ===
 [dev-dependencies]
 tokio-test = "0.4.4"

@@ -15,6 +15,7 @@
 //! - `POST /api/v1/licenses/{license_id}/reinstate` - Reinstate a revoked/suspended license
 //! - `POST /api/v1/licenses/{license_id}/extend` - Extend license expiration
 //! - `PATCH /api/v1/licenses/{license_id}/usage` - Update bandwidth/usage tracking
+//! - `POST /api/v1/licenses/{license_id}/blacklist` - Permanently blacklist a license
 
 use axum::{
     extract::{Path, Query, State},
@@ -866,6 +867,13 @@ pub async fn reinstate_license_handler(
         .await?
         .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
 
+    // Check if blacklisted - cannot reinstate blacklisted licenses
+    if license.is_blacklisted == Some(true) {
+        return Err(AdminError::BadRequest(
+            "Cannot reinstate a blacklisted license. Remove from blacklist first.".to_string(),
+        ));
+    }
+
     // Check if license needs reinstatement
     if license.status == "active" {
         return Err(AdminError::BadRequest(
@@ -1052,6 +1060,125 @@ pub async fn update_usage_handler(
         bandwidth_limit_bytes,
         quota_exceeded,
         usage_percentage,
+    }))
+}
+
+/// Request for blacklisting a license.
+#[derive(Debug, Deserialize)]
+pub struct BlacklistLicenseRequest {
+    /// Reason for blacklisting (required for audit trail)
+    pub reason: String,
+    /// Message to display to user when they attempt to use the license
+    pub message: Option<String>,
+}
+
+/// Response from blacklist operation.
+#[derive(Debug, Serialize)]
+pub struct BlacklistLicenseResponse {
+    pub success: bool,
+    pub message: String,
+    pub status: String,
+    pub blacklisted_at: String,
+}
+
+/// Blacklist a license permanently.
+///
+/// `POST /api/v1/licenses/{license_id}/blacklist`
+///
+/// This endpoint permanently blacklists a license, preventing all future use.
+/// Blacklisting is more severe than revocation - it indicates abuse, fraud,
+/// or policy violation.
+///
+/// # Behavior
+/// - Sets `is_blacklisted = true`
+/// - Sets status to 'revoked'
+/// - Stores blacklist reason and timestamp
+/// - Clears hardware binding (force releases the license)
+/// - Cannot be reinstated through normal reinstate endpoint
+pub async fn blacklist_license_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<BlacklistLicenseRequest>,
+) -> Result<Json<BlacklistLicenseResponse>, AdminError> {
+    use crate::server::database::{BindingAction, PerformedBy};
+
+    info!(
+        "Blacklist request for license_id={} reason={}",
+        license_id, payload.reason
+    );
+
+    // Validate reason is not empty
+    if payload.reason.trim().is_empty() {
+        return Err(AdminError::BadRequest(
+            "reason is required for blacklisting".to_string(),
+        ));
+    }
+
+    // Get the license
+    let mut license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
+
+    // Check if already blacklisted
+    if license.is_blacklisted == Some(true) {
+        return Err(AdminError::BadRequest(
+            "License is already blacklisted".to_string(),
+        ));
+    }
+
+    let now = Utc::now().naive_utc();
+
+    // If bound, record the release in history before clearing
+    if license.is_bound() {
+        let _ = state
+            .db
+            .record_binding_history(
+                &license_id,
+                BindingAction::AdminRelease,
+                license.hardware_id.as_deref(),
+                license.device_name.as_deref(),
+                license.device_info.as_deref(),
+                PerformedBy::Admin,
+                Some(&format!("Blacklisted: {}", payload.reason)),
+            )
+            .await;
+    }
+
+    // Set blacklist fields
+    license.is_blacklisted = Some(true);
+    license.blacklisted_at = Some(now);
+    license.blacklist_reason = Some(payload.reason.clone());
+
+    // Set status to revoked
+    license.status = "revoked".to_string();
+    license.revoked_at = Some(now);
+    license.revoke_reason = Some(format!("Blacklisted: {}", payload.reason));
+
+    // Store message if provided
+    if let Some(msg) = &payload.message {
+        license.suspension_message = Some(msg.clone());
+    }
+
+    // Clear hardware binding
+    license.hardware_id = None;
+    license.device_name = None;
+    license.device_info = None;
+    license.bound_at = None;
+
+    state.db.insert_license(license).await?;
+
+    info!(
+        "License {} blacklisted at {} for reason: {}",
+        license_id, now, payload.reason
+    );
+
+    Ok(Json(BlacklistLicenseResponse {
+        success: true,
+        message: "License has been blacklisted".to_string(),
+        status: "revoked".to_string(),
+        blacklisted_at: now.to_string(),
     }))
 }
 
