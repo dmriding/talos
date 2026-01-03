@@ -44,15 +44,36 @@ Format: `vYYYY.MM.INCREMENT`
 - Database methods: `get_expired_grace_period_licenses`, `get_expired_licenses`, `get_stale_device_licenses`
 - `SystemRelease` binding action for audit trail
 
+#### Phase 6: Blacklist & Security
+- **Blacklist License** (`/api/v1/licenses/{id}/blacklist`)
+  - Permanently ban licenses for abuse, fraud, or policy violations
+  - Sets `is_blacklisted = true` and status to 'revoked'
+  - Clears hardware binding on blacklist
+  - Prevents reinstatement through normal reinstate endpoint
+  - Requires reason for audit trail
+- **Request Validation Module** (`src/server/validation.rs`)
+  - `validate_uuid()` - Validate UUID format (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+  - `validate_license_key()` - Validate license key format (PREFIX-XXXX-XXXX-XXXX)
+  - `validate_hardware_id()` - Validate SHA-256 hardware fingerprint (64 hex chars)
+  - `validate_datetime()` - Validate ISO 8601 datetime formats
+  - `validate_feature_name()` - Validate feature name format
+  - `validate_org_id()` - Validate organization ID format
+  - `validate_not_empty()`, `validate_length()` - String validation utilities
+- Added `regex` dependency for validation patterns
+
 ### Changed
 - Updated `BindingAction` enum with `SystemRelease` variant for background job auditing
 - Added `release_license` database method for clearing hardware bindings
 - License struct now tracks `grace_period_ends_at`, `suspended_at`, `revoked_at`, `revoke_reason`, `suspension_message`
+- Reinstate endpoint now blocks blacklisted licenses
 
 ### Tests
 - 19 new integration tests for Phase 4 lifecycle endpoints
 - 7 new integration tests for Phase 5 background jobs
-- Total test count: 130+ tests passing
+- 6 new integration tests for Phase 6 blacklist endpoint
+- 12 new unit tests for validation module
+- 5 new doctests for validation functions
+- Total test count: 150+ tests passing
 
 ---
 

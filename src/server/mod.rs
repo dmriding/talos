@@ -11,12 +11,14 @@
 //! - `auth`        → JWT authentication middleware (requires `jwt-auth` feature)
 //! - `admin`       → Admin API for license CRUD (requires `admin-api` feature)
 //! - `rate_limit`  → Rate limiting middleware (requires `rate-limiting` feature)
+//! - `validation`  → Request validation utilities
 
 pub mod client_api;
 pub mod database;
 pub mod handlers;
 pub mod routes;
 pub mod server_sim;
+pub mod validation;
 
 #[cfg(feature = "jwt-auth")]
 pub mod auth;
@@ -49,10 +51,11 @@ pub use auth::{AuthError, AuthState, AuthenticatedUser, Claims, JwtValidator, Op
 
 #[cfg(feature = "admin-api")]
 pub use admin::{
-    admin_release_handler, batch_create_license_handler, create_license_handler,
-    extend_license_handler, get_license_handler, list_licenses_handler, reinstate_license_handler,
-    revoke_license_handler, update_license_handler, update_usage_handler, AdminReleaseRequest,
-    AdminReleaseResponse, ExtendLicenseRequest, ExtendLicenseResponse, ReinstateLicenseRequest,
+    admin_release_handler, batch_create_license_handler, blacklist_license_handler,
+    create_license_handler, extend_license_handler, get_license_handler, list_licenses_handler,
+    reinstate_license_handler, revoke_license_handler, update_license_handler,
+    update_usage_handler, AdminReleaseRequest, AdminReleaseResponse, BlacklistLicenseRequest,
+    BlacklistLicenseResponse, ExtendLicenseRequest, ExtendLicenseResponse, ReinstateLicenseRequest,
     ReinstateLicenseResponse, RevokeLicenseRequest, RevokeLicenseResponse, UpdateUsageRequest,
     UpdateUsageResponse,
 };
@@ -60,4 +63,10 @@ pub use admin::{
 #[cfg(feature = "rate-limiting")]
 pub use rate_limit::{
     create_rate_limiter, rate_limit_error_response, RateLimitType, SmartIpKeyExtractor,
+};
+
+pub use validation::{
+    validate_datetime, validate_feature_name, validate_hardware_id, validate_length,
+    validate_license_key, validate_not_empty, validate_optional_not_empty, validate_org_id,
+    validate_uuid, ValidationError, ValidationResult,
 };

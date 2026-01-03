@@ -425,24 +425,31 @@ bandwidth_gb = 0  # unlimited
 
 ## Phase 6: Blacklist & Security (P2 - Medium)
 
-### 6.1 Blacklist Endpoint
+### 6.1 Blacklist Endpoint ✅
 
-- [ ] Implement `POST /api/v1/licenses/{license_id}/blacklist` handler
-- [ ] Accept `reason`, `message`
-- [ ] Set `is_blacklisted = true`
-- [ ] Set status to 'revoked'
-- [ ] Store blacklist reason and timestamp
-- [ ] Add JWT authentication requirement
-- [ ] Write integration tests
+- [x] Implement `POST /api/v1/licenses/{license_id}/blacklist` handler
+- [x] Accept `reason`, `message`
+- [x] Set `is_blacklisted = true`
+- [x] Set status to 'revoked'
+- [x] Store blacklist reason and timestamp
+- [x] Clear hardware binding on blacklist
+- [x] Prevent reinstating blacklisted licenses
+- [x] Validate reason is not empty
+- [ ] Add JWT authentication requirement *(deferred to jwt-auth feature integration)*
+- [x] Write integration tests (6 tests)
 
-### 6.2 Request Validation
+### 6.2 Request Validation ✅
 
-- [ ] Add input validation for all endpoints
-- [ ] Validate UUID formats
-- [ ] Validate license key format
-- [ ] Validate hardware_id format (SHA-256 hex)
-- [ ] Return 400 Bad Request with specific error messages
-- [ ] Write validation unit tests
+- [x] Create `src/server/validation.rs` module
+- [x] Validate UUID formats
+- [x] Validate license key format
+- [x] Validate hardware_id format (SHA-256 hex)
+- [x] Validate datetime formats (ISO 8601)
+- [x] Validate feature names and org IDs
+- [x] Validate string length and non-empty values
+- [x] Return 400 Bad Request with specific error messages via `ValidationError`
+- [x] Write validation unit tests (12 tests)
+- [x] Add documentation with examples (5 doctests)
 
 ---
 

@@ -1303,3 +1303,289 @@ async fn update_usage_license_not_found() {
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(body["error"].as_str().unwrap().contains("not found"));
 }
+
+// ============================================================================
+// Blacklist License Tests
+// ============================================================================
+
+#[tokio::test]
+async fn blacklist_license_success() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "blacklist-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Blacklist the license
+    let app = build_router(state.clone());
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/blacklist", license_id),
+        Some(json!({
+            "reason": "Terms of service violation - abuse detected",
+            "message": "This license has been permanently banned"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["status"], "revoked");
+    assert_eq!(body["message"], "License has been blacklisted");
+    assert!(!body["blacklisted_at"].as_str().unwrap().is_empty());
+
+    // Verify the license is blacklisted and revoked
+    let app = build_router(state);
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+
+    assert_eq!(get_body["status"], "revoked");
+}
+
+#[tokio::test]
+async fn blacklist_license_clears_hardware_binding() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "blacklist-bound-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+    let license_key = create_body["license_key"].as_str().unwrap();
+
+    // Bind the license to hardware
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        "/api/v1/client/bind",
+        Some(json!({
+            "license_key": license_key,
+            "hardware_id": "test-hw-123",
+            "device_name": "Test Device"
+        })),
+    )
+    .await;
+
+    // Verify it's bound
+    let app = build_router(state.clone());
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+    assert_eq!(get_body["is_bound"], true);
+
+    // Blacklist the license
+    let app = build_router(state.clone());
+    let (status, _) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/blacklist", license_id),
+        Some(json!({
+            "reason": "Fraud detected"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+
+    // Verify hardware binding was cleared
+    let app = build_router(state);
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+
+    assert_eq!(get_body["is_bound"], false);
+    assert!(get_body["hardware_id"].is_null());
+    assert!(get_body["device_name"].is_null());
+}
+
+#[tokio::test]
+async fn blacklist_license_not_found() {
+    let state = setup_test_app().await;
+    let app = build_router(state);
+
+    let (status, body) = json_request(
+        app,
+        "POST",
+        "/api/v1/licenses/nonexistent-id/blacklist",
+        Some(json!({
+            "reason": "Test reason"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"].as_str().unwrap().contains("not found"));
+}
+
+#[tokio::test]
+async fn blacklist_license_already_blacklisted() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "double-blacklist-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Blacklist it
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/blacklist", license_id),
+        Some(json!({
+            "reason": "First blacklist"
+        })),
+    )
+    .await;
+
+    // Try to blacklist again
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/blacklist", license_id),
+        Some(json!({
+            "reason": "Second blacklist attempt"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"]
+        .as_str()
+        .unwrap()
+        .contains("already blacklisted"));
+}
+
+#[tokio::test]
+async fn blacklist_license_empty_reason() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "blacklist-empty-reason-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Try to blacklist with empty reason
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/blacklist", license_id),
+        Some(json!({
+            "reason": "   "
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"]
+        .as_str()
+        .unwrap()
+        .contains("reason is required"));
+}
+
+#[tokio::test]
+async fn reinstate_blacklisted_license_fails() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "reinstate-blacklist-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Blacklist it
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/blacklist", license_id),
+        Some(json!({
+            "reason": "Permanent ban"
+        })),
+    )
+    .await;
+
+    // Try to reinstate the blacklisted license
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/reinstate", license_id),
+        Some(json!({
+            "reason": "Trying to unban"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"]
+        .as_str()
+        .unwrap()
+        .contains("Cannot reinstate a blacklisted license"));
+}
