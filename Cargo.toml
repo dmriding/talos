@@ -29,6 +29,9 @@ jwt-auth = ["dep:jsonwebtoken", "server"]
 # Admin API for license CRUD operations
 admin-api = ["server"]
 
+# Rate limiting for public endpoints
+rate-limiting = ["dep:tower_governor", "dep:governor", "server"]
+
 # Future features (reserved, not yet implemented)
 # background-jobs = ["dep:tokio-cron-scheduler"]
 # quota-tracking = []
@@ -80,6 +83,10 @@ sqlx = { version = "0.8.2", features = [
 
 # === JWT Authentication (optional, requires "jwt-auth" feature) ===
 jsonwebtoken = { version = "9", optional = true }
+
+# === Rate Limiting (optional, requires "rate-limiting" feature) ===
+tower_governor = { version = "0.4", optional = true }
+governor = { version = "0.6", optional = true }
 
 # === Date and Time Utilities ===
 chrono = { version = "0.4.38", features = ["serde"] }
