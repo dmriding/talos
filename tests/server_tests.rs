@@ -14,6 +14,9 @@ use talos::server::handlers::{
     LicenseRequest, LicenseResponse,
 };
 
+#[cfg(feature = "jwt-auth")]
+use talos::server::auth::AuthState;
+
 /// Helper: create an in-memory SQLite Database with the licenses table.
 async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
     let pool = SqlitePoolOptions::new()
@@ -51,7 +54,10 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
             is_blacklisted  INTEGER DEFAULT 0,
             blacklisted_at  TEXT,
             blacklist_reason TEXT,
-            metadata        TEXT
+            metadata        TEXT,
+            bandwidth_used_bytes INTEGER DEFAULT 0,
+            bandwidth_limit_bytes INTEGER,
+            quota_exceeded  INTEGER DEFAULT 0
         );
         "#,
     )
@@ -66,7 +72,11 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
 async fn activate_and_validate_round_trip() -> LicenseResult<()> {
     // Arrange: in-memory DB + AppState
     let db = setup_in_memory_db().await?;
-    let state = AppState { db };
+    let state = AppState {
+        db,
+        #[cfg(feature = "jwt-auth")]
+        auth: AuthState::disabled(),
+    };
 
     let license_id = "TEST-LICENSE-1".to_string();
     let client_id = "CLIENT-123".to_string();
@@ -108,7 +118,11 @@ async fn activate_and_validate_round_trip() -> LicenseResult<()> {
 async fn deactivate_makes_license_invalid() -> LicenseResult<()> {
     // Arrange
     let db = setup_in_memory_db().await?;
-    let state = AppState { db };
+    let state = AppState {
+        db,
+        #[cfg(feature = "jwt-auth")]
+        auth: AuthState::disabled(),
+    };
 
     let license_id = "TEST-LICENSE-2".to_string();
     let client_id = "CLIENT-XYZ".to_string();

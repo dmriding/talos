@@ -3,6 +3,7 @@
 This roadmap outlines all tasks to evolve Talos into a full-featured, production-ready licensing library. Tasks are organized by priority and phase, with dependencies noted.
 
 **Design Philosophy:** Talos is an **open-source, generic licensing library**. All features should be:
+
 - **Configurable** - No hardcoded values; users configure for their needs
 - **Optional** - Advanced features are opt-in, not required
 - **Generic** - No product-specific naming or assumptions in the core library
@@ -13,6 +14,7 @@ This roadmap outlines all tasks to evolve Talos into a full-featured, production
 ## Current State Summary
 
 **What Talos Has Today:**
+
 - Basic license activation/validation/deactivation
 - Heartbeat mechanism
 - Hardware binding (SHA-256 fingerprint)
@@ -22,6 +24,7 @@ This roadmap outlines all tasks to evolve Talos into a full-featured, production
 - Cross-platform client library
 
 **What a Production Licensing System Needs:**
+
 - Full Admin API for management integrations
 - Optional JWT service authentication
 - Configurable license key generation (`PREFIX-XXXX-XXXX-XXXX`)
@@ -46,7 +49,7 @@ Structure the library so advanced features are opt-in:
   - `server` - Server components (handlers, database)
   - `sqlite` - SQLite database backend
   - `postgres` - PostgreSQL database backend
-  - *(reserved for future)* `jwt-auth`, `admin-api`, `background-jobs`, `quota-tracking`
+  - _(reserved for future)_ `jwt-auth`, `admin-api`, `background-jobs`, `quota-tracking`
 - [x] Gate code behind `#[cfg(feature = "...")]` attributes
 - [x] Document feature combinations in README
 - [x] Ensure `cargo build` works with minimal features
@@ -98,16 +101,16 @@ enabled = false
 - [x] Add `org_id` and `org_name` columns to licenses table (nullable for simple use cases)
 - [x] Add `license_key` column (configurable `PREFIX-XXXX-XXXX-XXXX` format)
 - [x] Add `tier` column (nullable, optional for users who don't need tiers)
-- [ ] Change `features` from TEXT to JSONB array *(deferred - current TEXT format works)*
+- [ ] Change `features` from TEXT to JSONB array _(deferred - current TEXT format works)_
 - [x] Add hardware binding fields (`hardware_id`, `device_name`, `device_info`, `bound_at`, `last_seen_at`)
 - [x] Add status lifecycle fields (`status`, `suspended_at`, `revoked_at`, `revoke_reason`, `grace_period_ends_at`, `suspension_message`)
-- [ ] Add bandwidth quota fields - **gated behind `quota-tracking` feature** (`bandwidth_used_bytes`, `bandwidth_limit_bytes`, `quota_exceeded`, `quota_restricted_features`) *(deferred to quota feature)*
+- [ ] Add bandwidth quota fields - **gated behind `quota-tracking` feature** (`bandwidth_used_bytes`, `bandwidth_limit_bytes`, `quota_exceeded`, `quota_restricted_features`) _(deferred to quota feature)_
 - [x] Add blacklist fields (`is_blacklisted`, `blacklisted_at`, `blacklist_reason`)
 - [x] Add `metadata` JSONB column for arbitrary user data (Stripe IDs, custom fields, etc.)
 - [x] Create indexes on `org_id`, `license_key`, `hardware_id`, `status`, `expires_at`
 - [x] Create `license_binding_history` table for audit trail (optional, can be disabled)
-- [ ] Create `api_tokens` table for service authentication - **gated behind `jwt-auth` feature** *(deferred to jwt-auth feature)*
-- [ ] Write migration rollback script *(deferred)*
+- [ ] Create `api_tokens` table for service authentication - **gated behind `jwt-auth` feature** _(deferred to jwt-auth feature)_
+- [ ] Write migration rollback script _(deferred)_
 - [x] Update `License` struct with all new fields
 - [x] Update `insert_license` to handle all 26 fields
 - [x] Add database methods: `get_license_by_key`, `license_key_exists`, `list_licenses_by_org`, `update_license_status`, `bind_license`, `release_license`, `record_binding_history`, `update_last_seen`
@@ -158,7 +161,7 @@ let key = generate_license_key(&config); // "KERYX-A1B2-C3D4-E5F6-G7H8"
 - [x] Create `AuthState` for middleware state management
 - [x] **When feature disabled**: Auth module not compiled, `AuthError::AuthDisabled` returned
 - [x] Write unit tests for JWT validation (11 tests)
-- [ ] Write integration tests for protected endpoints *(deferred to Phase 1.5 when endpoints exist)*
+- [ ] Write integration tests for protected endpoints _(deferred to Phase 1.5 when endpoints exist)_
 
 ### 1.4 Tier Configuration System ✅
 
@@ -196,6 +199,7 @@ bandwidth_gb = 0  # unlimited
 **Gated behind `admin-api` feature flag** - Without this feature, only client endpoints are available.
 
 #### Create License ✅
+
 - [x] Implement `POST /api/v1/licenses` handler
 - [x] Accept `org_id`, `org_name`, `tier`, `features`, `expires_at`, `metadata` (all optional)
 - [x] Generate license key automatically using configured prefix
@@ -204,6 +208,7 @@ bandwidth_gb = 0  # unlimited
 - [x] Write integration tests (14 tests in `tests/admin_api_tests.rs`)
 
 #### Batch Create Licenses ✅
+
 - [x] Implement `POST /api/v1/licenses/batch` handler
 - [x] Accept `count` parameter for number of licenses (max 1000)
 - [x] Generate unique keys for each license
@@ -211,18 +216,21 @@ bandwidth_gb = 0  # unlimited
 - [x] Write integration tests
 
 #### Get License ✅
+
 - [x] Implement `GET /api/v1/licenses/{license_id}` handler
 - [x] Return full license object with all fields
 - [x] Include computed `is_bound` field
 - [x] Write integration tests
 
 #### List Organization Licenses ✅
+
 - [x] Implement `GET /api/v1/licenses?org_id={id}` handler
 - [x] Return paginated list of licenses for org (with `page`, `per_page` params)
 - [x] Include `total`, `total_pages` in response
 - [x] Write integration tests
 
 #### Update License ✅
+
 - [x] Implement `PATCH /api/v1/licenses/{license_id}` handler
 - [x] Support updating `tier`, `features`, `expires_at`, `metadata`
 - [x] Re-derive features when tier changes
@@ -254,6 +262,7 @@ bandwidth_gb = 0  # unlimited
 ### 2.2 Hardware Binding System ✅
 
 #### Client Bind Endpoint ✅
+
 - [x] Implement `POST /api/v1/client/bind` handler
 - [x] Accept `license_key`, `hardware_id`, `device_name`, `device_info`
 - [x] Check if license exists and is valid (not expired, revoked, suspended, blacklisted)
@@ -265,6 +274,7 @@ bandwidth_gb = 0  # unlimited
 - [x] Write unit tests (5 tests in client_api.rs)
 
 #### Client Release Endpoint ✅
+
 - [x] Implement `POST /api/v1/client/release` handler
 - [x] Accept `license_key`, `hardware_id`
 - [x] Verify `hardware_id` matches current binding
@@ -274,6 +284,7 @@ bandwidth_gb = 0  # unlimited
 - [x] No authentication required (rate-limited)
 
 #### Admin Force Release Endpoint ✅
+
 - [x] Implement `POST /api/v1/licenses/{license_id}/release` handler
 - [x] Accept `reason` parameter for audit trail
 - [x] Force unbind regardless of hardware_id
@@ -284,6 +295,7 @@ bandwidth_gb = 0  # unlimited
 ### 2.3 Updated Validation Flow ✅
 
 #### Client Validate Endpoint ✅
+
 - [x] Implement `POST /api/v1/client/validate` handler
 - [x] Accept `license_key`, `hardware_id`
 - [x] Check license exists → `LICENSE_NOT_FOUND`
@@ -300,6 +312,7 @@ bandwidth_gb = 0  # unlimited
 - [x] No authentication required (rate-limited)
 
 #### Validate-or-Bind Convenience Endpoint ✅
+
 - [x] Implement `POST /api/v1/client/validate-or-bind` handler
 - [x] If bound to this hardware: validate and return
 - [x] If unbound: bind first, then validate
@@ -435,7 +448,7 @@ bandwidth_gb = 0  # unlimited
 - [x] Clear hardware binding on blacklist
 - [x] Prevent reinstating blacklisted licenses
 - [x] Validate reason is not empty
-- [ ] Add JWT authentication requirement *(deferred to jwt-auth feature integration)*
+- [ ] Add JWT authentication requirement _(deferred to jwt-auth feature integration)_
 - [x] Write integration tests (6 tests)
 
 ### 6.2 Request Validation ✅
@@ -450,6 +463,46 @@ bandwidth_gb = 0  # unlimited
 - [x] Return 400 Bad Request with specific error messages via `ValidationError`
 - [x] Write validation unit tests (12 tests)
 - [x] Add documentation with examples (5 doctests)
+
+---
+
+## Phase 6.5: Authentication & Quota Completion (P1 - High)
+
+### 6.5.1 Quota Persistence ✅
+
+- [x] Add migration for quota fields: `bandwidth_used_bytes`, `bandwidth_limit_bytes`, `quota_exceeded`
+- [x] Update `License` struct with quota fields
+- [x] Update `update_usage` handler to persist to database
+- [x] Update validation to check quota from database
+- [x] Write integration tests for quota persistence
+
+### 6.5.2 JWT + Admin API Wiring ✅
+
+- [x] Add JWT authentication guard to admin routes (when both `admin-api` and `jwt-auth` enabled)
+- [x] Create `AuthLayer` middleware that injects `AuthState` into request extensions
+- [x] Add `auth` field to `AppState` (conditional on `jwt-auth` feature)
+- [x] Apply `AuthLayer` to admin routes when both features enabled
+- [x] Update all test files to include auth state
+
+### 6.5.3 Token Management System ✅
+
+- [x] Create `api_tokens` table migration:
+  - `id`, `name`, `token_hash`, `scopes`, `created_at`, `expires_at`, `last_used_at`, `revoked_at`, `created_by`
+- [x] Create `ApiToken` struct and database methods
+- [x] Implement token validation (hash lookup, scope check, expiry check)
+- [x] Implement `POST /api/v1/tokens` - create new token (returns raw token once)
+- [x] Implement `GET /api/v1/tokens` - list tokens (metadata only)
+- [x] Implement `DELETE /api/v1/tokens/{id}` - revoke token
+- [x] Update `last_used_at` on each authenticated request
+
+### 6.5.4 Bootstrap Flow ✅
+
+- [x] Check `TALOS_BOOTSTRAP_TOKEN` env var on startup
+- [x] If set and no tokens exist → create bootstrap token with `*` scope
+- [x] If tokens exist → ignore env var (prevent re-bootstrap)
+- [x] Log warning when bootstrap token is used
+- [x] Add CLI command: `talos token create --name "X" --scopes "Y"`
+- [x] CLI outputs raw token to stdout once
 
 ---
 
@@ -548,7 +601,7 @@ bandwidth_gb = 0  # unlimited
 
 - [ ] Document all environment variables
 - [ ] Create example `.env` file
-- [ ] Create example `config.toml` for Keryx deployment
+- [ ] Create example `config.toml` for production deployment
 - [ ] Add configuration validation on startup
 
 ### 10.2 Docker
@@ -562,7 +615,7 @@ bandwidth_gb = 0  # unlimited
 
 - [ ] Document migration process
 - [ ] Create migration scripts for existing Talos deployments
-- [ ] Test migration from current schema to Keryx schema
+- [ ] Test migration from legacy schema to current schema
 
 ---
 
@@ -610,47 +663,51 @@ Phase 9 (Testing) ────► Phase 10 (Deployment)
 
 ### Admin Endpoints (JWT Required)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/licenses` | Create single license |
-| POST | `/api/v1/licenses/batch` | Create multiple licenses |
-| GET | `/api/v1/licenses?org_id={id}` | List org's licenses |
-| GET | `/api/v1/licenses/{license_id}` | Get license details |
-| PATCH | `/api/v1/licenses/{license_id}` | Update tier/features |
-| POST | `/api/v1/licenses/{license_id}/revoke` | Suspend/revoke |
-| POST | `/api/v1/licenses/{license_id}/reinstate` | Reinstate |
-| POST | `/api/v1/licenses/{license_id}/extend` | Extend expiry |
-| POST | `/api/v1/licenses/{license_id}/release` | Admin force unbind |
-| POST | `/api/v1/licenses/{license_id}/blacklist` | Permanent ban |
-| PATCH | `/api/v1/licenses/{license_id}/usage` | Update bandwidth |
+| Method | Endpoint                                  | Description              |
+| ------ | ----------------------------------------- | ------------------------ |
+| POST   | `/api/v1/licenses`                        | Create single license    |
+| POST   | `/api/v1/licenses/batch`                  | Create multiple licenses |
+| GET    | `/api/v1/licenses?org_id={id}`            | List org's licenses      |
+| GET    | `/api/v1/licenses/{license_id}`           | Get license details      |
+| PATCH  | `/api/v1/licenses/{license_id}`           | Update tier/features     |
+| POST   | `/api/v1/licenses/{license_id}/revoke`    | Suspend/revoke           |
+| POST   | `/api/v1/licenses/{license_id}/reinstate` | Reinstate                |
+| POST   | `/api/v1/licenses/{license_id}/extend`    | Extend expiry            |
+| POST   | `/api/v1/licenses/{license_id}/release`   | Admin force unbind       |
+| POST   | `/api/v1/licenses/{license_id}/blacklist` | Permanent ban            |
+| PATCH  | `/api/v1/licenses/{license_id}/usage`     | Update bandwidth         |
+| POST   | `/api/v1/tokens`                          | Create API token         |
+| GET    | `/api/v1/tokens`                          | List all tokens          |
+| GET    | `/api/v1/tokens/{token_id}`               | Get token details        |
+| DELETE | `/api/v1/tokens/{token_id}`               | Revoke token             |
 
 ### Client Endpoints (Rate-Limited, No Auth)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/client/bind` | Bind license to hardware |
-| POST | `/api/v1/client/release` | Release from hardware |
-| POST | `/api/v1/client/validate` | Validate license |
-| POST | `/api/v1/client/validate-or-bind` | Validate or auto-bind |
-| POST | `/api/v1/client/validate-feature` | Check feature access |
-| POST | `/api/v1/client/heartbeat` | Liveness ping |
+| Method | Endpoint                          | Description              |
+| ------ | --------------------------------- | ------------------------ |
+| POST   | `/api/v1/client/bind`             | Bind license to hardware |
+| POST   | `/api/v1/client/release`          | Release from hardware    |
+| POST   | `/api/v1/client/validate`         | Validate license         |
+| POST   | `/api/v1/client/validate-or-bind` | Validate or auto-bind    |
+| POST   | `/api/v1/client/validate-feature` | Check feature access     |
+| POST   | `/api/v1/client/heartbeat`        | Liveness ping            |
 
 ---
 
 ## Estimated Effort by Phase
 
-| Phase | Description | Complexity |
-|-------|-------------|------------|
-| 1 | Core Admin API | High |
-| 2 | Device Management | Medium |
-| 3 | Feature Gating | Low |
-| 4 | Lifecycle Management | Medium |
-| 5 | Background Jobs | Medium |
-| 6 | Security | Medium |
-| 7 | Documentation | Low |
-| 8 | Client Updates | Medium |
-| 9 | Testing | High |
-| 10 | Deployment | Low |
+| Phase | Description          | Complexity |
+| ----- | -------------------- | ---------- |
+| 1     | Core Admin API       | High       |
+| 2     | Device Management    | Medium     |
+| 3     | Feature Gating       | Low        |
+| 4     | Lifecycle Management | Medium     |
+| 5     | Background Jobs      | Medium     |
+| 6     | Security             | Medium     |
+| 7     | Documentation        | Low        |
+| 8     | Client Updates       | Medium     |
+| 9     | Testing              | High       |
+| 10    | Deployment           | Low        |
 
 ---
 
@@ -658,7 +715,7 @@ Phase 9 (Testing) ────► Phase 10 (Deployment)
 
 ### Open Source Design Principles
 
-- **No Product-Specific Code**: The Talos codebase should never contain Keryx-specific naming, constants, or logic. Keryx is just one user of the library.
+- **No Product-Specific Code**: The Talos codebase should never contain product-specific naming, constants, or logic. Keep the library generic.
 - **Configuration Over Code**: All customization (key prefix, tiers, features) happens via configuration, not code changes.
 - **Feature Flags**: Advanced features are opt-in via Cargo features. A simple use case shouldn't require complex setup.
 - **Sensible Defaults**: Works out of the box with SQLite and basic endpoints. Advanced features require explicit opt-in.
@@ -669,13 +726,13 @@ Phase 9 (Testing) ────► Phase 10 (Deployment)
 - **Backwards Compatibility**: Old `/activate`, `/validate`, `/deactivate`, `/heartbeat` endpoints can be deprecated but kept for transition period.
 - **Testing Strategy**: Write tests alongside implementation, not after. Each task should include its tests.
 
-### For Keryx Integration Specifically
+### Example Configuration
 
-When deploying Talos for Keryx, the configuration would look like:
+Here's an example of how a production deployment might configure Talos:
 
 ```toml
 [license]
-key_prefix = "KERYX"
+key_prefix = "MYAPP"
 
 [auth]
 enabled = true
@@ -688,17 +745,13 @@ enabled = true
 features = []
 bandwidth_gb = 0
 
-[tiers.starter]
-features = ["relay"]
+[tiers.pro]
+features = ["feature_a", "feature_b"]
 bandwidth_gb = 500
 
-[tiers.pro]
-features = ["relay", "priority_support"]
-bandwidth_gb = 2000
-
-[tiers.team]
-features = ["relay", "priority_support", "dedicated_relay"]
-bandwidth_gb = 10000
+[tiers.enterprise]
+features = ["feature_a", "feature_b", "feature_c"]
+bandwidth_gb = 0  # unlimited
 ```
 
-This is **configuration**, not code. Another user might configure completely different tiers and a different key prefix.
+This is **configuration**, not code. Each deployment configures its own tiers and key prefix.

@@ -13,6 +13,9 @@ use talos::server::handlers::{
     validate_license_handler, AppState,
 };
 
+#[cfg(feature = "jwt-auth")]
+use talos::server::auth::AuthState;
+
 /// Helper: create an in-memory SQLite `Database` with the `licenses` table
 /// and return it wrapped in Arc<Database>.
 async fn setup_in_memory_db() -> Arc<Database> {
@@ -51,7 +54,10 @@ async fn setup_in_memory_db() -> Arc<Database> {
             is_blacklisted  INTEGER DEFAULT 0,
             blacklisted_at  TEXT,
             blacklist_reason TEXT,
-            metadata        TEXT
+            metadata        TEXT,
+            bandwidth_used_bytes INTEGER DEFAULT 0,
+            bandwidth_limit_bytes INTEGER,
+            quota_exceeded  INTEGER DEFAULT 0
         );
         "#,
     )
@@ -65,7 +71,11 @@ async fn setup_in_memory_db() -> Arc<Database> {
 /// Spin up a temporary Talos server instance on a random port using in-memory SQLite.
 async fn spawn_test_server() -> String {
     let db = setup_in_memory_db().await;
-    let state = AppState { db };
+    let state = AppState {
+        db,
+        #[cfg(feature = "jwt-auth")]
+        auth: AuthState::disabled(),
+    };
 
     let router: Router = Router::new()
         .route("/activate", post(activate_license_handler))
