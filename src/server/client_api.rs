@@ -538,7 +538,10 @@ pub async fn validate_or_bind_handler(
     State(state): State<AppState>,
     Json(req): Json<ValidateOrBindRequest>,
 ) -> Result<Json<ValidateResponse>, ClientError> {
-    info!("Validate-or-bind request for license_key={}", req.license_key);
+    info!(
+        "Validate-or-bind request for license_key={}",
+        req.license_key
+    );
 
     // Find the license
     let license = state

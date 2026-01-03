@@ -26,11 +26,7 @@
 //! Use `SmartIpKeyExtractor` which automatically handles X-Forwarded-For headers
 //! for proxied requests, or use the built-in `PeerIpKeyExtractor` for direct connections.
 
-use axum::{
-    body::Body,
-    http::StatusCode,
-    response::Response,
-};
+use axum::{body::Body, http::StatusCode, response::Response};
 use governor::middleware::NoOpMiddleware;
 use std::sync::Arc;
 use tower_governor::governor::GovernorConfigBuilder;
@@ -128,7 +124,12 @@ mod tests {
         let response = rate_limit_error_response(30);
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
         assert_eq!(
-            response.headers().get("Retry-After").unwrap().to_str().unwrap(),
+            response
+                .headers()
+                .get("Retry-After")
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "30"
         );
     }
@@ -138,7 +139,12 @@ mod tests {
         // Even for zero wait, minimum retry-after should be 1 second
         let response = rate_limit_error_response(0);
         assert_eq!(
-            response.headers().get("Retry-After").unwrap().to_str().unwrap(),
+            response
+                .headers()
+                .get("Retry-After")
+                .unwrap()
+                .to_str()
+                .unwrap(),
             "1"
         );
     }

@@ -56,7 +56,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/v1/client/bind", post(bind_handler))
         .route("/api/v1/client/release", post(release_handler))
         .route("/api/v1/client/validate", post(validate_handler))
-        .route("/api/v1/client/validate-or-bind", post(validate_or_bind_handler))
+        .route(
+            "/api/v1/client/validate-or-bind",
+            post(validate_or_bind_handler),
+        )
         .route("/api/v1/client/heartbeat", post(client_heartbeat_handler));
 
     // Add admin API routes if feature is enabled
