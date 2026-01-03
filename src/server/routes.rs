@@ -15,7 +15,7 @@ use crate::server::handlers::{
 #[cfg(feature = "admin-api")]
 use crate::server::admin::{
     admin_release_handler, batch_create_license_handler, create_license_handler,
-    get_license_handler, list_licenses_handler, update_license_handler,
+    get_license_handler, list_licenses_handler, revoke_license_handler, update_license_handler,
 };
 
 /// Build the main application router for the Talos server.
@@ -46,6 +46,7 @@ use crate::server::admin::{
 /// - `GET /api/v1/licenses` - List licenses (requires org_id query param)
 /// - `PATCH /api/v1/licenses/{license_id}` - Update a license
 /// - `POST /api/v1/licenses/{license_id}/release` - Admin force release
+/// - `POST /api/v1/licenses/{license_id}/revoke` - Revoke a license
 pub fn build_router(state: AppState) -> Router {
     let router = Router::new()
         // Legacy client endpoints (backwards compatibility)
@@ -81,6 +82,10 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/api/v1/licenses/:license_id/release",
             post(admin_release_handler),
+        )
+        .route(
+            "/api/v1/licenses/:license_id/revoke",
+            post(revoke_license_handler),
         );
 
     router.with_state(state)

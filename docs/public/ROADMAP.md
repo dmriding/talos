@@ -341,15 +341,16 @@ bandwidth_gb = 0  # unlimited
 
 ## Phase 4: Lifecycle Management (P1 - High)
 
-### 4.1 Revoke License
+### 4.1 Revoke License ✅
 
-- [ ] Implement `POST /api/v1/licenses/{license_id}/revoke` handler
-- [ ] Accept `reason`, `grace_period_days`, `message`
-- [ ] If `grace_period_days = 0`: set status to 'revoked' immediately
-- [ ] If `grace_period_days > 0`: set status to 'suspended', calculate `grace_period_ends_at`
-- [ ] Store `revoke_reason` and `suspension_message`
-- [ ] Add JWT authentication requirement
-- [ ] Write integration tests
+- [x] Implement `POST /api/v1/licenses/{license_id}/revoke` handler
+- [x] Accept `reason`, `grace_period_days`, `message`
+- [x] If `grace_period_days = 0`: set status to 'revoked' immediately
+- [x] If `grace_period_days > 0`: set status to 'suspended', calculate `grace_period_ends_at`
+- [x] Store `revoke_reason` and `suspension_message`
+- [x] Write integration tests (4 tests)
+
+**Note:** JWT authentication guard integration deferred to when both `admin-api` and `jwt-auth` features are enabled together. Route is in place and ready for middleware.
 
 ### 4.2 Reinstate License
 

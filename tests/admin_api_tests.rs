@@ -521,3 +521,175 @@ async fn list_licenses_pagination() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["licenses"].as_array().unwrap().len(), 5);
 }
+
+// ============================================================================
+// Revoke License Tests
+// ============================================================================
+
+#[tokio::test]
+async fn revoke_license_immediate() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "revoke-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Revoke immediately (grace_period_days = 0)
+    let app = build_router(state.clone());
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({
+            "reason": "Terms of service violation",
+            "grace_period_days": 0
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["status"], "revoked");
+    assert!(body["grace_period_ends_at"].is_null());
+
+    // Verify the license is revoked
+    let app = build_router(state);
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+
+    assert_eq!(get_body["status"], "revoked");
+}
+
+#[tokio::test]
+async fn revoke_license_with_grace_period() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "revoke-grace-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Revoke with 7 day grace period
+    let app = build_router(state.clone());
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({
+            "reason": "Non-payment",
+            "grace_period_days": 7,
+            "message": "Please renew your subscription within 7 days"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["status"], "suspended");
+    assert!(!body["grace_period_ends_at"].is_null());
+
+    // Verify the license is suspended with grace period
+    let app = build_router(state);
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+
+    assert_eq!(get_body["status"], "suspended");
+}
+
+#[tokio::test]
+async fn revoke_license_not_found() {
+    let state = setup_test_app().await;
+    let app = build_router(state);
+
+    let (status, body) = json_request(
+        app,
+        "POST",
+        "/api/v1/licenses/nonexistent-id/revoke",
+        Some(json!({
+            "reason": "Test",
+            "grace_period_days": 0
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"].as_str().unwrap().contains("not found"));
+}
+
+#[tokio::test]
+async fn revoke_already_revoked_license() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "double-revoke-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Revoke it
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({
+            "grace_period_days": 0
+        })),
+    )
+    .await;
+
+    // Try to revoke again
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({
+            "grace_period_days": 0
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"].as_str().unwrap().contains("already revoked"));
+}
