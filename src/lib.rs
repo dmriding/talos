@@ -44,3 +44,7 @@ pub mod client {
 #[cfg(feature = "server")]
 #[path = "server/mod.rs"]
 pub mod server;
+
+// Background jobs (requires "background-jobs" feature)
+#[cfg(feature = "background-jobs")]
+pub mod jobs;

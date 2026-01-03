@@ -148,6 +148,8 @@ Talos uses Cargo feature flags to let you include only what you need:
 | `postgres` | No | PostgreSQL database backend |
 | `jwt-auth` | No | JWT authentication middleware for protected endpoints |
 | `admin-api` | No | Admin CRUD API for license management |
+| `rate-limiting` | No | Rate limiting middleware for abuse prevention |
+| `background-jobs` | No | Scheduled background jobs for license maintenance |
 
 ### Examples
 
@@ -166,6 +168,12 @@ talos = { git = "https://github.com/dmriding/talos", features = ["postgres"] }
 
 # Full server with admin API and JWT auth
 talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth"] }
+
+# Server with background jobs enabled
+talos = { git = "https://github.com/dmriding/talos", features = ["background-jobs"] }
+
+# Full-featured server
+talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
 ```
 
 ---
@@ -257,13 +265,20 @@ cargo run --example manual_activate
 
 ### Admin Endpoints (requires `admin-api` feature)
 
-| Method | Endpoint                     | Description              |
-|--------|------------------------------|--------------------------|
-| POST   | `/api/v1/licenses`           | Create a new license     |
-| POST   | `/api/v1/licenses/batch`     | Batch create licenses    |
-| GET    | `/api/v1/licenses/{id}`      | Get license by ID        |
-| GET    | `/api/v1/licenses?org_id=X`  | List licenses by org     |
-| PATCH  | `/api/v1/licenses/{id}`      | Update a license         |
+| Method | Endpoint                              | Description                        |
+|--------|---------------------------------------|------------------------------------|
+| POST   | `/api/v1/licenses`                    | Create a new license               |
+| POST   | `/api/v1/licenses/batch`              | Batch create licenses              |
+| GET    | `/api/v1/licenses/{id}`               | Get license by ID                  |
+| GET    | `/api/v1/licenses?org_id=X`           | List licenses by org               |
+| PATCH  | `/api/v1/licenses/{id}`               | Update a license                   |
+| POST   | `/api/v1/licenses/{id}/suspend`       | Suspend a license                  |
+| POST   | `/api/v1/licenses/{id}/revoke`        | Revoke a license                   |
+| POST   | `/api/v1/licenses/{id}/reinstate`     | Reinstate a suspended/revoked license |
+| POST   | `/api/v1/licenses/{id}/extend`        | Extend license expiration          |
+| POST   | `/api/v1/licenses/{id}/usage`         | Update usage/bandwidth metrics     |
+| POST   | `/api/v1/licenses/{id}/validate-feature` | Validate feature access         |
+| POST   | `/api/v1/licenses/{id}/release`       | Release hardware binding           |
 
 All client requests use:
 
@@ -310,7 +325,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 1.5 Complete**
+**Current Status: Phase 5 Complete**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -321,13 +336,17 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - Tier-based feature system
 - JWT authentication middleware
 - Admin API (CRUD operations)
+- Rate limiting middleware
+- Feature gating (tier-based access control)
+- License lifecycle management (suspend, revoke, reinstate, extend)
+- Usage tracking endpoints
+- Background jobs (grace period expiration, license expiration, stale device cleanup)
 
 **Upcoming:**
 
-- Background jobs for expiration handling
-- Rate limiting and abuse prevention
 - Webhook notifications
 - Dashboard UI
+- Analytics and reporting
 
 ---
 

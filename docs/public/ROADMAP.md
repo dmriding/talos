@@ -380,44 +380,46 @@ bandwidth_gb = 0  # unlimited
 
 ---
 
-## Phase 5: Background Jobs (P1 - High)
+## Phase 5: Background Jobs (P1 - High) ✅
 
-### 5.1 Job Infrastructure
+### 5.1 Job Infrastructure ✅
 
-- [ ] Add `tokio-cron-scheduler` or similar crate
-- [ ] Create `src/jobs/mod.rs` module
-- [ ] Implement job runner with configurable schedules
-- [ ] Add job logging and error handling
-- [ ] Add configuration for job intervals
+- [x] Add `tokio-cron-scheduler` crate as optional dependency (`background-jobs` feature)
+- [x] Create `src/jobs/mod.rs` module with `JobScheduler` struct
+- [x] Implement job runner with configurable cron schedules via `JobConfig`
+- [x] Add job logging with `tracing`
+- [x] Add configuration for job intervals
+- [x] Add methods to run jobs manually: `run_grace_period_check_now()`, etc.
+- [x] Write unit test for default config
 
-### 5.2 Grace Period Expiration Job
+### 5.2 Grace Period Expiration Job ✅
 
-- [ ] Create `src/jobs/grace_period.rs`
-- [ ] Query licenses where `status = 'suspended'` AND `grace_period_ends_at < NOW()`
-- [ ] Update status to 'revoked'
-- [ ] Set `revoked_at` timestamp
-- [ ] Log affected licenses
-- [ ] Schedule to run every hour
-- [ ] Write integration tests
+- [x] Create `src/jobs/grace_period.rs`
+- [x] Query licenses where `status = 'suspended'` AND `grace_period_ends_at < NOW()`
+- [x] Update status to 'revoked'
+- [x] Set `revoked_at` timestamp
+- [x] Log affected licenses
+- [x] Configurable schedule (default: every hour)
+- [x] Write integration tests (2 tests)
 
-### 5.3 License Expiration Job
+### 5.3 License Expiration Job ✅
 
-- [ ] Create `src/jobs/expiration.rs`
-- [ ] Query licenses where `status = 'active'` AND `expires_at < NOW()`
-- [ ] Update status to 'expired'
-- [ ] Log affected licenses
-- [ ] Schedule to run every hour
-- [ ] Write integration tests
+- [x] Create `src/jobs/license_expiration.rs`
+- [x] Query licenses where `status = 'active'` AND `expires_at < NOW()`
+- [x] Update status to 'expired'
+- [x] Log affected licenses
+- [x] Configurable schedule (default: every hour at minute 15)
+- [x] Write integration tests (2 tests)
 
-### 5.4 Stale Device Cleanup Job (Optional)
+### 5.4 Stale Device Cleanup Job ✅
 
-- [ ] Create `src/jobs/stale_devices.rs`
-- [ ] Query licenses where `last_seen_at < NOW() - 90 days`
-- [ ] Clear hardware binding (auto-release)
-- [ ] Record in binding history with `performed_by: "system"`
-- [ ] Schedule to run daily
-- [ ] Make configurable (enable/disable, threshold days)
-- [ ] Write integration tests
+- [x] Create `src/jobs/stale_devices.rs`
+- [x] Query licenses where `last_seen_at < threshold`
+- [x] Clear hardware binding (auto-release)
+- [x] Record in binding history with `performed_by: "system"`
+- [x] Configurable schedule (default: daily at 3 AM)
+- [x] Make configurable (enable/disable, threshold days)
+- [x] Write integration tests (2 tests)
 
 ---
 

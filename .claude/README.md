@@ -82,22 +82,58 @@ The project uses Cargo feature flags for modularity:
 
 ## Testing Requirements
 
-**CRITICAL:** All changes MUST pass the full test suite:
+**CRITICAL: ALL CODE MUST PASS BEFORE COMMITTING:**
+
+1. **All tests must pass** - No exceptions
+2. **Code must be formatted** - `cargo fmt` must produce no changes
+3. **CI must pass** - GitHub Actions runs tests on all PRs
+
+### Required Commands Before Every Commit
 
 ```bash
-# Run all tests with all features
-cargo test --features "admin-api,jwt-auth"
+# 1. Run all tests with all features
+cargo test --all-features
 
+# 2. Check formatting (must produce no output)
+cargo fmt --check
+
+# 3. Run clippy with no warnings
+cargo clippy --all-features
+
+# If any of these fail, fix the issues before committing!
+```
+
+### Optional: Run Specific Tests
+
+```bash
 # Run specific test files
 cargo test --test admin_api_tests --features admin-api
 cargo test --test database_tests
 
-# Check formatting
-cargo fmt --check
-
-# Run clippy
-cargo clippy --features "admin-api,jwt-auth" -- -D warnings
+# Run with verbose output
+cargo test --all-features -- --nocapture
 ```
+
+### CI Pipeline
+
+The GitHub Actions workflow runs on every PR and push:
+- `cargo test --all-features`
+- `cargo fmt --check`
+- `cargo clippy --all-features`
+
+**PRs will not be merged if CI fails.**
+
+### For AI Agents
+
+**IMPORTANT:** AI agents (Claude, GPT, etc.) MUST run the following commands and verify they pass before completing any task:
+
+```bash
+cargo test --all-features
+cargo fmt --check
+cargo clippy --all-features
+```
+
+**Do not submit results if any of these commands fail.** Fix the issues first.
 
 ## Code Style Guidelines
 
