@@ -35,6 +35,9 @@ rate-limiting = ["dep:tower_governor", "dep:governor", "server"]
 # Background jobs for license expiration and cleanup
 background-jobs = ["dep:tokio-cron-scheduler", "server"]
 
+# OpenAPI documentation with Swagger UI
+openapi = ["dep:utoipa", "dep:utoipa-swagger-ui", "server"]
+
 # Future features (reserved, not yet implemented)
 # quota-tracking = []
 
@@ -93,6 +96,10 @@ governor = { version = "0.6", optional = true }
 
 # === Background Jobs (optional, requires "background-jobs" feature) ===
 tokio-cron-scheduler = { version = "0.14", optional = true }
+
+# === OpenAPI Documentation (optional, requires "openapi" feature) ===
+utoipa = { version = "5", features = ["axum_extras", "chrono"], optional = true }
+utoipa-swagger-ui = { version = "8", features = ["axum"], optional = true }
 
 # === Date and Time Utilities ===
 chrono = { version = "0.4.38", features = ["serde"] }

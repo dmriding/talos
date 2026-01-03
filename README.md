@@ -150,6 +150,7 @@ Talos uses Cargo feature flags to let you include only what you need:
 | `admin-api` | No | Admin CRUD API for license management |
 | `rate-limiting` | No | Rate limiting middleware for abuse prevention |
 | `background-jobs` | No | Scheduled background jobs for license maintenance |
+| `openapi` | No | OpenAPI 3.0 specification and Swagger UI |
 
 ### Examples
 
@@ -174,6 +175,9 @@ talos = { git = "https://github.com/dmriding/talos", features = ["background-job
 
 # Full-featured server
 talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
+
+# Server with OpenAPI documentation
+talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "openapi"] }
 ```
 
 ---
@@ -254,7 +258,24 @@ cargo run --example manual_activate
 
 ## Server API Endpoints
 
-### Client Endpoints (always available)
+### OpenAPI Documentation (requires `openapi` feature)
+
+When running with the `openapi` feature enabled, interactive API documentation is available:
+
+| Endpoint                | Description                        |
+|-------------------------|------------------------------------|
+| `/swagger-ui`           | Swagger UI for interactive API exploration |
+| `/api-docs/openapi.json`| OpenAPI 3.0 specification (JSON)   |
+
+Run the server with OpenAPI enabled:
+
+```sh
+cargo run --bin talos_server --features "openapi,admin-api"
+```
+
+Then navigate to `http://127.0.0.1:8080/swagger-ui` in your browser.
+
+### Legacy Client Endpoints (always available)
 
 | Method | Endpoint      | Description              |
 |--------|---------------|--------------------------|
@@ -262,6 +283,17 @@ cargo run --example manual_activate
 | POST   | `/validate`   | Validate if license is active |
 | POST   | `/deactivate` | Deactivate a license     |
 | POST   | `/heartbeat`  | Send heartbeat ping      |
+
+### Client API v1 Endpoints (always available)
+
+| Method | Endpoint                        | Description                     |
+|--------|---------------------------------|---------------------------------|
+| POST   | `/api/v1/client/bind`           | Bind license to hardware        |
+| POST   | `/api/v1/client/release`        | Release license from hardware   |
+| POST   | `/api/v1/client/validate`       | Validate a license              |
+| POST   | `/api/v1/client/validate-or-bind` | Validate or auto-bind         |
+| POST   | `/api/v1/client/heartbeat`      | Send heartbeat                  |
+| POST   | `/api/v1/client/validate-feature` | Validate feature access       |
 
 ### Admin Endpoints (requires `admin-api` feature)
 
@@ -272,16 +304,23 @@ cargo run --example manual_activate
 | GET    | `/api/v1/licenses/{id}`               | Get license by ID                  |
 | GET    | `/api/v1/licenses?org_id=X`           | List licenses by org               |
 | PATCH  | `/api/v1/licenses/{id}`               | Update a license                   |
-| POST   | `/api/v1/licenses/{id}/suspend`       | Suspend a license                  |
-| POST   | `/api/v1/licenses/{id}/revoke`        | Revoke a license                   |
+| POST   | `/api/v1/licenses/{id}/revoke`        | Revoke a license (with optional grace period) |
 | POST   | `/api/v1/licenses/{id}/reinstate`     | Reinstate a suspended/revoked license |
 | POST   | `/api/v1/licenses/{id}/extend`        | Extend license expiration          |
-| POST   | `/api/v1/licenses/{id}/usage`         | Update usage/bandwidth metrics     |
-| POST   | `/api/v1/licenses/{id}/validate-feature` | Validate feature access         |
+| PATCH  | `/api/v1/licenses/{id}/usage`         | Update usage/bandwidth metrics     |
 | POST   | `/api/v1/licenses/{id}/release`       | Release hardware binding           |
 | POST   | `/api/v1/licenses/{id}/blacklist`     | Permanently blacklist a license    |
 
-All client requests use:
+### Token Endpoints (requires `admin-api` feature)
+
+| Method | Endpoint                 | Description              |
+|--------|--------------------------|--------------------------|
+| POST   | `/api/v1/tokens`         | Create a new API token   |
+| GET    | `/api/v1/tokens`         | List all API tokens      |
+| GET    | `/api/v1/tokens/{id}`    | Get token details        |
+| DELETE | `/api/v1/tokens/{id}`    | Revoke a token           |
+
+All legacy client requests use:
 
 ```json
 {
@@ -326,7 +365,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 6 Complete**
+**Current Status: Phase 7.1 Complete**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -344,10 +383,11 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - Background jobs (grace period expiration, license expiration, stale device cleanup)
 - License blacklisting (permanent ban with audit trail)
 - Request validation utilities (UUID, license key, hardware ID, datetime formats)
+- OpenAPI 3.0 specification with Swagger UI
 
 **Upcoming:**
 
-- OpenAPI documentation
+- Error response standardization
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting
