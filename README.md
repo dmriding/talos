@@ -150,6 +150,7 @@ Talos uses Cargo feature flags to let you include only what you need:
 | `admin-api` | No | Admin CRUD API for license management |
 | `rate-limiting` | No | Rate limiting middleware for abuse prevention |
 | `background-jobs` | No | Scheduled background jobs for license maintenance |
+| `openapi` | No | OpenAPI 3.0 specification and Swagger UI |
 
 ### Examples
 
@@ -174,6 +175,9 @@ talos = { git = "https://github.com/dmriding/talos", features = ["background-job
 
 # Full-featured server
 talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
+
+# Server with OpenAPI documentation
+talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "openapi"] }
 ```
 
 ---
@@ -326,7 +330,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 6 Complete**
+**Current Status: Phase 7.1 Complete**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -344,10 +348,11 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - Background jobs (grace period expiration, license expiration, stale device cleanup)
 - License blacklisting (permanent ban with audit trail)
 - Request validation utilities (UUID, license key, hardware ID, datetime formats)
+- OpenAPI 3.0 specification with Swagger UI
 
 **Upcoming:**
 
-- OpenAPI documentation
+- Error response standardization
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting

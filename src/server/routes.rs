@@ -3,6 +3,9 @@ use axum::{routing::post, Router};
 #[cfg(feature = "admin-api")]
 use axum::routing::{delete, get, patch};
 
+#[cfg(feature = "openapi")]
+use utoipa_swagger_ui::SwaggerUi;
+
 use crate::server::client_api::{
     bind_handler, client_heartbeat_handler, release_handler, validate_feature_handler,
     validate_handler, validate_or_bind_handler,
@@ -176,6 +179,16 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/v1/tokens", get(list_tokens_handler))
         .route("/api/v1/tokens/:token_id", get(get_token_handler))
         .route("/api/v1/tokens/:token_id", delete(revoke_token_handler));
+
+    // Add Swagger UI routes if openapi feature is enabled
+    #[cfg(feature = "openapi")]
+    let router = {
+        use crate::server::openapi::get_openapi;
+        router.merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", get_openapi()),
+        )
+    };
 
     router.with_state(state)
 }

@@ -33,12 +33,16 @@ use sqlx::{query, FromRow};
 use tracing::{info, warn};
 use uuid::Uuid;
 
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
+
 use crate::errors::{LicenseError, LicenseResult};
 use crate::server::database::Database;
 use crate::server::handlers::AppState;
 
 /// API Token stored in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ApiToken {
     /// Unique identifier for the token
     pub id: String,
@@ -110,6 +114,7 @@ impl ApiToken {
 
 /// Response for token creation (includes the raw token).
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTokenResponse {
     /// The created token metadata
     pub token: TokenMetadata,
@@ -119,6 +124,7 @@ pub struct CreateTokenResponse {
 
 /// Token metadata for listing (excludes hash and raw token).
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TokenMetadata {
     pub id: String,
     pub name: String,
@@ -157,6 +163,7 @@ impl From<ApiToken> for TokenMetadata {
 
 /// Request to create a new API token.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTokenRequest {
     /// Human-readable name for the token
     pub name: String,
@@ -433,18 +440,21 @@ impl Database {
 
 /// Response for token list endpoint.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ListTokensResponse {
     pub tokens: Vec<TokenMetadata>,
 }
 
 /// Response for single token operations.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TokenResponse {
     pub token: TokenMetadata,
 }
 
 /// Response for token revocation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct RevokeTokenResponse {
     pub success: bool,
     pub message: String,
@@ -452,6 +462,7 @@ pub struct RevokeTokenResponse {
 
 /// Error response for token operations.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TokenErrorResponse {
     pub error: String,
     pub code: String,
@@ -470,6 +481,18 @@ impl TokenErrorResponse {
 ///
 /// Request body: `CreateTokenRequest`
 /// Response: `CreateTokenResponse` (includes raw token, only shown once)
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/tokens",
+    tag = "tokens",
+    request_body = CreateTokenRequest,
+    responses(
+        (status = 201, description = "Token created", body = CreateTokenResponse),
+        (status = 400, description = "Invalid request", body = TokenErrorResponse),
+        (status = 500, description = "Server error", body = TokenErrorResponse),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn create_token_handler(
     State(state): State<AppState>,
     Json(req): Json<CreateTokenRequest>,
@@ -548,6 +571,16 @@ pub async fn create_token_handler(
 /// GET /api/v1/tokens - List all API tokens.
 ///
 /// Response: `ListTokensResponse`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/v1/tokens",
+    tag = "tokens",
+    responses(
+        (status = 200, description = "List of tokens", body = ListTokensResponse),
+        (status = 500, description = "Server error", body = TokenErrorResponse),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn list_tokens_handler(State(state): State<AppState>) -> impl IntoResponse {
     match state.db.list_api_tokens().await {
         Ok(tokens) => {
@@ -570,6 +603,20 @@ pub async fn list_tokens_handler(State(state): State<AppState>) -> impl IntoResp
 /// GET /api/v1/tokens/:id - Get a specific token by ID.
 ///
 /// Response: `TokenResponse`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/v1/tokens/{id}",
+    tag = "tokens",
+    params(
+        ("id" = String, Path, description = "Token ID")
+    ),
+    responses(
+        (status = 200, description = "Token details", body = TokenResponse),
+        (status = 404, description = "Token not found", body = TokenErrorResponse),
+        (status = 500, description = "Server error", body = TokenErrorResponse),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn get_token_handler(
     State(state): State<AppState>,
     Path(token_id): Path<String>,
@@ -603,6 +650,20 @@ pub async fn get_token_handler(
 /// DELETE /api/v1/tokens/:id - Revoke a token.
 ///
 /// Response: `RevokeTokenResponse`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    delete,
+    path = "/api/v1/tokens/{id}",
+    tag = "tokens",
+    params(
+        ("id" = String, Path, description = "Token ID")
+    ),
+    responses(
+        (status = 200, description = "Token revoked", body = RevokeTokenResponse),
+        (status = 404, description = "Token not found", body = TokenErrorResponse),
+        (status = 500, description = "Server error", body = TokenErrorResponse),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn revoke_token_handler(
     State(state): State<AppState>,
     Path(token_id): Path<String>,

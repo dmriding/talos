@@ -17,6 +17,8 @@ pub mod bootstrap;
 pub mod client_api;
 pub mod database;
 pub mod handlers;
+#[cfg(feature = "openapi")]
+pub mod openapi;
 pub mod routes;
 pub mod server_sim;
 pub mod tokens;
@@ -86,3 +88,6 @@ pub use bootstrap::{
     check_bootstrap_token, execute_token_command, parse_token_command, TokenCommand,
     BOOTSTRAP_TOKEN_ENV,
 };
+
+#[cfg(feature = "openapi")]
+pub use openapi::get_openapi;

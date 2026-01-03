@@ -508,14 +508,15 @@ bandwidth_gb = 0  # unlimited
 
 ## Phase 7: API Documentation & Polish (P2 - Medium)
 
-### 7.1 OpenAPI Specification
+### 7.1 OpenAPI Specification ✅
 
-- [ ] Add `utoipa` crate for OpenAPI generation
-- [ ] Document all endpoints with request/response schemas
-- [ ] Document error responses and codes
-- [ ] Document authentication requirements
-- [ ] Generate OpenAPI JSON/YAML
-- [ ] Add Swagger UI endpoint for interactive docs
+- [x] Add `utoipa` crate for OpenAPI generation
+- [x] Document all endpoints with request/response schemas
+- [x] Document error responses and codes
+- [x] Document authentication requirements (bearer_auth security scheme)
+- [x] Generate OpenAPI JSON (`/api-docs/openapi.json`)
+- [x] Add Swagger UI endpoint (`/swagger-ui`)
+- [x] Add `openapi` feature flag for optional inclusion
 
 ### 7.2 Error Response Standardization
 

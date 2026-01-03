@@ -29,6 +29,8 @@ use chrono::{NaiveDateTime, Utc};
 #[cfg(test)]
 use chrono::{Datelike, Timelike};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use tracing::info;
 use uuid::Uuid;
 
@@ -45,6 +47,7 @@ use crate::tiers::get_tier_features;
 
 /// Request body for creating a new license.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateLicenseRequest {
     /// Organization ID (optional)
     pub org_id: Option<String>,
@@ -63,6 +66,7 @@ pub struct CreateLicenseRequest {
 
 /// Request body for batch creating licenses.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct BatchCreateLicenseRequest {
     /// Number of licenses to create
     pub count: u32,
@@ -81,6 +85,7 @@ pub struct BatchCreateLicenseRequest {
 
 /// Request body for updating a license.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateLicenseRequest {
     /// New tier (re-derives features if tiers configured)
     pub tier: Option<String>,
@@ -114,6 +119,7 @@ fn default_per_page() -> u32 {
 
 /// Response for a single license.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct LicenseResponse {
     pub license_id: String,
     pub license_key: Option<String>,
@@ -169,6 +175,7 @@ impl From<License> for LicenseResponse {
 
 /// Response for batch create operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct BatchCreateResponse {
     pub created: u32,
     pub licenses: Vec<LicenseSummary>,
@@ -176,6 +183,7 @@ pub struct BatchCreateResponse {
 
 /// Summary of a created license (for batch operations).
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct LicenseSummary {
     pub license_id: String,
     pub license_key: String,
@@ -183,6 +191,7 @@ pub struct LicenseSummary {
 
 /// Response for listing licenses.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ListLicensesResponse {
     pub licenses: Vec<LicenseResponse>,
     pub total: u32,
@@ -314,6 +323,18 @@ async fn generate_unique_license_key(db: &Database) -> LicenseResult<String> {
 /// Create a new license.
 ///
 /// `POST /api/v1/licenses`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/licenses",
+    tag = "admin",
+    request_body = CreateLicenseRequest,
+    responses(
+        (status = 201, description = "License created", body = LicenseResponse),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Server error"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn create_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<CreateLicenseRequest>,
@@ -386,6 +407,18 @@ pub async fn create_license_handler(
 /// Batch create multiple licenses.
 ///
 /// `POST /api/v1/licenses/batch`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/licenses/batch",
+    tag = "admin",
+    request_body = BatchCreateLicenseRequest,
+    responses(
+        (status = 201, description = "Licenses created", body = BatchCreateResponse),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Server error"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn batch_create_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<BatchCreateLicenseRequest>,
@@ -480,6 +513,20 @@ pub async fn batch_create_license_handler(
 /// Get a license by ID.
 ///
 /// `GET /api/v1/licenses/{license_id}`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/v1/licenses/{license_id}",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    responses(
+        (status = 200, description = "License details", body = LicenseResponse),
+        (status = 404, description = "License not found"),
+        (status = 500, description = "Server error"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn get_license_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -498,6 +545,22 @@ pub async fn get_license_handler(
 /// List licenses with optional filtering.
 ///
 /// `GET /api/v1/licenses?org_id={id}&page={n}&per_page={n}`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/api/v1/licenses",
+    tag = "admin",
+    params(
+        ("org_id" = Option<String>, Query, description = "Filter by organization ID"),
+        ("page" = Option<u32>, Query, description = "Page number (1-indexed)"),
+        ("per_page" = Option<u32>, Query, description = "Items per page")
+    ),
+    responses(
+        (status = 200, description = "List of licenses", body = ListLicensesResponse),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Server error"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn list_licenses_handler(
     State(state): State<AppState>,
     Query(query): Query<ListLicensesQuery>,
@@ -542,6 +605,21 @@ pub async fn list_licenses_handler(
 /// Update a license.
 ///
 /// `PATCH /api/v1/licenses/{license_id}`
+#[cfg_attr(feature = "openapi", utoipa::path(
+    patch,
+    path = "/api/v1/licenses/{license_id}",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    request_body = UpdateLicenseRequest,
+    responses(
+        (status = 200, description = "License updated", body = LicenseResponse),
+        (status = 404, description = "License not found"),
+        (status = 500, description = "Server error"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn update_license_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -596,6 +674,7 @@ pub async fn update_license_handler(
 
 /// Request for admin force release.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct AdminReleaseRequest {
     /// Reason for force release (optional, for audit)
     pub reason: Option<String>,
@@ -603,6 +682,7 @@ pub struct AdminReleaseRequest {
 
 /// Response from admin release.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct AdminReleaseResponse {
     pub success: bool,
     pub message: String,
@@ -616,6 +696,21 @@ pub struct AdminReleaseResponse {
 ///
 /// This endpoint allows administrators to force-release a license from its
 /// bound hardware, useful when a user loses access to their device.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/licenses/{license_id}/release",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    request_body = AdminReleaseRequest,
+    responses(
+        (status = 200, description = "License released", body = AdminReleaseResponse),
+        (status = 400, description = "License not bound"),
+        (status = 404, description = "License not found"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn admin_release_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -675,6 +770,7 @@ pub async fn admin_release_handler(
 
 /// Request for revoking a license.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct RevokeLicenseRequest {
     /// Reason for revocation (stored in revoke_reason)
     pub reason: Option<String>,
@@ -687,6 +783,7 @@ pub struct RevokeLicenseRequest {
 
 /// Response from revoke operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct RevokeLicenseResponse {
     pub success: bool,
     pub status: String,
@@ -697,6 +794,7 @@ pub struct RevokeLicenseResponse {
 
 /// Request for reinstating a license.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReinstateLicenseRequest {
     /// New expiration date (optional, ISO 8601 format)
     pub new_expires_at: Option<String>,
@@ -709,6 +807,7 @@ pub struct ReinstateLicenseRequest {
 
 /// Response from reinstate operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReinstateLicenseResponse {
     pub success: bool,
     pub status: String,
@@ -719,6 +818,7 @@ pub struct ReinstateLicenseResponse {
 
 /// Request for extending a license.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ExtendLicenseRequest {
     /// New expiration date (required, ISO 8601 format)
     pub new_expires_at: String,
@@ -731,6 +831,7 @@ pub struct ExtendLicenseRequest {
 
 /// Response from extend operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ExtendLicenseResponse {
     pub success: bool,
     pub message: String,
@@ -740,6 +841,7 @@ pub struct ExtendLicenseResponse {
 
 /// Request for updating license usage/quota.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateUsageRequest {
     /// Current bandwidth used in bytes
     pub bandwidth_used_bytes: Option<u64>,
@@ -752,6 +854,7 @@ pub struct UpdateUsageRequest {
 
 /// Response from usage update operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateUsageResponse {
     pub success: bool,
     pub bandwidth_used_bytes: u64,
@@ -770,6 +873,21 @@ pub struct UpdateUsageResponse {
 /// - If `grace_period_days = 0`: Sets status to 'revoked' immediately
 /// - If `grace_period_days > 0`: Sets status to 'suspended' with calculated grace_period_ends_at
 /// - Stores the revoke_reason and suspension_message for audit/display
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/licenses/{license_id}/revoke",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    request_body = RevokeLicenseRequest,
+    responses(
+        (status = 200, description = "License revoked", body = RevokeLicenseResponse),
+        (status = 400, description = "License already revoked"),
+        (status = 404, description = "License not found"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn revoke_license_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -856,6 +974,21 @@ pub async fn revoke_license_handler(
 /// - Clears all suspension/revocation fields
 /// - Optionally sets a new expiration date
 /// - Optionally resets bandwidth counters (if tracked)
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/licenses/{license_id}/reinstate",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    request_body = ReinstateLicenseRequest,
+    responses(
+        (status = 200, description = "License reinstated", body = ReinstateLicenseResponse),
+        (status = 400, description = "License already active or blacklisted"),
+        (status = 404, description = "License not found"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn reinstate_license_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -940,6 +1073,21 @@ pub async fn reinstate_license_handler(
 /// - Updates the `expires_at` field to the new date
 /// - Optionally resets bandwidth counters (when quota tracking is enabled)
 /// - Can be used on active, suspended, or revoked licenses
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/licenses/{license_id}/extend",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    request_body = ExtendLicenseRequest,
+    responses(
+        (status = 200, description = "License extended", body = ExtendLicenseResponse),
+        (status = 400, description = "Invalid date format"),
+        (status = 404, description = "License not found"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn extend_license_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -1006,6 +1154,21 @@ pub async fn extend_license_handler(
 /// Update usage/quota tracking for a license.
 ///
 /// Persists bandwidth usage to the database and calculates quota status.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    patch,
+    path = "/api/v1/licenses/{license_id}/usage",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    request_body = UpdateUsageRequest,
+    responses(
+        (status = 200, description = "Usage updated", body = UpdateUsageResponse),
+        (status = 404, description = "License not found"),
+        (status = 500, description = "Server error"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn update_usage_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -1080,6 +1243,7 @@ pub async fn update_usage_handler(
 
 /// Request for blacklisting a license.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct BlacklistLicenseRequest {
     /// Reason for blacklisting (required for audit trail)
     pub reason: String,
@@ -1089,6 +1253,7 @@ pub struct BlacklistLicenseRequest {
 
 /// Response from blacklist operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct BlacklistLicenseResponse {
     pub success: bool,
     pub message: String,
@@ -1110,6 +1275,21 @@ pub struct BlacklistLicenseResponse {
 /// - Stores blacklist reason and timestamp
 /// - Clears hardware binding (force releases the license)
 /// - Cannot be reinstated through normal reinstate endpoint
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/licenses/{license_id}/blacklist",
+    tag = "admin",
+    params(
+        ("license_id" = String, Path, description = "License ID")
+    ),
+    request_body = BlacklistLicenseRequest,
+    responses(
+        (status = 200, description = "License blacklisted", body = BlacklistLicenseResponse),
+        (status = 400, description = "License already blacklisted or reason empty"),
+        (status = 404, description = "License not found"),
+    ),
+    security(("bearer_auth" = []))
+))]
 pub async fn blacklist_license_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,

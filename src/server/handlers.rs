@@ -10,6 +10,9 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
+
 use crate::errors::{LicenseError, LicenseResult};
 use crate::server::database::{Database, License};
 
@@ -67,6 +70,7 @@ impl IntoResponse for LicenseError {
 
 /// Request structure for license-related operations.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct LicenseRequest {
     pub license_id: String,
     pub client_id: String,
@@ -74,6 +78,7 @@ pub struct LicenseRequest {
 
 /// Response structure for license-related operations.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct LicenseResponse {
     pub success: bool,
 }
@@ -82,6 +87,7 @@ pub struct LicenseResponse {
 ///
 /// Kept separate in case heartbeat later includes extra metadata.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct HeartbeatRequest {
     pub license_id: String,
     pub client_id: String,
@@ -89,6 +95,7 @@ pub struct HeartbeatRequest {
 
 /// Response structure for heartbeat operations.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct HeartbeatResponse {
     pub success: bool,
 }
@@ -99,6 +106,16 @@ pub struct HeartbeatResponse {
 /// - If the license does not exist, it is created as `active`.
 /// - If it exists, it is updated to `active` with the given client_id.
 /// - DB errors bubble up as `LicenseError` (mapped to HTTP 5xx).
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/activate",
+    tag = "legacy",
+    request_body = LicenseRequest,
+    responses(
+        (status = 200, description = "License activated", body = LicenseResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn activate_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<LicenseRequest>,
@@ -156,6 +173,16 @@ pub async fn activate_license_handler(
 /// - status == "active"
 ///
 /// DB failures bubble as `LicenseError` (HTTP 5xx).
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/validate",
+    tag = "legacy",
+    request_body = LicenseRequest,
+    responses(
+        (status = 200, description = "Validation result", body = LicenseResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn validate_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<LicenseRequest>,
@@ -202,6 +229,16 @@ pub async fn validate_license_handler(
 /// - status successfully updated to "inactive"
 ///
 /// DB failures bubble as `LicenseError`.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/deactivate",
+    tag = "legacy",
+    request_body = LicenseRequest,
+    responses(
+        (status = 200, description = "Deactivation result", body = LicenseResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn deactivate_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<LicenseRequest>,
@@ -248,6 +285,16 @@ pub async fn deactivate_license_handler(
 /// - `success: false` otherwise
 ///
 /// DB failures bubble as `LicenseError`.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/heartbeat",
+    tag = "legacy",
+    request_body = HeartbeatRequest,
+    responses(
+        (status = 200, description = "Heartbeat result", body = HeartbeatResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn heartbeat_handler(
     State(state): State<AppState>,
     Json(payload): Json<HeartbeatRequest>,
