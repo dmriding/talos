@@ -6,7 +6,7 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
-## v2025.12.2 — 2025-12-XX
+## v2025.12.2 — 2026-01-03
 
 ### Added
 
