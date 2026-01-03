@@ -50,8 +50,8 @@ pub use auth::{AuthError, AuthState, AuthenticatedUser, Claims, JwtValidator, Op
 #[cfg(feature = "admin-api")]
 pub use admin::{
     admin_release_handler, batch_create_license_handler, create_license_handler,
-    get_license_handler, list_licenses_handler, update_license_handler, AdminReleaseRequest,
-    AdminReleaseResponse,
+    get_license_handler, list_licenses_handler, revoke_license_handler, update_license_handler,
+    AdminReleaseRequest, AdminReleaseResponse, RevokeLicenseRequest, RevokeLicenseResponse,
 };
 
 #[cfg(feature = "rate-limiting")]

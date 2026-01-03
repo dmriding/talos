@@ -871,7 +871,10 @@ pub async fn validate_feature_handler(
         );
         return Err(ClientError::new(
             ClientErrorCode::FeatureNotIncluded,
-            format!("Feature '{}' is not included in your license or tier", req.feature),
+            format!(
+                "Feature '{}' is not included in your license or tier",
+                req.feature
+            ),
         ));
     }
 

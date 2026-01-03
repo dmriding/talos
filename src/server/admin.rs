@@ -10,6 +10,8 @@
 //! - `GET /api/v1/licenses/{license_id}` - Get a license by ID
 //! - `GET /api/v1/licenses?org_id={id}` - List licenses for an organization
 //! - `PATCH /api/v1/licenses/{license_id}` - Update a license
+//! - `POST /api/v1/licenses/{license_id}/release` - Force release from hardware
+//! - `POST /api/v1/licenses/{license_id}/revoke` - Revoke a license
 
 use axum::{
     extract::{Path, Query, State},
@@ -659,6 +661,113 @@ pub async fn admin_release_handler(
         previous_hardware_id,
         previous_device_name,
     }))
+}
+
+/// Request for revoking a license.
+#[derive(Debug, Deserialize)]
+pub struct RevokeLicenseRequest {
+    /// Reason for revocation (stored in revoke_reason)
+    pub reason: Option<String>,
+    /// Number of days for grace period (0 = immediate revocation)
+    #[serde(default)]
+    pub grace_period_days: u32,
+    /// Message to display to user during grace period
+    pub message: Option<String>,
+}
+
+/// Response from revoke operation.
+#[derive(Debug, Serialize)]
+pub struct RevokeLicenseResponse {
+    pub success: bool,
+    pub status: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grace_period_ends_at: Option<String>,
+}
+
+/// Revoke a license.
+///
+/// `POST /api/v1/licenses/{license_id}/revoke`
+///
+/// This endpoint revokes a license, optionally with a grace period.
+///
+/// # Behavior
+/// - If `grace_period_days = 0`: Sets status to 'revoked' immediately
+/// - If `grace_period_days > 0`: Sets status to 'suspended' with calculated grace_period_ends_at
+/// - Stores the revoke_reason and suspension_message for audit/display
+pub async fn revoke_license_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<RevokeLicenseRequest>,
+) -> Result<Json<RevokeLicenseResponse>, AdminError> {
+    info!(
+        "Revoke request for license_id={} grace_period_days={}",
+        license_id, payload.grace_period_days
+    );
+
+    // Get the license
+    let mut license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
+
+    // Check if already revoked
+    if license.status == "revoked" {
+        return Err(AdminError::BadRequest(
+            "License is already revoked".to_string(),
+        ));
+    }
+
+    let now = Utc::now().naive_utc();
+
+    if payload.grace_period_days == 0 {
+        // Immediate revocation
+        license.status = "revoked".to_string();
+        license.revoked_at = Some(now);
+        license.revoke_reason = payload.reason.clone();
+        license.suspended_at = None;
+        license.grace_period_ends_at = None;
+        license.suspension_message = None;
+
+        state.db.insert_license(license).await?;
+
+        info!("License {} revoked immediately", license_id);
+
+        Ok(Json(RevokeLicenseResponse {
+            success: true,
+            status: "revoked".to_string(),
+            message: "License has been revoked".to_string(),
+            grace_period_ends_at: None,
+        }))
+    } else {
+        // Suspension with grace period
+        let grace_end = now + chrono::Duration::days(payload.grace_period_days as i64);
+
+        license.status = "suspended".to_string();
+        license.suspended_at = Some(now);
+        license.grace_period_ends_at = Some(grace_end);
+        license.revoke_reason = payload.reason.clone();
+        license.suspension_message = payload.message.clone();
+        // Don't set revoked_at yet - that happens when grace period expires
+
+        state.db.insert_license(license).await?;
+
+        info!(
+            "License {} suspended with grace period until {}",
+            license_id, grace_end
+        );
+
+        Ok(Json(RevokeLicenseResponse {
+            success: true,
+            status: "suspended".to_string(),
+            message: format!(
+                "License has been suspended with {} day grace period",
+                payload.grace_period_days
+            ),
+            grace_period_ends_at: Some(grace_end.to_string()),
+        }))
+    }
 }
 
 #[cfg(test)]
