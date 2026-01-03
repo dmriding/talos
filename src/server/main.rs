@@ -13,9 +13,6 @@ use talos::server::routes::build_router;
 #[cfg(feature = "jwt-auth")]
 use talos::server::auth::AuthState;
 
-#[cfg(feature = "jwt-auth")]
-use talos::server::auth::AuthState;
-
 #[tokio::main]
 async fn main() -> LicenseResult<()> {
     // Parse CLI arguments for token commands
