@@ -31,10 +31,11 @@ pub mod rate_limit;
 // instead of digging into submodules.
 
 pub use client_api::{
-    bind_handler, client_heartbeat_handler, release_handler, validate_handler,
-    validate_or_bind_handler, BindRequest, BindResponse, ClientError, ClientErrorCode,
-    ClientHeartbeatRequest, ClientHeartbeatResponse, ReleaseRequest, ReleaseResponse,
-    ValidateOrBindRequest, ValidateRequest, ValidateResponse,
+    bind_handler, client_heartbeat_handler, release_handler, validate_feature_handler,
+    validate_handler, validate_or_bind_handler, BindRequest, BindResponse, ClientError,
+    ClientErrorCode, ClientHeartbeatRequest, ClientHeartbeatResponse, ReleaseRequest,
+    ReleaseResponse, ValidateFeatureRequest, ValidateFeatureResponse, ValidateOrBindRequest,
+    ValidateRequest, ValidateResponse,
 };
 pub use database::Database;
 pub use handlers::{
@@ -49,8 +50,11 @@ pub use auth::{AuthError, AuthState, AuthenticatedUser, Claims, JwtValidator, Op
 #[cfg(feature = "admin-api")]
 pub use admin::{
     admin_release_handler, batch_create_license_handler, create_license_handler,
-    get_license_handler, list_licenses_handler, update_license_handler, AdminReleaseRequest,
-    AdminReleaseResponse,
+    extend_license_handler, get_license_handler, list_licenses_handler, reinstate_license_handler,
+    revoke_license_handler, update_license_handler, update_usage_handler, AdminReleaseRequest,
+    AdminReleaseResponse, ExtendLicenseRequest, ExtendLicenseResponse, ReinstateLicenseRequest,
+    ReinstateLicenseResponse, RevokeLicenseRequest, RevokeLicenseResponse, UpdateUsageRequest,
+    UpdateUsageResponse,
 };
 
 #[cfg(feature = "rate-limiting")]

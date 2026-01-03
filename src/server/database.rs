@@ -111,6 +111,7 @@ pub enum BindingAction {
     Bind,
     Release,
     AdminRelease,
+    SystemRelease,
 }
 
 impl BindingAction {
@@ -119,6 +120,7 @@ impl BindingAction {
             BindingAction::Bind => "bind",
             BindingAction::Release => "release",
             BindingAction::AdminRelease => "admin_release",
+            BindingAction::SystemRelease => "system_release",
         }
     }
 }
@@ -788,5 +790,119 @@ impl Database {
         };
 
         Ok(rows_affected > 0)
+    }
+
+    /// Get licenses with expired grace periods (suspended licenses past their grace_period_ends_at).
+    pub async fn get_expired_grace_period_licenses(
+        &self,
+        now: NaiveDateTime,
+    ) -> LicenseResult<Vec<License>> {
+        match self {
+            #[cfg(feature = "sqlite")]
+            Database::SQLite(pool) => {
+                let licenses: Vec<License> = query_as(
+                    "SELECT * FROM licenses WHERE status = 'suspended' AND grace_period_ends_at IS NOT NULL AND grace_period_ends_at < ?"
+                )
+                .bind(now)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| {
+                    error!("SQLite get_expired_grace_period_licenses failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
+                Ok(licenses)
+            }
+            #[cfg(feature = "postgres")]
+            Database::Postgres(pool) => {
+                let licenses: Vec<License> = query_as(
+                    "SELECT * FROM licenses WHERE status = 'suspended' AND grace_period_ends_at IS NOT NULL AND grace_period_ends_at < $1"
+                )
+                .bind(now)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| {
+                    error!("Postgres get_expired_grace_period_licenses failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
+                Ok(licenses)
+            }
+        }
+    }
+
+    /// Get expired licenses (active licenses past their expires_at).
+    pub async fn get_expired_licenses(&self, now: NaiveDateTime) -> LicenseResult<Vec<License>> {
+        match self {
+            #[cfg(feature = "sqlite")]
+            Database::SQLite(pool) => {
+                let licenses: Vec<License> = query_as(
+                    "SELECT * FROM licenses WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at < ?",
+                )
+                .bind(now)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| {
+                    error!("SQLite get_expired_licenses failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
+                Ok(licenses)
+            }
+            #[cfg(feature = "postgres")]
+            Database::Postgres(pool) => {
+                let licenses: Vec<License> = query_as(
+                    "SELECT * FROM licenses WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at < $1",
+                )
+                .bind(now)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| {
+                    error!("Postgres get_expired_licenses failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
+                Ok(licenses)
+            }
+        }
+    }
+
+    /// Get licenses bound to stale devices (not seen since threshold).
+    pub async fn get_stale_device_licenses(
+        &self,
+        threshold: NaiveDateTime,
+    ) -> LicenseResult<Vec<License>> {
+        match self {
+            #[cfg(feature = "sqlite")]
+            Database::SQLite(pool) => {
+                let licenses: Vec<License> = query_as(
+                    "SELECT * FROM licenses WHERE hardware_id IS NOT NULL AND last_seen_at IS NOT NULL AND last_seen_at < ?",
+                )
+                .bind(threshold)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| {
+                    error!("SQLite get_stale_device_licenses failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
+                Ok(licenses)
+            }
+            #[cfg(feature = "postgres")]
+            Database::Postgres(pool) => {
+                let licenses: Vec<License> = query_as(
+                    "SELECT * FROM licenses WHERE hardware_id IS NOT NULL AND last_seen_at IS NOT NULL AND last_seen_at < $1",
+                )
+                .bind(threshold)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| {
+                    error!("Postgres get_stale_device_licenses failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?;
+
+                Ok(licenses)
+            }
+        }
     }
 }

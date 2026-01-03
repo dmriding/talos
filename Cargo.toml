@@ -32,8 +32,10 @@ admin-api = ["server"]
 # Rate limiting for public endpoints
 rate-limiting = ["dep:tower_governor", "dep:governor", "server"]
 
+# Background jobs for license expiration and cleanup
+background-jobs = ["dep:tokio-cron-scheduler", "server"]
+
 # Future features (reserved, not yet implemented)
-# background-jobs = ["dep:tokio-cron-scheduler"]
 # quota-tracking = []
 
 [dependencies]
@@ -87,6 +89,9 @@ jsonwebtoken = { version = "9", optional = true }
 # === Rate Limiting (optional, requires "rate-limiting" feature) ===
 tower_governor = { version = "0.4", optional = true }
 governor = { version = "0.6", optional = true }
+
+# === Background Jobs (optional, requires "background-jobs" feature) ===
+tokio-cron-scheduler = { version = "0.14", optional = true }
 
 # === Date and Time Utilities ===
 chrono = { version = "0.4.38", features = ["serde"] }

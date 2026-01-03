@@ -10,6 +10,11 @@
 //! - `GET /api/v1/licenses/{license_id}` - Get a license by ID
 //! - `GET /api/v1/licenses?org_id={id}` - List licenses for an organization
 //! - `PATCH /api/v1/licenses/{license_id}` - Update a license
+//! - `POST /api/v1/licenses/{license_id}/release` - Force release from hardware
+//! - `POST /api/v1/licenses/{license_id}/revoke` - Revoke a license
+//! - `POST /api/v1/licenses/{license_id}/reinstate` - Reinstate a revoked/suspended license
+//! - `POST /api/v1/licenses/{license_id}/extend` - Extend license expiration
+//! - `PATCH /api/v1/licenses/{license_id}/usage` - Update bandwidth/usage tracking
 
 use axum::{
     extract::{Path, Query, State},
@@ -658,6 +663,395 @@ pub async fn admin_release_handler(
         message: "License released successfully".to_string(),
         previous_hardware_id,
         previous_device_name,
+    }))
+}
+
+/// Request for revoking a license.
+#[derive(Debug, Deserialize)]
+pub struct RevokeLicenseRequest {
+    /// Reason for revocation (stored in revoke_reason)
+    pub reason: Option<String>,
+    /// Number of days for grace period (0 = immediate revocation)
+    #[serde(default)]
+    pub grace_period_days: u32,
+    /// Message to display to user during grace period
+    pub message: Option<String>,
+}
+
+/// Response from revoke operation.
+#[derive(Debug, Serialize)]
+pub struct RevokeLicenseResponse {
+    pub success: bool,
+    pub status: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grace_period_ends_at: Option<String>,
+}
+
+/// Request for reinstating a license.
+#[derive(Debug, Deserialize)]
+pub struct ReinstateLicenseRequest {
+    /// New expiration date (optional, ISO 8601 format)
+    pub new_expires_at: Option<String>,
+    /// Whether to reset bandwidth counters (if applicable)
+    #[serde(default)]
+    pub reset_bandwidth: bool,
+    /// Reason for reinstatement (for audit)
+    pub reason: Option<String>,
+}
+
+/// Response from reinstate operation.
+#[derive(Debug, Serialize)]
+pub struct ReinstateLicenseResponse {
+    pub success: bool,
+    pub status: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+}
+
+/// Request for extending a license.
+#[derive(Debug, Deserialize)]
+pub struct ExtendLicenseRequest {
+    /// New expiration date (required, ISO 8601 format)
+    pub new_expires_at: String,
+    /// Whether to reset bandwidth counters (if applicable)
+    #[serde(default)]
+    pub reset_bandwidth: bool,
+    /// Reason for extension (for audit)
+    pub reason: Option<String>,
+}
+
+/// Response from extend operation.
+#[derive(Debug, Serialize)]
+pub struct ExtendLicenseResponse {
+    pub success: bool,
+    pub message: String,
+    pub previous_expires_at: Option<String>,
+    pub new_expires_at: String,
+}
+
+/// Request for updating license usage/quota.
+#[derive(Debug, Deserialize)]
+pub struct UpdateUsageRequest {
+    /// Current bandwidth used in bytes
+    pub bandwidth_used_bytes: Option<u64>,
+    /// Bandwidth limit in bytes (None = unlimited)
+    pub bandwidth_limit_bytes: Option<u64>,
+    /// Whether to reset the usage counter to zero
+    #[serde(default)]
+    pub reset: bool,
+}
+
+/// Response from usage update operation.
+#[derive(Debug, Serialize)]
+pub struct UpdateUsageResponse {
+    pub success: bool,
+    pub bandwidth_used_bytes: u64,
+    pub bandwidth_limit_bytes: Option<u64>,
+    pub quota_exceeded: bool,
+    pub usage_percentage: Option<f64>,
+}
+
+/// Revoke a license.
+///
+/// `POST /api/v1/licenses/{license_id}/revoke`
+///
+/// This endpoint revokes a license, optionally with a grace period.
+///
+/// # Behavior
+/// - If `grace_period_days = 0`: Sets status to 'revoked' immediately
+/// - If `grace_period_days > 0`: Sets status to 'suspended' with calculated grace_period_ends_at
+/// - Stores the revoke_reason and suspension_message for audit/display
+pub async fn revoke_license_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<RevokeLicenseRequest>,
+) -> Result<Json<RevokeLicenseResponse>, AdminError> {
+    info!(
+        "Revoke request for license_id={} grace_period_days={}",
+        license_id, payload.grace_period_days
+    );
+
+    // Get the license
+    let mut license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
+
+    // Check if already revoked
+    if license.status == "revoked" {
+        return Err(AdminError::BadRequest(
+            "License is already revoked".to_string(),
+        ));
+    }
+
+    let now = Utc::now().naive_utc();
+
+    if payload.grace_period_days == 0 {
+        // Immediate revocation
+        license.status = "revoked".to_string();
+        license.revoked_at = Some(now);
+        license.revoke_reason = payload.reason.clone();
+        license.suspended_at = None;
+        license.grace_period_ends_at = None;
+        license.suspension_message = None;
+
+        state.db.insert_license(license).await?;
+
+        info!("License {} revoked immediately", license_id);
+
+        Ok(Json(RevokeLicenseResponse {
+            success: true,
+            status: "revoked".to_string(),
+            message: "License has been revoked".to_string(),
+            grace_period_ends_at: None,
+        }))
+    } else {
+        // Suspension with grace period
+        let grace_end = now + chrono::Duration::days(payload.grace_period_days as i64);
+
+        license.status = "suspended".to_string();
+        license.suspended_at = Some(now);
+        license.grace_period_ends_at = Some(grace_end);
+        license.revoke_reason = payload.reason.clone();
+        license.suspension_message = payload.message.clone();
+        // Don't set revoked_at yet - that happens when grace period expires
+
+        state.db.insert_license(license).await?;
+
+        info!(
+            "License {} suspended with grace period until {}",
+            license_id, grace_end
+        );
+
+        Ok(Json(RevokeLicenseResponse {
+            success: true,
+            status: "suspended".to_string(),
+            message: format!(
+                "License has been suspended with {} day grace period",
+                payload.grace_period_days
+            ),
+            grace_period_ends_at: Some(grace_end.to_string()),
+        }))
+    }
+}
+
+/// Reinstate a revoked or suspended license.
+///
+/// `POST /api/v1/licenses/{license_id}/reinstate`
+///
+/// This endpoint reinstates a license that was previously revoked or suspended.
+///
+/// # Behavior
+/// - Sets status back to 'active'
+/// - Clears all suspension/revocation fields
+/// - Optionally sets a new expiration date
+/// - Optionally resets bandwidth counters (if tracked)
+pub async fn reinstate_license_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<ReinstateLicenseRequest>,
+) -> Result<Json<ReinstateLicenseResponse>, AdminError> {
+    info!(
+        "Reinstate request for license_id={} reset_bandwidth={}",
+        license_id, payload.reset_bandwidth
+    );
+
+    // Get the license
+    let mut license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
+
+    // Check if license needs reinstatement
+    if license.status == "active" {
+        return Err(AdminError::BadRequest(
+            "License is already active".to_string(),
+        ));
+    }
+
+    // Set status back to active
+    license.status = "active".to_string();
+
+    // Clear suspension/revocation fields
+    license.suspended_at = None;
+    license.revoked_at = None;
+    license.revoke_reason = None;
+    license.grace_period_ends_at = None;
+    license.suspension_message = None;
+
+    // Update expiration date if provided
+    let expires_at_str = if let Some(new_expires_at) = &payload.new_expires_at {
+        let expires_at = parse_datetime(new_expires_at)?;
+        license.expires_at = Some(expires_at);
+        Some(expires_at.to_string())
+    } else {
+        license.expires_at.map(|dt| dt.to_string())
+    };
+
+    // Note: reset_bandwidth would reset any bandwidth tracking if we had it
+    // For now, this is a no-op but the field is accepted for future compatibility
+    if payload.reset_bandwidth {
+        info!(
+            "Bandwidth reset requested for license {} (no-op for now)",
+            license_id
+        );
+    }
+
+    state.db.insert_license(license).await?;
+
+    info!(
+        "License {} reinstated, reason={:?}",
+        license_id, payload.reason
+    );
+
+    Ok(Json(ReinstateLicenseResponse {
+        success: true,
+        status: "active".to_string(),
+        message: "License has been reinstated".to_string(),
+        expires_at: expires_at_str,
+    }))
+}
+
+/// Extend a license's expiration date.
+///
+/// `POST /api/v1/licenses/{license_id}/extend`
+///
+/// This endpoint extends a license's expiration date.
+///
+/// # Behavior
+/// - Updates the `expires_at` field to the new date
+/// - Optionally resets bandwidth counters (when quota tracking is enabled)
+/// - Can be used on active, suspended, or revoked licenses
+pub async fn extend_license_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<ExtendLicenseRequest>,
+) -> Result<Json<ExtendLicenseResponse>, AdminError> {
+    info!(
+        "Extend request for license_id={} new_expires_at={}",
+        license_id, payload.new_expires_at
+    );
+
+    // Get the license
+    let mut license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
+
+    // Parse the new expiration date
+    let new_expires_at = parse_datetime(&payload.new_expires_at)?;
+
+    // Save previous expiration for response
+    let previous_expires_at = license.expires_at.map(|dt| dt.to_string());
+
+    // Update expiration date
+    license.expires_at = Some(new_expires_at);
+
+    // Note: reset_bandwidth would reset any bandwidth tracking if we had it
+    // For now, this is a no-op but the field is accepted for future compatibility
+    if payload.reset_bandwidth {
+        info!(
+            "Bandwidth reset requested for license {} (no-op for now)",
+            license_id
+        );
+    }
+
+    state.db.insert_license(license).await?;
+
+    info!(
+        "License {} extended to {}, reason={:?}",
+        license_id, new_expires_at, payload.reason
+    );
+
+    Ok(Json(ExtendLicenseResponse {
+        success: true,
+        message: "License expiration has been extended".to_string(),
+        previous_expires_at,
+        new_expires_at: new_expires_at.to_string(),
+    }))
+}
+
+/// Update license usage/bandwidth tracking.
+///
+/// `PATCH /api/v1/licenses/{license_id}/usage`
+///
+/// This endpoint updates the bandwidth usage tracking for a license.
+///
+/// # Behavior
+/// - Sets `bandwidth_used_bytes` to the provided value (or resets to 0 if `reset: true`)
+/// - Sets `bandwidth_limit_bytes` if provided
+/// - Calculates `quota_exceeded` flag based on usage vs limit
+/// - Returns usage statistics including percentage used
+///
+/// # Note
+/// Currently, usage data is not persisted to database (requires `quota-tracking` feature).
+/// This endpoint provides the API contract for when quota tracking is implemented.
+pub async fn update_usage_handler(
+    State(state): State<AppState>,
+    Path(license_id): Path<String>,
+    Json(payload): Json<UpdateUsageRequest>,
+) -> Result<Json<UpdateUsageResponse>, AdminError> {
+    info!(
+        "Update usage request for license_id={} used={:?} limit={:?} reset={}",
+        license_id, payload.bandwidth_used_bytes, payload.bandwidth_limit_bytes, payload.reset
+    );
+
+    // Verify license exists
+    let license = state
+        .db
+        .get_license(&license_id)
+        .await?
+        .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
+
+    // Calculate usage values
+    let bandwidth_used_bytes = if payload.reset {
+        0
+    } else {
+        payload.bandwidth_used_bytes.unwrap_or(0)
+    };
+
+    let bandwidth_limit_bytes = payload.bandwidth_limit_bytes;
+
+    // Calculate quota exceeded
+    let quota_exceeded = match bandwidth_limit_bytes {
+        Some(limit) if limit > 0 => bandwidth_used_bytes >= limit,
+        _ => false,
+    };
+
+    // Calculate usage percentage
+    let usage_percentage = bandwidth_limit_bytes.map(|limit| {
+        if limit > 0 {
+            (bandwidth_used_bytes as f64 / limit as f64) * 100.0
+        } else {
+            0.0
+        }
+    });
+
+    // NOTE: When quota-tracking feature is implemented, persist these values:
+    // license.bandwidth_used_bytes = Some(bandwidth_used_bytes);
+    // license.bandwidth_limit_bytes = bandwidth_limit_bytes;
+    // license.quota_exceeded = Some(quota_exceeded);
+    // state.db.insert_license(license).await?;
+
+    info!(
+        "Usage updated for license {} (not persisted until quota-tracking feature): used={} limit={:?} exceeded={}",
+        license_id, bandwidth_used_bytes, bandwidth_limit_bytes, quota_exceeded
+    );
+
+    // We still need to touch the license to verify it exists
+    let _ = license;
+
+    Ok(Json(UpdateUsageResponse {
+        success: true,
+        bandwidth_used_bytes,
+        bandwidth_limit_bytes,
+        quota_exceeded,
+        usage_percentage,
     }))
 }
 
