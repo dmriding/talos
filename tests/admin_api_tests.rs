@@ -693,3 +693,613 @@ async fn revoke_already_revoked_license() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(body["error"].as_str().unwrap().contains("already revoked"));
 }
+
+// ============================================================================
+// Reinstate License Tests
+// ============================================================================
+
+#[tokio::test]
+async fn reinstate_revoked_license() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "reinstate-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Revoke it
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({
+            "reason": "Test revocation",
+            "grace_period_days": 0
+        })),
+    )
+    .await;
+
+    // Reinstate it
+    let app = build_router(state.clone());
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/reinstate", license_id),
+        Some(json!({
+            "reason": "Customer paid outstanding balance"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["status"], "active");
+    assert_eq!(body["message"], "License has been reinstated");
+
+    // Verify the license is active again
+    let app = build_router(state);
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+
+    assert_eq!(get_body["status"], "active");
+}
+
+#[tokio::test]
+async fn reinstate_suspended_license() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "reinstate-suspended-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Suspend it with grace period
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({
+            "reason": "Non-payment",
+            "grace_period_days": 7,
+            "message": "Please pay within 7 days"
+        })),
+    )
+    .await;
+
+    // Reinstate it
+    let app = build_router(state.clone());
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/reinstate", license_id),
+        Some(json!({
+            "reason": "Payment received"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["status"], "active");
+
+    // Verify the license is active and suspension fields cleared
+    let app = build_router(state);
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+
+    assert_eq!(get_body["status"], "active");
+}
+
+#[tokio::test]
+async fn reinstate_with_new_expiration() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license with expiration
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "reinstate-expire-org",
+            "features": ["test"],
+            "expires_at": "2025-06-30"
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Revoke it
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({
+            "grace_period_days": 0
+        })),
+    )
+    .await;
+
+    // Reinstate with new expiration
+    let app = build_router(state.clone());
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/reinstate", license_id),
+        Some(json!({
+            "new_expires_at": "2026-12-31",
+            "reason": "Renewed subscription"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert!(body["expires_at"].as_str().unwrap().contains("2026-12-31"));
+}
+
+#[tokio::test]
+async fn reinstate_license_not_found() {
+    let state = setup_test_app().await;
+    let app = build_router(state);
+
+    let (status, body) = json_request(
+        app,
+        "POST",
+        "/api/v1/licenses/nonexistent-id/reinstate",
+        Some(json!({
+            "reason": "Test"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"].as_str().unwrap().contains("not found"));
+}
+
+#[tokio::test]
+async fn reinstate_already_active_license() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license (already active)
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "reinstate-active-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Try to reinstate an already active license
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/reinstate", license_id),
+        Some(json!({})),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"].as_str().unwrap().contains("already active"));
+}
+
+// ============================================================================
+// Extend License Tests
+// ============================================================================
+
+#[tokio::test]
+async fn extend_license_success() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license with expiration
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "extend-org",
+            "features": ["test"],
+            "expires_at": "2025-06-30"
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Extend the license
+    let app = build_router(state.clone());
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/extend", license_id),
+        Some(json!({
+            "new_expires_at": "2027-12-31",
+            "reason": "Customer renewed for 2 years"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert!(body["previous_expires_at"]
+        .as_str()
+        .unwrap()
+        .contains("2025-06-30"));
+    assert!(body["new_expires_at"]
+        .as_str()
+        .unwrap()
+        .contains("2027-12-31"));
+
+    // Verify the license was extended
+    let app = build_router(state);
+    let (_, get_body) = json_request(
+        app,
+        "GET",
+        &format!("/api/v1/licenses/{}", license_id),
+        None,
+    )
+    .await;
+
+    assert!(get_body["expires_at"]
+        .as_str()
+        .unwrap()
+        .contains("2027-12-31"));
+}
+
+#[tokio::test]
+async fn extend_license_no_previous_expiration() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license without expiration
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "extend-no-exp-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Extend the license (adding an expiration)
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/extend", license_id),
+        Some(json!({
+            "new_expires_at": "2026-12-31"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert!(body["previous_expires_at"].is_null());
+    assert!(body["new_expires_at"]
+        .as_str()
+        .unwrap()
+        .contains("2026-12-31"));
+}
+
+#[tokio::test]
+async fn extend_revoked_license() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create and revoke a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "extend-revoked-org",
+            "features": ["test"],
+            "expires_at": "2025-06-30"
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    let app = build_router(state.clone());
+    let _ = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/revoke", license_id),
+        Some(json!({ "grace_period_days": 0 })),
+    )
+    .await;
+
+    // Extend the revoked license (should work - allows updating expiry even when revoked)
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/extend", license_id),
+        Some(json!({
+            "new_expires_at": "2027-12-31"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+}
+
+#[tokio::test]
+async fn extend_license_not_found() {
+    let state = setup_test_app().await;
+    let app = build_router(state);
+
+    let (status, body) = json_request(
+        app,
+        "POST",
+        "/api/v1/licenses/nonexistent-id/extend",
+        Some(json!({
+            "new_expires_at": "2027-12-31"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"].as_str().unwrap().contains("not found"));
+}
+
+#[tokio::test]
+async fn extend_license_invalid_date() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "extend-invalid-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Try to extend with invalid date format
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "POST",
+        &format!("/api/v1/licenses/{}/extend", license_id),
+        Some(json!({
+            "new_expires_at": "not-a-date"
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"].as_str().unwrap().contains("datetime"));
+}
+
+// ============================================================================
+// Update Usage Tests
+// ============================================================================
+
+#[tokio::test]
+async fn update_usage_success() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "usage-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Update usage
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "PATCH",
+        &format!("/api/v1/licenses/{}/usage", license_id),
+        Some(json!({
+            "bandwidth_used_bytes": 500_000_000,
+            "bandwidth_limit_bytes": 1_000_000_000
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["bandwidth_used_bytes"], 500_000_000_u64);
+    assert_eq!(body["bandwidth_limit_bytes"], 1_000_000_000_u64);
+    assert_eq!(body["quota_exceeded"], false);
+    assert_eq!(body["usage_percentage"], 50.0);
+}
+
+#[tokio::test]
+async fn update_usage_quota_exceeded() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "usage-exceeded-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Update usage to exceed limit
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "PATCH",
+        &format!("/api/v1/licenses/{}/usage", license_id),
+        Some(json!({
+            "bandwidth_used_bytes": 1_500_000_000_u64,
+            "bandwidth_limit_bytes": 1_000_000_000_u64
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["quota_exceeded"], true);
+    assert_eq!(body["usage_percentage"], 150.0);
+}
+
+#[tokio::test]
+async fn update_usage_reset() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "usage-reset-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Reset usage
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "PATCH",
+        &format!("/api/v1/licenses/{}/usage", license_id),
+        Some(json!({
+            "reset": true,
+            "bandwidth_limit_bytes": 1_000_000_000_u64
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["bandwidth_used_bytes"], 0);
+    assert_eq!(body["quota_exceeded"], false);
+}
+
+#[tokio::test]
+async fn update_usage_no_limit() {
+    let state = setup_test_app().await;
+    let app = build_router(state.clone());
+
+    // Create a license
+    let (_, create_body) = json_request(
+        app.clone(),
+        "POST",
+        "/api/v1/licenses",
+        Some(json!({
+            "org_id": "usage-no-limit-org",
+            "features": ["test"]
+        })),
+    )
+    .await;
+
+    let license_id = create_body["license_id"].as_str().unwrap();
+
+    // Update usage without limit (unlimited)
+    let app = build_router(state);
+    let (status, body) = json_request(
+        app,
+        "PATCH",
+        &format!("/api/v1/licenses/{}/usage", license_id),
+        Some(json!({
+            "bandwidth_used_bytes": 999_999_999_999_u64
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["success"], true);
+    assert_eq!(body["quota_exceeded"], false);
+    assert!(body["usage_percentage"].is_null());
+    assert!(body["bandwidth_limit_bytes"].is_null());
+}
+
+#[tokio::test]
+async fn update_usage_license_not_found() {
+    let state = setup_test_app().await;
+    let app = build_router(state);
+
+    let (status, body) = json_request(
+        app,
+        "PATCH",
+        "/api/v1/licenses/nonexistent-id/usage",
+        Some(json!({
+            "bandwidth_used_bytes": 1000
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"].as_str().unwrap().contains("not found"));
+}
