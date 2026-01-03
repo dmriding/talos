@@ -13,6 +13,9 @@ use tracing::{info, warn};
 use crate::errors::{LicenseError, LicenseResult};
 use crate::server::database::{Database, License};
 
+#[cfg(feature = "jwt-auth")]
+use crate::server::auth::AuthState;
+
 /// Shared application state for handlers.
 ///
 /// Right now this only wraps the database, but later you can add:
@@ -21,6 +24,8 @@ use crate::server::database::{Database, License};
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<Database>,
+    #[cfg(feature = "jwt-auth")]
+    pub auth: AuthState,
 }
 
 /// Standard error response body for HTTP errors.
@@ -133,6 +138,9 @@ pub async fn activate_license_handler(
         blacklisted_at: None,
         blacklist_reason: None,
         metadata: None,
+        bandwidth_used_bytes: None,
+        bandwidth_limit_bytes: None,
+        quota_exceeded: None,
     };
 
     state.db.insert_license(license).await?;

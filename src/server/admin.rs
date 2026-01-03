@@ -368,6 +368,9 @@ pub async fn create_license_handler(
         blacklisted_at: None,
         blacklist_reason: None,
         metadata: metadata_json,
+        bandwidth_used_bytes: None,
+        bandwidth_limit_bytes: None,
+        quota_exceeded: None,
     };
 
     state.db.insert_license(license.clone()).await?;
@@ -450,6 +453,9 @@ pub async fn batch_create_license_handler(
             blacklisted_at: None,
             blacklist_reason: None,
             metadata: None,
+            bandwidth_used_bytes: None,
+            bandwidth_limit_bytes: None,
+            quota_exceeded: None,
         };
 
         state.db.insert_license(license).await?;
@@ -997,8 +1003,9 @@ pub async fn extend_license_handler(
 /// - Returns usage statistics including percentage used
 ///
 /// # Note
-/// Currently, usage data is not persisted to database (requires `quota-tracking` feature).
-/// This endpoint provides the API contract for when quota tracking is implemented.
+/// Update usage/quota tracking for a license.
+///
+/// Persists bandwidth usage to the database and calculates quota status.
 pub async fn update_usage_handler(
     State(state): State<AppState>,
     Path(license_id): Path<String>,
@@ -1009,7 +1016,7 @@ pub async fn update_usage_handler(
         license_id, payload.bandwidth_used_bytes, payload.bandwidth_limit_bytes, payload.reset
     );
 
-    // Verify license exists
+    // Verify license exists and get current values
     let license = state
         .db
         .get_license(&license_id)
@@ -1017,13 +1024,19 @@ pub async fn update_usage_handler(
         .ok_or_else(|| AdminError::NotFound(format!("License {license_id} not found")))?;
 
     // Calculate usage values
-    let bandwidth_used_bytes = if payload.reset {
+    // If reset, set to 0. Otherwise use provided value or keep existing.
+    let bandwidth_used_bytes: u64 = if payload.reset {
         0
     } else {
-        payload.bandwidth_used_bytes.unwrap_or(0)
+        payload
+            .bandwidth_used_bytes
+            .unwrap_or_else(|| license.bandwidth_used_bytes.unwrap_or(0) as u64)
     };
 
-    let bandwidth_limit_bytes = payload.bandwidth_limit_bytes;
+    // Use provided limit or keep existing
+    let bandwidth_limit_bytes: Option<u64> = payload
+        .bandwidth_limit_bytes
+        .or_else(|| license.bandwidth_limit_bytes.map(|v| v as u64));
 
     // Calculate quota exceeded
     let quota_exceeded = match bandwidth_limit_bytes {
@@ -1040,19 +1053,21 @@ pub async fn update_usage_handler(
         }
     });
 
-    // NOTE: When quota-tracking feature is implemented, persist these values:
-    // license.bandwidth_used_bytes = Some(bandwidth_used_bytes);
-    // license.bandwidth_limit_bytes = bandwidth_limit_bytes;
-    // license.quota_exceeded = Some(quota_exceeded);
-    // state.db.insert_license(license).await?;
+    // Persist to database
+    state
+        .db
+        .update_usage(
+            &license_id,
+            bandwidth_used_bytes as i64,
+            bandwidth_limit_bytes.map(|v| v as i64),
+            quota_exceeded,
+        )
+        .await?;
 
     info!(
-        "Usage updated for license {} (not persisted until quota-tracking feature): used={} limit={:?} exceeded={}",
+        "Usage updated for license {}: used={} limit={:?} exceeded={}",
         license_id, bandwidth_used_bytes, bandwidth_limit_bytes, quota_exceeded
     );
-
-    // We still need to touch the license to verify it exists
-    let _ = license;
 
     Ok(Json(UpdateUsageResponse {
         success: true,
@@ -1255,6 +1270,9 @@ mod tests {
             blacklisted_at: None,
             blacklist_reason: None,
             metadata: Some(r#"{"key":"value"}"#.to_string()),
+            bandwidth_used_bytes: None,
+            bandwidth_limit_bytes: None,
+            quota_exceeded: None,
         };
 
         let response: LicenseResponse = license.into();

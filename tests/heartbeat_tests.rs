@@ -8,6 +8,9 @@ use talos::errors::{LicenseError, LicenseResult};
 use talos::server::database::{Database, License};
 use talos::server::handlers::{heartbeat_handler, AppState, HeartbeatRequest, HeartbeatResponse};
 
+#[cfg(feature = "jwt-auth")]
+use talos::server::auth::AuthState;
+
 /// Helper: create an in-memory SQLite `Database` with the `licenses` table
 /// and return it as Arc<Database>.
 async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
@@ -46,7 +49,10 @@ async fn setup_in_memory_db() -> LicenseResult<Arc<Database>> {
             is_blacklisted  INTEGER DEFAULT 0,
             blacklisted_at  TEXT,
             blacklist_reason TEXT,
-            metadata        TEXT
+            metadata        TEXT,
+            bandwidth_used_bytes INTEGER DEFAULT 0,
+            bandwidth_limit_bytes INTEGER,
+            quota_exceeded  INTEGER DEFAULT 0
         );
         "#,
     )
@@ -92,6 +98,9 @@ async fn insert_active_license(
         blacklisted_at: None,
         blacklist_reason: None,
         metadata: None,
+        bandwidth_used_bytes: None,
+        bandwidth_limit_bytes: None,
+        quota_exceeded: None,
     };
 
     db.insert_license(license).await?;
@@ -101,7 +110,11 @@ async fn insert_active_license(
 #[tokio::test]
 async fn valid_heartbeat_updates_license() -> LicenseResult<()> {
     let db = setup_in_memory_db().await?;
-    let state = AppState { db: db.clone() };
+    let state = AppState {
+        db: db.clone(),
+        #[cfg(feature = "jwt-auth")]
+        auth: AuthState::disabled(),
+    };
 
     let license_id = "HB-LICENSE-1";
     let client_id = "HB-CLIENT-1";
@@ -139,7 +152,11 @@ async fn valid_heartbeat_updates_license() -> LicenseResult<()> {
 #[tokio::test]
 async fn invalid_heartbeat_fails() -> LicenseResult<()> {
     let db = setup_in_memory_db().await?;
-    let state = AppState { db };
+    let state = AppState {
+        db,
+        #[cfg(feature = "jwt-auth")]
+        auth: AuthState::disabled(),
+    };
 
     // No license inserted at all
     let req = HeartbeatRequest {

@@ -50,7 +50,10 @@ async fn setup_test_db() -> Arc<Database> {
                     is_blacklisted INTEGER,
                     blacklisted_at TEXT,
                     blacklist_reason TEXT,
-                    metadata TEXT
+                    metadata TEXT,
+                    bandwidth_used_bytes INTEGER DEFAULT 0,
+                    bandwidth_limit_bytes INTEGER,
+                    quota_exceeded INTEGER DEFAULT 0
                 )
                 "#,
             )
@@ -132,6 +135,9 @@ async fn create_test_license(
         blacklisted_at: None,
         blacklist_reason: None,
         metadata: None,
+        bandwidth_used_bytes: None,
+        bandwidth_limit_bytes: None,
+        quota_exceeded: None,
     };
 
     db.insert_license(license)

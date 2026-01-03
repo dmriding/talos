@@ -13,11 +13,13 @@
 //! - `rate_limit`  → Rate limiting middleware (requires `rate-limiting` feature)
 //! - `validation`  → Request validation utilities
 
+pub mod bootstrap;
 pub mod client_api;
 pub mod database;
 pub mod handlers;
 pub mod routes;
 pub mod server_sim;
+pub mod tokens;
 pub mod validation;
 
 #[cfg(feature = "jwt-auth")]
@@ -47,7 +49,10 @@ pub use handlers::{
 pub use routes::build_router;
 
 #[cfg(feature = "jwt-auth")]
-pub use auth::{AuthError, AuthState, AuthenticatedUser, Claims, JwtValidator, OptionalUser};
+pub use auth::{
+    AuthError, AuthLayer, AuthMiddleware, AuthState, AuthenticatedUser, Claims, JwtValidator,
+    OptionalUser,
+};
 
 #[cfg(feature = "admin-api")]
 pub use admin::{
@@ -69,4 +74,15 @@ pub use validation::{
     validate_datetime, validate_feature_name, validate_hardware_id, validate_length,
     validate_license_key, validate_not_empty, validate_optional_not_empty, validate_org_id,
     validate_uuid, ValidationError, ValidationResult,
+};
+
+pub use tokens::{
+    create_token_handler, get_token_handler, list_tokens_handler, revoke_token_handler,
+    ApiToken, CreateTokenRequest, CreateTokenResponse, ListTokensResponse, RevokeTokenResponse,
+    TokenMetadata, TokenResponse,
+};
+
+pub use bootstrap::{
+    check_bootstrap_token, execute_token_command, parse_token_command, TokenCommand,
+    BOOTSTRAP_TOKEN_ENV,
 };

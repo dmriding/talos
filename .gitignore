@@ -72,7 +72,7 @@ desktop.ini
 doc/
 *.md.bk
 
-# Private documentation (Keryx integration specs, internal notes)
+# Private documentation (integration specs, internal notes)
 docs/private/*
 !docs/private/.gitkeep
 

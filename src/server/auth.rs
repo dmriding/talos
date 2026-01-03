@@ -390,6 +390,64 @@ where
     }
 }
 
+/// Middleware layer that injects `AuthState` into request extensions.
+///
+/// This enables the `AuthenticatedUser` extractor to work by making
+/// the auth state available to request handlers.
+#[derive(Clone)]
+pub struct AuthLayer {
+    auth_state: AuthState,
+}
+
+impl AuthLayer {
+    /// Create a new auth layer with the given auth state.
+    pub fn new(auth_state: AuthState) -> Self {
+        Self { auth_state }
+    }
+}
+
+impl<S> tower::Layer<S> for AuthLayer {
+    type Service = AuthMiddleware<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        AuthMiddleware {
+            inner,
+            auth_state: self.auth_state.clone(),
+        }
+    }
+}
+
+/// Middleware service that injects `AuthState` into request extensions.
+#[derive(Clone)]
+pub struct AuthMiddleware<S> {
+    inner: S,
+    auth_state: AuthState,
+}
+
+impl<S, B> tower::Service<axum::http::Request<B>> for AuthMiddleware<S>
+where
+    S: tower::Service<axum::http::Request<B>> + Clone + Send + 'static,
+    S::Future: Send,
+    B: Send + 'static,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, mut req: axum::http::Request<B>) -> Self::Future {
+        // Insert AuthState into request extensions
+        req.extensions_mut().insert(self.auth_state.clone());
+        self.inner.call(req)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

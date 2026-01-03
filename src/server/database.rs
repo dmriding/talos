@@ -59,6 +59,11 @@ pub struct License {
 
     // === Metadata ===
     pub metadata: Option<String>,
+
+    // === Quota/Usage tracking ===
+    pub bandwidth_used_bytes: Option<i64>,
+    pub bandwidth_limit_bytes: Option<i64>,
+    pub quota_exceeded: Option<bool>,
 }
 
 impl License {
@@ -219,9 +224,10 @@ impl Database {
                         license_key, tier, device_name, device_info, bound_at,
                         last_seen_at, suspended_at, revoked_at, revoke_reason,
                         grace_period_ends_at, suspension_message, is_blacklisted,
-                        blacklisted_at, blacklist_reason, metadata
+                        blacklisted_at, blacklist_reason, metadata,
+                        bandwidth_used_bytes, bandwidth_limit_bytes, quota_exceeded
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(license_id) DO UPDATE SET
                         client_id            = excluded.client_id,
                         status               = excluded.status,
@@ -247,7 +253,10 @@ impl Database {
                         is_blacklisted       = excluded.is_blacklisted,
                         blacklisted_at       = excluded.blacklisted_at,
                         blacklist_reason     = excluded.blacklist_reason,
-                        metadata             = excluded.metadata
+                        metadata             = excluded.metadata,
+                        bandwidth_used_bytes = excluded.bandwidth_used_bytes,
+                        bandwidth_limit_bytes = excluded.bandwidth_limit_bytes,
+                        quota_exceeded       = excluded.quota_exceeded
                     "#,
                 )
                 .bind(&license.license_id)
@@ -276,6 +285,9 @@ impl Database {
                 .bind(license.blacklisted_at)
                 .bind(&license.blacklist_reason)
                 .bind(&license.metadata)
+                .bind(license.bandwidth_used_bytes)
+                .bind(license.bandwidth_limit_bytes)
+                .bind(license.quota_exceeded)
                 .execute(pool)
                 .await
                 .map_err(|e| {
@@ -293,9 +305,10 @@ impl Database {
                         license_key, tier, device_name, device_info, bound_at,
                         last_seen_at, suspended_at, revoked_at, revoke_reason,
                         grace_period_ends_at, suspension_message, is_blacklisted,
-                        blacklisted_at, blacklist_reason, metadata
+                        blacklisted_at, blacklist_reason, metadata,
+                        bandwidth_used_bytes, bandwidth_limit_bytes, quota_exceeded
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
                     ON CONFLICT (license_id) DO UPDATE SET
                         client_id            = EXCLUDED.client_id,
                         status               = EXCLUDED.status,
@@ -321,7 +334,10 @@ impl Database {
                         is_blacklisted       = EXCLUDED.is_blacklisted,
                         blacklisted_at       = EXCLUDED.blacklisted_at,
                         blacklist_reason     = EXCLUDED.blacklist_reason,
-                        metadata             = EXCLUDED.metadata
+                        metadata             = EXCLUDED.metadata,
+                        bandwidth_used_bytes = EXCLUDED.bandwidth_used_bytes,
+                        bandwidth_limit_bytes = EXCLUDED.bandwidth_limit_bytes,
+                        quota_exceeded       = EXCLUDED.quota_exceeded
                     "#,
                 )
                 .bind(&license.license_id)
@@ -350,6 +366,9 @@ impl Database {
                 .bind(license.blacklisted_at)
                 .bind(&license.blacklist_reason)
                 .bind(&license.metadata)
+                .bind(license.bandwidth_used_bytes)
+                .bind(license.bandwidth_limit_bytes)
+                .bind(license.quota_exceeded)
                 .execute(pool)
                 .await
                 .map_err(|e| {
@@ -904,5 +923,63 @@ impl Database {
                 Ok(licenses)
             }
         }
+    }
+
+    /// Update usage/quota fields for a license.
+    ///
+    /// Updates bandwidth_used_bytes, bandwidth_limit_bytes, and quota_exceeded.
+    pub async fn update_usage(
+        &self,
+        license_id: &str,
+        bandwidth_used_bytes: i64,
+        bandwidth_limit_bytes: Option<i64>,
+        quota_exceeded: bool,
+    ) -> LicenseResult<bool> {
+        let rows_affected = match self {
+            #[cfg(feature = "sqlite")]
+            Database::SQLite(pool) => {
+                query(
+                    "UPDATE licenses SET \
+                         bandwidth_used_bytes = ?, \
+                         bandwidth_limit_bytes = ?, \
+                         quota_exceeded = ? \
+                     WHERE license_id = ?",
+                )
+                .bind(bandwidth_used_bytes)
+                .bind(bandwidth_limit_bytes)
+                .bind(quota_exceeded)
+                .bind(license_id)
+                .execute(pool)
+                .await
+                .map_err(|e| {
+                    error!("SQLite update_usage failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?
+                .rows_affected()
+            }
+            #[cfg(feature = "postgres")]
+            Database::Postgres(pool) => {
+                query(
+                    "UPDATE licenses SET \
+                         bandwidth_used_bytes = $1, \
+                         bandwidth_limit_bytes = $2, \
+                         quota_exceeded = $3 \
+                     WHERE license_id = $4",
+                )
+                .bind(bandwidth_used_bytes)
+                .bind(bandwidth_limit_bytes)
+                .bind(quota_exceeded)
+                .bind(license_id)
+                .execute(pool)
+                .await
+                .map_err(|e| {
+                    error!("Postgres update_usage failed: {e}");
+                    LicenseError::ServerError(format!("database error: {e}"))
+                })?
+                .rows_affected()
+            }
+        };
+
+        Ok(rows_affected > 0)
     }
 }

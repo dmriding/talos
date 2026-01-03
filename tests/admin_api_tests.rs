@@ -14,6 +14,9 @@ use talos::server::handlers::AppState;
 use talos::server::routes::build_router;
 use tower::ServiceExt;
 
+#[cfg(feature = "jwt-auth")]
+use talos::server::auth::AuthState;
+
 /// Helper to create a test database and app state.
 async fn setup_test_app() -> AppState {
     // Use an in-memory SQLite database for testing
@@ -54,7 +57,10 @@ async fn setup_test_app() -> AppState {
                     is_blacklisted INTEGER,
                     blacklisted_at TEXT,
                     blacklist_reason TEXT,
-                    metadata TEXT
+                    metadata TEXT,
+                    bandwidth_used_bytes INTEGER DEFAULT 0,
+                    bandwidth_limit_bytes INTEGER,
+                    quota_exceeded INTEGER DEFAULT 0
                 )
                 "#,
             )
@@ -68,7 +74,11 @@ async fn setup_test_app() -> AppState {
         }
     }
 
-    AppState { db }
+    AppState {
+        db,
+        #[cfg(feature = "jwt-auth")]
+        auth: AuthState::disabled(),
+    }
 }
 
 /// Helper to make a JSON request to the app.

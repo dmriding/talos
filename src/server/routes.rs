@@ -1,7 +1,7 @@
 use axum::{routing::post, Router};
 
 #[cfg(feature = "admin-api")]
-use axum::routing::{get, patch};
+use axum::routing::{delete, get, patch};
 
 use crate::server::client_api::{
     bind_handler, client_heartbeat_handler, release_handler, validate_feature_handler,
@@ -19,6 +19,14 @@ use crate::server::admin::{
     reinstate_license_handler, revoke_license_handler, update_license_handler,
     update_usage_handler,
 };
+
+#[cfg(feature = "admin-api")]
+use crate::server::tokens::{
+    create_token_handler, get_token_handler, list_tokens_handler, revoke_token_handler,
+};
+
+#[cfg(all(feature = "admin-api", feature = "jwt-auth"))]
+use crate::server::auth::AuthLayer;
 
 /// Build the main application router for the Talos server.
 ///
@@ -53,6 +61,12 @@ use crate::server::admin::{
 /// - `POST /api/v1/licenses/{license_id}/extend` - Extend license expiration
 /// - `PATCH /api/v1/licenses/{license_id}/usage` - Update bandwidth/usage tracking
 /// - `POST /api/v1/licenses/{license_id}/blacklist` - Permanently blacklist a license
+///
+/// ## Token endpoints (requires `admin-api` feature)
+/// - `POST /api/v1/tokens` - Create a new API token
+/// - `GET /api/v1/tokens` - List all API tokens
+/// - `GET /api/v1/tokens/{token_id}` - Get a specific token
+/// - `DELETE /api/v1/tokens/{token_id}` - Revoke a token
 pub fn build_router(state: AppState) -> Router {
     let router = Router::new()
         // Legacy client endpoints (backwards compatibility)
@@ -75,7 +89,55 @@ pub fn build_router(state: AppState) -> Router {
         );
 
     // Add admin API routes if feature is enabled
-    #[cfg(feature = "admin-api")]
+    // When both admin-api and jwt-auth are enabled, apply auth middleware
+    #[cfg(all(feature = "admin-api", feature = "jwt-auth"))]
+    let router = {
+        // Build admin routes as a nested router with auth layer
+        let admin_routes = Router::new()
+            .route("/api/v1/licenses", post(create_license_handler))
+            .route("/api/v1/licenses", get(list_licenses_handler))
+            .route("/api/v1/licenses/batch", post(batch_create_license_handler))
+            .route("/api/v1/licenses/:license_id", get(get_license_handler))
+            .route(
+                "/api/v1/licenses/:license_id",
+                patch(update_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/release",
+                post(admin_release_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/revoke",
+                post(revoke_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/reinstate",
+                post(reinstate_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/extend",
+                post(extend_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/usage",
+                patch(update_usage_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/blacklist",
+                post(blacklist_license_handler),
+            )
+            // Token management routes
+            .route("/api/v1/tokens", post(create_token_handler))
+            .route("/api/v1/tokens", get(list_tokens_handler))
+            .route("/api/v1/tokens/:token_id", get(get_token_handler))
+            .route("/api/v1/tokens/:token_id", delete(revoke_token_handler))
+            .layer(AuthLayer::new(state.auth.clone()));
+
+        router.merge(admin_routes)
+    };
+
+    // Admin API without JWT auth (admin-api only, no jwt-auth)
+    #[cfg(all(feature = "admin-api", not(feature = "jwt-auth")))]
     let router = router
         .route("/api/v1/licenses", post(create_license_handler))
         .route("/api/v1/licenses", get(list_licenses_handler))
@@ -108,7 +170,12 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/api/v1/licenses/:license_id/blacklist",
             post(blacklist_license_handler),
-        );
+        )
+        // Token management routes
+        .route("/api/v1/tokens", post(create_token_handler))
+        .route("/api/v1/tokens", get(list_tokens_handler))
+        .route("/api/v1/tokens/:token_id", get(get_token_handler))
+        .route("/api/v1/tokens/:token_id", delete(revoke_token_handler));
 
     router.with_state(state)
 }
