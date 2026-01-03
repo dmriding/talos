@@ -29,9 +29,9 @@ use chrono::{NaiveDateTime, Utc};
 #[cfg(test)]
 use chrono::{Datelike, Timelike};
 use serde::{Deserialize, Serialize};
+use tracing::info;
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
-use tracing::info;
 use uuid::Uuid;
 
 use crate::config::get_config;

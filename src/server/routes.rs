@@ -184,10 +184,7 @@ pub fn build_router(state: AppState) -> Router {
     #[cfg(feature = "openapi")]
     let router = {
         use crate::server::openapi::get_openapi;
-        router.merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", get_openapi()),
-        )
+        router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", get_openapi()))
     };
 
     router.with_state(state)
