@@ -231,7 +231,7 @@ bandwidth_gb = 0  # unlimited
 
 **Note:** JWT authentication guard integration deferred to when both `admin-api` and `jwt-auth` features are enabled together. Routes are in place and ready for middleware.
 
----
+**Protect public endpoints from brute force attacks**
 
 ## Phase 2: Device Management (P0 - Critical) ✅
 
