@@ -350,6 +350,7 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - OpenAPI documentation
 - Webhook notifications
 - Dashboard UI
+- Analytics and reporting
 
 ---
 
