@@ -1,0 +1,9 @@
+[package]
+name = "air-gapped-example"
+version = "0.1.0"
+edition = "2021"
+description = "Talos air-gapped/offline validation example"
+
+[dependencies]
+talos = { path = "../../..", default-features = false }
+tokio = { version = "1", features = ["full"] }

@@ -21,6 +21,7 @@ talos_encrypted_data
 # Private keys and generated secrets (NEVER commit these)
 *.enc
 talos_private_key*
+*.key
 
 # Test data files
 test_license.json

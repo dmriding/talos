@@ -966,7 +966,7 @@ pub async fn revoke_license_handler(
                 "License has been suspended with {} day grace period",
                 payload.grace_period_days
             ),
-            grace_period_ends_at: Some(grace_end.to_string()),
+            grace_period_ends_at: Some(grace_end.and_utc().to_rfc3339()),
         }))
     }
 }

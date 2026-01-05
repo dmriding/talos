@@ -1,0 +1,9 @@
+[package]
+name = "feature-gating-example"
+version = "0.1.0"
+edition = "2021"
+description = "Example demonstrating license-based feature gating with Talos"
+
+[dependencies]
+talos = { path = "../../..", default-features = false }
+tokio = { version = "1", features = ["full"] }

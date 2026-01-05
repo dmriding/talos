@@ -613,7 +613,9 @@ pub async fn validate_handler(
     let (grace_period_ends, warning_msg) = if license.status == "suspended" {
         if license.is_in_grace_period() {
             (
-                license.grace_period_ends_at.map(|d| d.to_string()),
+                license
+                    .grace_period_ends_at
+                    .map(|d| d.and_utc().to_rfc3339()),
                 Some(
                     license
                         .suspension_message
@@ -645,7 +647,7 @@ pub async fn validate_handler(
         license_id: Some(license.license_id),
         features: Some(parse_features(&license.features)),
         tier: license.tier,
-        expires_at: license.expires_at.map(|d| d.to_string()),
+        expires_at: license.expires_at.map(|d| d.and_utc().to_rfc3339()),
         grace_period_ends_at: grace_period_ends,
         warning: warning_msg,
     };
@@ -786,7 +788,9 @@ pub async fn validate_or_bind_handler(
     let (grace_period_ends, warning_msg) =
         if license.status == "suspended" && license.is_in_grace_period() {
             (
-                license.grace_period_ends_at.map(|d| d.to_string()),
+                license
+                    .grace_period_ends_at
+                    .map(|d| d.and_utc().to_rfc3339()),
                 Some(
                     license
                         .suspension_message
@@ -804,7 +808,7 @@ pub async fn validate_or_bind_handler(
         license_id: Some(license.license_id),
         features: Some(parse_features(&license.features)),
         tier: license.tier,
-        expires_at: license.expires_at.map(|d| d.to_string()),
+        expires_at: license.expires_at.map(|d| d.and_utc().to_rfc3339()),
         grace_period_ends_at: grace_period_ends,
         warning: warning_msg,
     };
