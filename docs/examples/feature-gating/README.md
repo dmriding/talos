@@ -42,6 +42,12 @@ Note the `license_key` from the response.
 
 ### 3. Run the Example
 
+**PowerShell (Windows):**
+```powershell
+$env:LICENSE_KEY="LIC-YOUR-KEY-HERE"; cargo run
+```
+
+**bash (Mac/Linux):**
 ```bash
 LICENSE_KEY="LIC-YOUR-KEY-HERE" cargo run
 ```
@@ -84,6 +90,15 @@ curl -X POST http://127.0.0.1:8080/api/v1/licenses \
 
 Run with the new license key:
 
+**PowerShell (Windows):**
+```powershell
+# Delete old key first
+Remove-Item license.key
+
+$env:LICENSE_KEY="LIC-NEW-KEY-HERE"; cargo run
+```
+
+**bash (Mac/Linux):**
 ```bash
 # Delete old key first
 rm license.key

@@ -22,7 +22,9 @@ Offline validation **only works for licenses with an explicit grace period**. Th
 
 **License keys are NOT compiled into your application.** They are entered at runtime:
 
-1. **Environment variable**: `LICENSE_KEY=LIC-XXXX cargo run`
+1. **Environment variable**:
+   - PowerShell: `$env:LICENSE_KEY="LIC-XXXX"; cargo run`
+   - bash: `LICENSE_KEY=LIC-XXXX cargo run`
 2. **Saved file**: Reads from `license.key` if it exists
 3. **User prompt**: Asks the user to enter their key (first run)
 
@@ -71,11 +73,20 @@ This sets the license to "suspended" status with a 30-day grace period during wh
 
 ### 4. Run the Example (Online Mode - Caches License Data)
 
+**Option A: Let it prompt you**
 ```bash
-# Option A: Let it prompt you
 cargo run
+```
 
-# Option B: Environment variable
+**Option B: Environment variable**
+
+*PowerShell (Windows):*
+```powershell
+$env:LICENSE_KEY="LIC-A1B2-C3D4-E5F6-G7H8"; cargo run
+```
+
+*bash (Mac/Linux):*
+```bash
 LICENSE_KEY="LIC-A1B2-C3D4-E5F6-G7H8" cargo run
 ```
 

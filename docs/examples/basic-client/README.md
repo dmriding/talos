@@ -16,7 +16,9 @@ This example demonstrates the core Talos client functionality with a **realistic
 
 This example supports multiple ways to provide the license key (in order of priority):
 
-1. **Environment variable**: `LICENSE_KEY=LIC-XXXX cargo run`
+1. **Environment variable**:
+   - PowerShell: `$env:LICENSE_KEY="LIC-XXXX"; cargo run`
+   - bash: `LICENSE_KEY=LIC-XXXX cargo run`
 2. **Saved file**: Reads from `license.key` if it exists
 3. **User prompt**: Asks the user to enter their key (first run)
 
@@ -54,11 +56,26 @@ cargo run
 ```
 
 **Option B: Environment variable**
+
+*PowerShell (Windows):*
+```powershell
+$env:LICENSE_KEY="LIC-A1B2-C3D4-E5F6-G7H8"; cargo run
+```
+
+*bash (Mac/Linux):*
 ```bash
 LICENSE_KEY="LIC-A1B2-C3D4-E5F6-G7H8" cargo run
 ```
 
 **Option C: Config file** (for subsequent runs)
+
+*PowerShell (Windows):*
+```powershell
+"LIC-A1B2-C3D4-E5F6-G7H8" | Out-File -Encoding ascii license.key
+cargo run
+```
+
+*bash (Mac/Linux):*
 ```bash
 echo "LIC-A1B2-C3D4-E5F6-G7H8" > license.key
 cargo run
@@ -117,6 +134,16 @@ This is by design - the server controls when offline access is permitted. For ap
 
 To use a different license key:
 
+**PowerShell (Windows):**
+```powershell
+# Delete the saved key
+Remove-Item license.key
+
+# Run again - it will prompt for a new key
+cargo run
+```
+
+**bash (Mac/Linux):**
 ```bash
 # Delete the saved key
 rm license.key
@@ -125,8 +152,14 @@ rm license.key
 cargo run
 ```
 
-Or just use the environment variable to override:
+Or use the environment variable to override:
 
+**PowerShell (Windows):**
+```powershell
+$env:LICENSE_KEY="LIC-NEW-KEY-HERE"; cargo run
+```
+
+**bash (Mac/Linux):**
 ```bash
 LICENSE_KEY="LIC-NEW-KEY-HERE" cargo run
 ```
