@@ -87,8 +87,21 @@ talos/
 ├── examples/                     # Usage examples
 ├── migrations/                   # Database migrations
 ├── docs/
-│   └── public/
-│       └── ROADMAP.md            # Development roadmap
+│   ├── public/
+│   │   └── ROADMAP.md            # Development roadmap
+│   ├── api/                      # API reference documentation
+│   │   ├── rest-api.md           # Complete REST API reference
+│   │   └── openapi.json          # OpenAPI 3.1.0 specification
+│   ├── examples/                 # Complete runnable examples
+│   │   ├── basic-client/         # Minimal client integration
+│   │   ├── air-gapped/           # Offline validation example
+│   │   └── feature-gating/       # Feature gating example
+│   └── guide/                    # User guides
+│       ├── getting-started.md    # 5-minute quickstart
+│       ├── client-integration.md # Client library usage
+│       ├── server-deployment.md  # Production deployment
+│       ├── admin-api.md          # Admin API guide
+│       └── troubleshooting.md    # Debugging and FAQ
 ├── .claude/
 │   └── README.md                 # AI assistant context (for contributors)
 ├── config.toml.example           # Example configuration
@@ -476,7 +489,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 8 Complete**
+**Current Status: Phase 9 In Progress**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -500,12 +513,48 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - Updated client library with new v1 API methods (bind/release/validate/validate-feature/heartbeat)
 - Secure encrypted cache for offline/air-gapped system support
 - Grace period support for air-gapped systems
+- **Working code examples** (basic-client, air-gapped, feature-gating)
 
 **Upcoming:**
 
+- Complete documentation guides
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` folder:
+
+### Guides
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](docs/guide/getting-started.md) | 5-minute quickstart with feature flags and setup |
+| [Client Integration](docs/guide/client-integration.md) | Full client lifecycle, offline validation, feature gating |
+| [Server Deployment](docs/guide/server-deployment.md) | Database setup, Docker, nginx/traefik, production checklist |
+| [Admin API](docs/guide/admin-api.md) | All admin endpoints, authentication, security best practices |
+| [Troubleshooting](docs/guide/troubleshooting.md) | Common errors, debugging tips, FAQ |
+
+### API Reference
+
+| Resource | Description |
+|----------|-------------|
+| [REST API Reference](docs/api/rest-api.md) | Complete endpoint documentation with examples |
+| [OpenAPI Spec](docs/api/openapi.json) | OpenAPI 3.1.0 specification |
+| `/swagger-ui` | Interactive API explorer (when running with `openapi` feature) |
+
+### Examples
+
+Complete, runnable examples are available in `docs/examples/`:
+
+| Example | Description |
+|---------|-------------|
+| [basic-client](docs/examples/basic-client/) | Minimal client integration with runtime license key entry |
+| [air-gapped](docs/examples/air-gapped/) | Offline validation with encrypted cache and grace periods |
+| [feature-gating](docs/examples/feature-gating/) | Enable/disable features based on license tier |
+
+Each example includes a README with step-by-step instructions for both Windows (PowerShell) and Mac/Linux (bash).
 
 ---
 

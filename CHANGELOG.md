@@ -6,6 +6,39 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v2025.12.5 — 2026-01-05
+
+### Added
+
+#### Phase 9: Public Documentation & Examples
+- **Complete Code Examples** (`docs/examples/`)
+  - `basic-client/` - Minimal client integration with runtime license key entry
+  - `air-gapped/` - Offline validation with encrypted cache, grace periods, and `--offline` flag
+  - `feature-gating/` - Enable/disable features based on license tier with upgrade prompts
+- **Comprehensive User Guides** (`docs/guide/`)
+  - `getting-started.md` - 5-minute quickstart with feature flags and setup
+  - `client-integration.md` - Full client lifecycle, offline validation, feature gating
+  - `server-deployment.md` - Database setup, Docker, nginx/traefik, production checklist
+  - `admin-api.md` - All admin endpoints, authentication, security best practices
+  - `troubleshooting.md` - Common errors, debugging, FAQ
+- **Cross-Platform Documentation**
+  - All examples include PowerShell (Windows) and bash (Mac/Linux) instructions
+  - Environment variable syntax for both platforms (`$env:VAR` vs `VAR=value`)
+  - File operations for both platforms (`Remove-Item` vs `rm`)
+
+### Fixed
+- **Date Format Bug in Offline Validation** (`src/server/client_api.rs`, `src/server/admin.rs`)
+  - Server was returning dates as `NaiveDateTime.to_string()` (space-separated format)
+  - Changed to `.and_utc().to_rfc3339()` for proper RFC3339 format parsing in cache
+  - Fixes offline validation always failing with "grace period expired"
+
+### Documentation
+- Updated README.md with examples section and Phase 9 status
+- All example READMEs include step-by-step instructions
+- PowerShell and bash command variants throughout
+
+---
+
 ## v2025.12.4 — 2026-01-05
 
 ### Added

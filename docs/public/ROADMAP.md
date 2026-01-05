@@ -628,58 +628,58 @@ bandwidth_gb = 0  # unlimited
 
 Comprehensive, production-ready documentation for users integrating Talos into their projects.
 
-### 9.1 Documentation Structure (`docs/`)
+### 9.1 Documentation Structure (`docs/`) ✅
 
-- [ ] Create `docs/guide/` directory for user guides
-- [ ] Create `docs/examples/` directory for complete code examples
-- [ ] Create `docs/api/` directory for API reference (generated from rustdoc)
+- [x] Create `docs/guide/` directory for user guides
+- [x] Create `docs/examples/` directory for complete code examples
+- [x] Create `docs/api/` directory for API reference
 
-### 9.2 Getting Started Guide (`docs/guide/getting-started.md`)
+### 9.2 Getting Started Guide (`docs/guide/getting-started.md`) ✅
 
-- [ ] Installation instructions (Cargo.toml setup)
-- [ ] Feature flag selection guide (which features to enable for your use case)
-- [ ] Minimal working example (5-minute quickstart)
-- [ ] Environment setup (config.toml, .env, database)
-- [ ] Running the server locally
-- [ ] First license creation and validation
+- [x] Installation instructions (Cargo.toml setup)
+- [x] Feature flag selection guide (which features to enable for your use case)
+- [x] Minimal working example (5-minute quickstart)
+- [x] Environment setup (config.toml, .env, database)
+- [x] Running the server locally
+- [x] First license creation and validation
 
-### 9.3 Client Integration Guide (`docs/guide/client-integration.md`)
+### 9.3 Client Integration Guide (`docs/guide/client-integration.md`) ✅
 
-- [ ] Adding Talos to your application
-- [ ] License struct overview and lifecycle
-- [ ] Hardware binding explanation (how fingerprinting works)
-- [ ] **Binding a license** - Complete example with error handling
-- [ ] **Validating a license** - Online validation flow
-- [ ] **Offline validation** - Air-gapped system support with grace periods
-- [ ] **Feature gating** - Checking feature access in your app
-- [ ] **Heartbeat integration** - Background heartbeat setup
-- [ ] **Releasing a license** - Proper cleanup on app exit
-- [ ] Error handling patterns (matching on `ClientErrorCode`)
-- [ ] Retry strategies for network failures
+- [x] Adding Talos to your application
+- [x] License struct overview and lifecycle
+- [x] Hardware binding explanation (how fingerprinting works)
+- [x] **Binding a license** - Complete example with error handling
+- [x] **Validating a license** - Online validation flow
+- [x] **Offline validation** - Air-gapped system support with grace periods
+- [x] **Feature gating** - Checking feature access in your app
+- [x] **Heartbeat integration** - Background heartbeat setup
+- [x] **Releasing a license** - Proper cleanup on app exit
+- [x] Error handling patterns (matching on `ClientErrorCode`)
+- [x] Retry strategies for network failures
 
-### 9.4 Server Deployment Guide (`docs/guide/server-deployment.md`)
+### 9.4 Server Deployment Guide (`docs/guide/server-deployment.md`) ✅
 
-- [ ] Database setup (SQLite vs PostgreSQL)
-- [ ] Running migrations
-- [ ] Configuration reference (all config.toml options)
-- [ ] Environment variables reference
-- [ ] Production checklist (security, performance, monitoring)
-- [ ] Docker deployment
-- [ ] Reverse proxy setup (nginx, traefik)
-- [ ] TLS/HTTPS configuration
-- [ ] Health monitoring and alerting
+- [x] Database setup (SQLite vs PostgreSQL)
+- [x] Running migrations
+- [x] Configuration reference (all config.toml options)
+- [x] Environment variables reference
+- [x] Production checklist (security, performance, monitoring)
+- [x] Docker deployment
+- [x] Reverse proxy setup (nginx, traefik)
+- [x] TLS/HTTPS configuration
+- [x] Health monitoring and alerting
 
-### 9.5 Admin API Guide (`docs/guide/admin-api.md`)
+### 9.5 Admin API Guide (`docs/guide/admin-api.md`) ✅
 
-- [ ] Enabling the admin-api feature
-- [ ] Authentication setup (JWT tokens)
-- [ ] **Creating licenses** - Single and batch creation
-- [ ] **Managing licenses** - Update, suspend, revoke, reinstate
-- [ ] **Organization management** - Grouping licenses by org
-- [ ] **Feature and tier management** - Configuring tiers
-- [ ] **Monitoring** - Listing licenses, checking status
-- [ ] **Security** - Protecting admin endpoints
-- [ ] API token management (creating service accounts)
+- [x] Enabling the admin-api feature
+- [x] Authentication setup (JWT tokens)
+- [x] **Creating licenses** - Single and batch creation
+- [x] **Managing licenses** - Update, suspend, revoke, reinstate
+- [x] **Organization management** - Grouping licenses by org
+- [x] **Feature and tier management** - Configuring tiers
+- [x] **Monitoring** - Listing licenses, checking status
+- [x] **Security** - Protecting admin endpoints
+- [x] API token management (creating service accounts)
 
 ### 9.6 Advanced Topics Guide (`docs/guide/advanced.md`)
 
@@ -692,40 +692,49 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 - [ ] High availability setup
 - [ ] Backup and recovery
 
-### 9.7 API Reference (`docs/api/`)
+### 9.7 API Reference (`docs/api/`) ✅
 
 - [ ] Generate rustdoc with `cargo doc --all-features`
 - [ ] Host rustdoc on GitHub Pages or docs.rs
-- [ ] REST API reference (all endpoints with request/response examples)
-- [ ] Error codes reference (all error codes with descriptions)
+- [x] REST API reference (all endpoints with request/response examples)
+- [x] Error codes reference (all error codes with descriptions)
 - [ ] Configuration reference (all config options with defaults)
+- [x] OpenAPI specification (`docs/api/openapi.json`)
+- [x] Interactive Swagger UI documentation
 
-### 9.8 Complete Code Examples (`docs/examples/`)
+### 9.8 Complete Code Examples (`docs/examples/`) ✅
 
 Each example should be a complete, runnable project:
 
-- [ ] `examples/basic-client/` - Minimal client integration
+- [x] `examples/basic-client/` - Minimal client integration with runtime license key entry
 - [ ] `examples/desktop-app/` - Desktop application with license dialog
 - [ ] `examples/cli-tool/` - CLI tool with license validation
 - [ ] `examples/web-service/` - Web service checking licenses per-request
-- [ ] `examples/air-gapped/` - Offline validation with grace period handling
-- [ ] `examples/feature-gating/` - Enabling/disabling features based on license tier
+- [x] `examples/air-gapped/` - Offline validation with grace period handling and `--offline` flag
+- [x] `examples/feature-gating/` - Enabling/disabling features based on license tier
 - [ ] `examples/admin-dashboard/` - Simple admin UI for license management
 - [ ] `examples/docker-compose/` - Complete Docker deployment with PostgreSQL
+
+**Completed Examples Include:**
+- Full README with step-by-step instructions
+- PowerShell (Windows) and bash (Mac/Linux) command variants
+- Runtime license key entry (env var, file, or user prompt)
+- Error handling and validation
+- Feature checking patterns
 
 ### 9.9 Migration Guides
 
 - [ ] `docs/guide/migration-v1.md` - Migrating from legacy API to v1 API
 - [ ] `docs/guide/migration-activate-to-bind.md` - activate() → bind() migration
 
-### 9.10 Troubleshooting Guide (`docs/guide/troubleshooting.md`)
+### 9.10 Troubleshooting Guide (`docs/guide/troubleshooting.md`) ✅
 
-- [ ] Common errors and solutions
-- [ ] Debugging license validation failures
-- [ ] Hardware ID changes (why validation might fail)
-- [ ] Network connectivity issues
-- [ ] Database connection problems
-- [ ] FAQ section
+- [x] Common errors and solutions
+- [x] Debugging license validation failures
+- [x] Hardware ID changes (why validation might fail)
+- [x] Network connectivity issues
+- [x] Database connection problems
+- [x] FAQ section
 
 ---
 
