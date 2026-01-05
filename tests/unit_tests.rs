@@ -176,10 +176,7 @@ async fn test_license_validation() {
 
     // Activate first so DB has an active license for this client.
     #[allow(deprecated)]
-    license
-        .activate()
-        .await
-        .expect("Activation should succeed");
+    license.activate().await.expect("Activation should succeed");
 
     // The license is now active - verify the is_active flag
     assert!(
@@ -219,10 +216,7 @@ async fn test_license_deactivation() {
 
     // Activate first to have an active record in DB
     #[allow(deprecated)]
-    license
-        .activate()
-        .await
-        .expect("Activation should succeed");
+    license.activate().await.expect("Activation should succeed");
     assert!(
         license.is_active,
         "License should be active before deactivation"
