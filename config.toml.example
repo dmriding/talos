@@ -110,6 +110,28 @@ bind_rpm = 10
 burst_size = 5
 
 # =============================================================================
+# Admin API Security
+# =============================================================================
+[admin]
+# IP whitelist for admin API access (default: empty = allow all)
+#
+# When non-empty, only requests from these IPs/CIDRs can access admin endpoints.
+# Supports individual IPs and CIDR notation for network ranges.
+#
+# Example configurations:
+# - Localhost only: ip_whitelist = ["127.0.0.1", "::1"]
+# - Internal network: ip_whitelist = ["10.0.0.0/8", "192.168.0.0/16"]
+# - Specific servers: ip_whitelist = ["10.0.1.5", "10.0.1.6"]
+#
+# IMPORTANT: When behind a reverse proxy, ensure X-Forwarded-For or X-Real-IP
+# headers are set correctly, as the middleware uses these to determine client IP.
+ip_whitelist = []
+
+# Enable audit logging for admin actions (default: false)
+# When enabled, logs all admin API actions with user/token ID
+audit_logging = false
+
+# =============================================================================
 # Tier Configuration
 # =============================================================================
 # Define your license tiers here. Each tier has a set of features and

@@ -823,17 +823,17 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 
 ## Phase 12: Security Enhancements (P1 - High)
 
-### 12.1 Admin API IP Whitelisting
+### 12.1 Admin API IP Whitelisting ✅
 
 **Critical security feature** - Restrict Admin API access to specific IP addresses.
 
-- [ ] Add `admin_ip_whitelist` configuration option
-- [ ] Create IP whitelist middleware for admin routes
-- [ ] Support CIDR notation (e.g., `10.0.0.0/8`, `192.168.1.0/24`)
-- [ ] Support individual IPs and ranges
-- [ ] Return 403 Forbidden for non-whitelisted IPs
-- [ ] Log blocked access attempts
-- [ ] Document configuration in server deployment guide
+- [x] Add `admin_ip_whitelist` configuration option (`config.rs`, `AdminConfig`)
+- [x] Create IP whitelist middleware for admin routes (`ip_whitelist.rs`)
+- [x] Support CIDR notation (e.g., `10.0.0.0/8`, `192.168.1.0/24`)
+- [x] Support individual IPs and ranges (IPv4 and IPv6)
+- [x] Return 403 Forbidden for non-whitelisted IPs
+- [x] Log blocked access attempts (with tracing)
+- [x] Document configuration in `config.toml.example`
 
 **Configuration example:**
 ```toml
@@ -841,14 +841,22 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 ip_whitelist = ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
 ```
 
-### 12.2 Audit Logging
+**Implementation details:**
+- `IpNetwork` enum handles single IPs and CIDR ranges
+- `IpWhitelist` struct with `is_allowed()` method
+- `IpWhitelistLayer` and `IpWhitelistMiddleware` for axum integration
+- Checks `X-Forwarded-For` and `X-Real-IP` headers for proxy support
+- Empty whitelist = disabled (all IPs allowed)
+- 17 unit tests for CIDR parsing and matching
+
+### 12.2 Audit Logging _(Deferred)_
 
 - [ ] Log all admin API actions with user/token ID
 - [ ] Log license state changes (create, revoke, suspend, etc.)
 - [ ] Log authentication failures
 - [ ] Configurable audit log destination (file, database, external service)
 
-### 12.3 API Key Rotation
+### 12.3 API Key Rotation _(Deferred)_
 
 - [ ] Add key rotation endpoint for tokens
 - [ ] Support overlapping validity periods during rotation

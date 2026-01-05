@@ -102,7 +102,43 @@ Tokens are scoped to limit access:
 
 ### IP Whitelisting
 
-**Critical:** Restrict Admin API access by IP using your reverse proxy.
+**Critical:** Restrict Admin API access to trusted IP addresses.
+
+#### Built-in IP Whitelist (Recommended)
+
+Talos has built-in IP whitelisting that applies to all admin endpoints:
+
+```toml
+# config.toml
+[admin]
+# Only allow admin API access from these IPs/networks
+ip_whitelist = ["127.0.0.1", "::1", "10.0.0.0/8", "192.168.0.0/16"]
+audit_logging = false
+```
+
+**Features:**
+- Supports individual IPs (`192.168.1.100`)
+- Supports CIDR notation (`10.0.0.0/8`, `192.168.0.0/16`)
+- Supports IPv4 and IPv6
+- Empty list = allow all IPs (disabled)
+- Checks `X-Forwarded-For` and `X-Real-IP` headers when behind a proxy
+
+**Common configurations:**
+
+```toml
+# Localhost only
+ip_whitelist = ["127.0.0.1", "::1"]
+
+# Internal network
+ip_whitelist = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
+
+# Specific servers
+ip_whitelist = ["10.0.1.5", "10.0.1.6", "192.168.1.100"]
+```
+
+#### Additional Protection with Reverse Proxy
+
+For defense in depth, also configure IP restrictions at your reverse proxy:
 
 **nginx:**
 

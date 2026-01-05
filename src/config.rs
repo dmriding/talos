@@ -47,6 +47,8 @@ pub struct TalosConfig {
     pub auth: AuthConfig,
     /// Rate limiting configuration (requires "rate-limiting" feature)
     pub rate_limit: RateLimitConfig,
+    /// Admin API configuration
+    pub admin: AdminConfig,
     /// Tier configurations (optional, keyed by tier name)
     pub tiers: HashMap<String, TierConfig>,
 }
@@ -194,6 +196,30 @@ impl Default for RateLimitConfig {
             burst_size: 5,
         }
     }
+}
+
+/// Admin API configuration.
+///
+/// Controls security settings for the admin API endpoints.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct AdminConfig {
+    /// IP whitelist for admin API access.
+    ///
+    /// When non-empty, only requests from these IPs/CIDRs can access admin endpoints.
+    /// Supports individual IPs (e.g., "192.168.1.100") and CIDR notation (e.g., "10.0.0.0/8").
+    ///
+    /// Example: ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
+    ///
+    /// When empty (default), IP whitelisting is disabled and all IPs are allowed
+    /// (though JWT auth may still be required).
+    pub ip_whitelist: Vec<String>,
+
+    /// Enable audit logging for admin actions.
+    ///
+    /// When enabled, all admin API actions are logged with user/token ID,
+    /// license state changes, and authentication failures.
+    pub audit_logging: bool,
 }
 
 impl TalosConfig {
