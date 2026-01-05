@@ -796,27 +796,28 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 
 ---
 
-## Phase 11: Deployment & Operations (P1 - High)
+## Phase 11: Deployment & Operations (P1 - High) ✅
 
-### 11.1 Configuration
+### 11.1 Configuration ✅
 
-- [ ] Document all environment variables
-- [ ] Create example `.env` file
-- [ ] Create example `config.toml` for production deployment
-- [ ] Add configuration validation on startup
+- [x] Document all environment variables (`.env.example`)
+- [x] Create example `.env` file with JWT/rate-limiting vars
+- [x] Create example `config.toml` for production deployment (all sections documented)
+- [x] Add configuration validation on startup (`config.rs` validates on init)
 
-### 11.2 Docker
+### 11.2 Docker ✅
 
-- [ ] Create optimized Dockerfile
-- [ ] Create docker-compose.yml with PostgreSQL
-- [ ] Document container deployment
-- [ ] Add health check to container
+- [x] Create optimized Dockerfile (multi-stage build, non-root user)
+- [x] Create docker-compose.yml with PostgreSQL
+- [x] Document container deployment (in docker-compose.yml comments)
+- [x] Add health check to container (`/health` endpoint)
 
-### 11.3 Database Migrations
+### 11.3 Database Migrations ✅
 
-- [ ] Document migration process
-- [ ] Create migration scripts for existing Talos deployments
-- [ ] Test migration from legacy schema to current schema
+- [x] Document migration process (comments in SQL files)
+- [x] Create SQLite migration script (`migrations/init_sqlite.sql`)
+- [x] Create PostgreSQL migration script (`migrations/init_postgres.sql`)
+- [ ] _(Deferred)_ Test migration from legacy schema to current schema
 
 ---
 
