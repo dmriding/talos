@@ -624,9 +624,114 @@ bandwidth_gb = 0  # unlimited
 
 ---
 
-## Phase 9: Testing (Ongoing)
+## Phase 9: Public Documentation & Examples (P0 - Critical)
 
-### 9.1 Unit Tests
+Comprehensive, production-ready documentation for users integrating Talos into their projects.
+
+### 9.1 Documentation Structure (`docs/`)
+
+- [ ] Create `docs/guide/` directory for user guides
+- [ ] Create `docs/examples/` directory for complete code examples
+- [ ] Create `docs/api/` directory for API reference (generated from rustdoc)
+
+### 9.2 Getting Started Guide (`docs/guide/getting-started.md`)
+
+- [ ] Installation instructions (Cargo.toml setup)
+- [ ] Feature flag selection guide (which features to enable for your use case)
+- [ ] Minimal working example (5-minute quickstart)
+- [ ] Environment setup (config.toml, .env, database)
+- [ ] Running the server locally
+- [ ] First license creation and validation
+
+### 9.3 Client Integration Guide (`docs/guide/client-integration.md`)
+
+- [ ] Adding Talos to your application
+- [ ] License struct overview and lifecycle
+- [ ] Hardware binding explanation (how fingerprinting works)
+- [ ] **Binding a license** - Complete example with error handling
+- [ ] **Validating a license** - Online validation flow
+- [ ] **Offline validation** - Air-gapped system support with grace periods
+- [ ] **Feature gating** - Checking feature access in your app
+- [ ] **Heartbeat integration** - Background heartbeat setup
+- [ ] **Releasing a license** - Proper cleanup on app exit
+- [ ] Error handling patterns (matching on `ClientErrorCode`)
+- [ ] Retry strategies for network failures
+
+### 9.4 Server Deployment Guide (`docs/guide/server-deployment.md`)
+
+- [ ] Database setup (SQLite vs PostgreSQL)
+- [ ] Running migrations
+- [ ] Configuration reference (all config.toml options)
+- [ ] Environment variables reference
+- [ ] Production checklist (security, performance, monitoring)
+- [ ] Docker deployment
+- [ ] Reverse proxy setup (nginx, traefik)
+- [ ] TLS/HTTPS configuration
+- [ ] Health monitoring and alerting
+
+### 9.5 Admin API Guide (`docs/guide/admin-api.md`)
+
+- [ ] Enabling the admin-api feature
+- [ ] Authentication setup (JWT tokens)
+- [ ] **Creating licenses** - Single and batch creation
+- [ ] **Managing licenses** - Update, suspend, revoke, reinstate
+- [ ] **Organization management** - Grouping licenses by org
+- [ ] **Feature and tier management** - Configuring tiers
+- [ ] **Monitoring** - Listing licenses, checking status
+- [ ] **Security** - Protecting admin endpoints
+- [ ] API token management (creating service accounts)
+
+### 9.6 Advanced Topics Guide (`docs/guide/advanced.md`)
+
+- [ ] Custom hardware fingerprinting
+- [ ] Extending the tier system
+- [ ] Webhook integration (future)
+- [ ] Background jobs configuration
+- [ ] Rate limiting tuning
+- [ ] Database optimization
+- [ ] High availability setup
+- [ ] Backup and recovery
+
+### 9.7 API Reference (`docs/api/`)
+
+- [ ] Generate rustdoc with `cargo doc --all-features`
+- [ ] Host rustdoc on GitHub Pages or docs.rs
+- [ ] REST API reference (all endpoints with request/response examples)
+- [ ] Error codes reference (all error codes with descriptions)
+- [ ] Configuration reference (all config options with defaults)
+
+### 9.8 Complete Code Examples (`docs/examples/`)
+
+Each example should be a complete, runnable project:
+
+- [ ] `examples/basic-client/` - Minimal client integration
+- [ ] `examples/desktop-app/` - Desktop application with license dialog
+- [ ] `examples/cli-tool/` - CLI tool with license validation
+- [ ] `examples/web-service/` - Web service checking licenses per-request
+- [ ] `examples/air-gapped/` - Offline validation with grace period handling
+- [ ] `examples/feature-gating/` - Enabling/disabling features based on license tier
+- [ ] `examples/admin-dashboard/` - Simple admin UI for license management
+- [ ] `examples/docker-compose/` - Complete Docker deployment with PostgreSQL
+
+### 9.9 Migration Guides
+
+- [ ] `docs/guide/migration-v1.md` - Migrating from legacy API to v1 API
+- [ ] `docs/guide/migration-activate-to-bind.md` - activate() → bind() migration
+
+### 9.10 Troubleshooting Guide (`docs/guide/troubleshooting.md`)
+
+- [ ] Common errors and solutions
+- [ ] Debugging license validation failures
+- [ ] Hardware ID changes (why validation might fail)
+- [ ] Network connectivity issues
+- [ ] Database connection problems
+- [ ] FAQ section
+
+---
+
+## Phase 10: Testing (Ongoing)
+
+### 10.1 Unit Tests
 
 - [ ] License key generation uniqueness (1000+ keys)
 - [ ] License key format validation
@@ -636,7 +741,7 @@ bandwidth_gb = 0  # unlimited
 - [ ] Quota calculation logic
 - [ ] Error code mapping
 
-### 9.2 Integration Tests
+### 10.2 Integration Tests
 
 - [ ] Full license lifecycle (create -> bind -> validate -> release)
 - [ ] Multi-license organization flow
@@ -647,7 +752,7 @@ bandwidth_gb = 0  # unlimited
 - [ ] Blacklist behavior
 - [ ] Background job execution
 
-### 9.3 Load Tests
+### 10.3 Load Tests
 
 - [ ] Validation endpoint: target 1000 req/s
 - [ ] Heartbeat endpoint: target 500 req/s
@@ -656,23 +761,23 @@ bandwidth_gb = 0  # unlimited
 
 ---
 
-## Phase 10: Deployment & Operations (P1 - High)
+## Phase 11: Deployment & Operations (P1 - High)
 
-### 10.1 Configuration
+### 11.1 Configuration
 
 - [ ] Document all environment variables
 - [ ] Create example `.env` file
 - [ ] Create example `config.toml` for production deployment
 - [ ] Add configuration validation on startup
 
-### 10.2 Docker
+### 11.2 Docker
 
 - [ ] Create optimized Dockerfile
 - [ ] Create docker-compose.yml with PostgreSQL
 - [ ] Document container deployment
 - [ ] Add health check to container
 
-### 10.3 Database Migrations
+### 11.3 Database Migrations
 
 - [ ] Document migration process
 - [ ] Create migration scripts for existing Talos deployments
@@ -709,13 +814,16 @@ Phase 5 (Background Jobs) ──────────────────
 Phase 6 (Blacklist & Validation) ◄────────────────────────┘
          │
          ▼
-Phase 7 (Documentation)
+Phase 7 (OpenAPI & Logging)
          │
          ▼
 Phase 8 (Client Updates)
          │
          ▼
-Phase 9 (Testing) ────► Phase 10 (Deployment)
+Phase 9 (Public Docs & Examples)
+         │
+         ▼
+Phase 10 (Testing) ────► Phase 11 (Deployment)
 ```
 
 ---
