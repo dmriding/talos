@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::{routing::post, Router};
+use serial_test::serial;
 use sqlx::sqlite::SqlitePoolOptions;
 use tokio::net::TcpListener;
 
@@ -18,6 +19,11 @@ use talos::server::handlers::{
 
 #[cfg(feature = "jwt-auth")]
 use talos::server::auth::AuthState;
+
+/// Clean up license storage file if it exists
+async fn cleanup_license_file() {
+    let _ = tokio::fs::remove_file("talos_license.enc").await;
+}
 
 /// Helper: create an in-memory SQLite `Database` with the `licenses` table
 /// and return it wrapped in Arc<Database>.
@@ -110,7 +116,10 @@ async fn spawn_test_server() -> String {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_license_activation() {
+    cleanup_license_file().await;
+
     let server_url = spawn_test_server().await;
     let current_hardware_id = get_hardware_id();
 
@@ -128,7 +137,8 @@ async fn test_license_activation() {
     let activation_result = license.activate().await;
     assert!(
         activation_result.is_ok(),
-        "License activation should succeed"
+        "License activation should succeed: {:?}",
+        activation_result.err()
     );
     assert!(
         license.is_active,
@@ -138,6 +148,8 @@ async fn test_license_activation() {
         license.client_id, current_hardware_id,
         "License should be bound to the correct hardware ID"
     );
+
+    cleanup_license_file().await;
 }
 
 /// Test legacy validation flow.
@@ -146,7 +158,10 @@ async fn test_license_activation() {
 /// in the original implementation. The new v1 API uses /api/v1/client/validate
 /// with different request/response formats.
 #[tokio::test]
+#[serial]
 async fn test_license_validation() {
+    cleanup_license_file().await;
+
     let server_url = spawn_test_server().await;
     let current_hardware_id = get_hardware_id();
 
@@ -161,7 +176,10 @@ async fn test_license_validation() {
 
     // Activate first so DB has an active license for this client.
     #[allow(deprecated)]
-    license.activate().await.expect("Activation should succeed");
+    license
+        .activate()
+        .await
+        .expect("Activation should succeed");
 
     // The license is now active - verify the is_active flag
     assert!(
@@ -177,11 +195,16 @@ async fn test_license_validation() {
         heartbeat_result.is_ok(),
         "Legacy heartbeat should succeed for activated license"
     );
+
+    cleanup_license_file().await;
 }
 
 /// Test legacy deactivation flow.
 #[tokio::test]
+#[serial]
 async fn test_license_deactivation() {
+    cleanup_license_file().await;
+
     let server_url = spawn_test_server().await;
     let current_hardware_id = get_hardware_id();
 
@@ -196,7 +219,10 @@ async fn test_license_deactivation() {
 
     // Activate first to have an active record in DB
     #[allow(deprecated)]
-    license.activate().await.expect("Activation should succeed");
+    license
+        .activate()
+        .await
+        .expect("Activation should succeed");
     assert!(
         license.is_active,
         "License should be active before deactivation"
@@ -213,4 +239,6 @@ async fn test_license_deactivation() {
         !license.is_active,
         "License should not be active after deactivation"
     );
+
+    cleanup_license_file().await;
 }
