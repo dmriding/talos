@@ -7,11 +7,11 @@ use tokio::net::TcpListener;
 
 use talos::client::License;
 use talos::hardware::get_hardware_id;
+#[cfg(feature = "admin-api")]
+use talos::server::client_api::validate_feature_handler;
 use talos::server::client_api::{
     bind_handler, client_heartbeat_handler, release_handler, validate_handler,
 };
-#[cfg(feature = "admin-api")]
-use talos::server::client_api::validate_feature_handler;
 use talos::server::database::Database;
 use talos::server::handlers::{
     activate_license_handler, deactivate_license_handler, heartbeat_handler,
@@ -254,7 +254,9 @@ async fn integration_test_v1_api_lifecycle() {
     // Step 2: Create client License and bind
     let mut license = License::new(license_key.to_string(), server_url.clone());
 
-    let bind_result = license.bind(Some("Test Workstation"), Some("Test Device")).await;
+    let bind_result = license
+        .bind(Some("Test Workstation"), Some("Test Device"))
+        .await;
     assert!(
         bind_result.is_ok(),
         "Bind should succeed: {:?}",
@@ -305,7 +307,10 @@ async fn integration_test_v1_api_lifecycle() {
         "Feature validation should succeed: {:?}",
         feature_result.err()
     );
-    assert!(feature_result.unwrap().allowed, "feature_a should be allowed");
+    assert!(
+        feature_result.unwrap().allowed,
+        "feature_a should be allowed"
+    );
 
     // Missing feature returns an error (403 FEATURE_NOT_INCLUDED)
     let feature_result = license.validate_feature("feature_c").await;
