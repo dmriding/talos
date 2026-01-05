@@ -1,5 +1,5 @@
 [package]
-name = "talos"
+name = "netviper-talos"
 version = "0.1.0"
 edition = "2021"
 authors = ["David Riding <david@netviper.gr>"]
@@ -7,10 +7,14 @@ description = "A Rust-based secure licensing system."
 repository = "https://github.com/dmriding/talos"
 license = "MIT"
 readme = "README.md"
-documentation = "https://docs.rs/talos"
+documentation = "https://docs.rs/netviper-talos"
 homepage = "https://github.com/dmriding/talos"
-keywords = ["licensing", "rust", "security", "software-protection"]
-categories = ["access-control", "cryptography", "software-development"]
+keywords = ["licensing", "security", "software-protection", "offline", "hardware-binding"]
+categories = ["authentication", "cryptography", "development-tools"]
+
+[lib]
+name = "talos"
+path = "src/lib.rs"
 
 # === Feature Flags ===
 [features]
@@ -58,7 +62,7 @@ base64 = "0.22.1"
 
 
 # === HTTP Client ===
-reqwest = { version = "0.11.27", features = [
+reqwest = { version = "0.12", features = [
     "json",
     "rustls-tls",
 ], default-features = false }

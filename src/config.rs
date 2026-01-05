@@ -47,6 +47,8 @@ pub struct TalosConfig {
     pub auth: AuthConfig,
     /// Rate limiting configuration (requires "rate-limiting" feature)
     pub rate_limit: RateLimitConfig,
+    /// Admin API configuration
+    pub admin: AdminConfig,
     /// Tier configurations (optional, keyed by tier name)
     pub tiers: HashMap<String, TierConfig>,
 }
@@ -196,6 +198,30 @@ impl Default for RateLimitConfig {
     }
 }
 
+/// Admin API configuration.
+///
+/// Controls security settings for the admin API endpoints.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct AdminConfig {
+    /// IP whitelist for admin API access.
+    ///
+    /// When non-empty, only requests from these IPs/CIDRs can access admin endpoints.
+    /// Supports individual IPs (e.g., "192.168.1.100") and CIDR notation (e.g., "10.0.0.0/8").
+    ///
+    /// Example: ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
+    ///
+    /// When empty (default), IP whitelisting is disabled and all IPs are allowed
+    /// (though JWT auth may still be required).
+    pub ip_whitelist: Vec<String>,
+
+    /// Enable audit logging for admin actions.
+    ///
+    /// When enabled, all admin API actions are logged with user/token ID,
+    /// license state changes, and authentication failures.
+    pub audit_logging: bool,
+}
+
 impl TalosConfig {
     /// Load configuration from file and environment.
     ///
@@ -247,6 +273,10 @@ impl TalosConfig {
             .set_default("rate_limit.bind_rpm", 10)
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             .set_default("rate_limit.burst_size", 5)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("admin.ip_whitelist", Vec::<String>::new())
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("admin.audit_logging", false)
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             // Load from config.toml (optional)
             .add_source(config::File::with_name("config").required(false))
@@ -315,6 +345,25 @@ impl TalosConfig {
                 env::var("TALOS_TOKEN_EXPIRATION_SECS")
                     .ok()
                     .and_then(|v| v.parse::<i64>().ok()),
+            )
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            // Admin API security overrides
+            .set_override_option(
+                "admin.ip_whitelist",
+                env::var("TALOS_ADMIN_IP_WHITELIST").ok().map(|v| {
+                    if v.is_empty() {
+                        Vec::<String>::new()
+                    } else {
+                        v.split(',').map(|s| s.trim().to_string()).collect()
+                    }
+                }),
+            )
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_override_option(
+                "admin.audit_logging",
+                env::var("TALOS_ADMIN_AUDIT_LOGGING")
+                    .ok()
+                    .and_then(|v| v.parse::<bool>().ok()),
             )
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?;
 

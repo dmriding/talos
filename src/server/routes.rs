@@ -17,6 +17,11 @@ use crate::server::handlers::{
 use crate::server::logging::request_logging_middleware;
 
 #[cfg(feature = "admin-api")]
+use crate::config::get_config;
+#[cfg(feature = "admin-api")]
+use crate::server::ip_whitelist::IpWhitelistLayer;
+
+#[cfg(feature = "admin-api")]
 use crate::server::admin::{
     admin_release_handler, batch_create_license_handler, blacklist_license_handler,
     create_license_handler, extend_license_handler, get_license_handler, list_licenses_handler,
@@ -95,10 +100,15 @@ pub fn build_router(state: AppState) -> Router {
         );
 
     // Add admin API routes if feature is enabled
-    // When both admin-api and jwt-auth are enabled, apply auth middleware
+    // When both admin-api and jwt-auth are enabled, apply auth + IP whitelist middleware
     #[cfg(all(feature = "admin-api", feature = "jwt-auth"))]
     let router = {
-        // Build admin routes as a nested router with auth layer
+        // Get IP whitelist from config (if configured)
+        let ip_whitelist_layer = get_config()
+            .map(|c| IpWhitelistLayer::from_config(&c.admin.ip_whitelist))
+            .unwrap_or_else(|_| IpWhitelistLayer::from_config(&[]));
+
+        // Build admin routes as a nested router with auth + IP whitelist layers
         let admin_routes = Router::new()
             .route("/api/v1/licenses", post(create_license_handler))
             .route("/api/v1/licenses", get(list_licenses_handler))
@@ -137,51 +147,64 @@ pub fn build_router(state: AppState) -> Router {
             .route("/api/v1/tokens", get(list_tokens_handler))
             .route("/api/v1/tokens/:token_id", get(get_token_handler))
             .route("/api/v1/tokens/:token_id", delete(revoke_token_handler))
-            .layer(AuthLayer::new(state.auth.clone()));
+            // Apply IP whitelist first (outer layer), then auth (inner layer)
+            .layer(AuthLayer::new(state.auth.clone()))
+            .layer(ip_whitelist_layer);
 
         router.merge(admin_routes)
     };
 
     // Admin API without JWT auth (admin-api only, no jwt-auth)
+    // Still applies IP whitelist for security
     #[cfg(all(feature = "admin-api", not(feature = "jwt-auth")))]
-    let router = router
-        .route("/api/v1/licenses", post(create_license_handler))
-        .route("/api/v1/licenses", get(list_licenses_handler))
-        .route("/api/v1/licenses/batch", post(batch_create_license_handler))
-        .route("/api/v1/licenses/:license_id", get(get_license_handler))
-        .route(
-            "/api/v1/licenses/:license_id",
-            patch(update_license_handler),
-        )
-        .route(
-            "/api/v1/licenses/:license_id/release",
-            post(admin_release_handler),
-        )
-        .route(
-            "/api/v1/licenses/:license_id/revoke",
-            post(revoke_license_handler),
-        )
-        .route(
-            "/api/v1/licenses/:license_id/reinstate",
-            post(reinstate_license_handler),
-        )
-        .route(
-            "/api/v1/licenses/:license_id/extend",
-            post(extend_license_handler),
-        )
-        .route(
-            "/api/v1/licenses/:license_id/usage",
-            patch(update_usage_handler),
-        )
-        .route(
-            "/api/v1/licenses/:license_id/blacklist",
-            post(blacklist_license_handler),
-        )
-        // Token management routes
-        .route("/api/v1/tokens", post(create_token_handler))
-        .route("/api/v1/tokens", get(list_tokens_handler))
-        .route("/api/v1/tokens/:token_id", get(get_token_handler))
-        .route("/api/v1/tokens/:token_id", delete(revoke_token_handler));
+    let router = {
+        // Get IP whitelist from config (if configured)
+        let ip_whitelist_layer = get_config()
+            .map(|c| IpWhitelistLayer::from_config(&c.admin.ip_whitelist))
+            .unwrap_or_else(|_| IpWhitelistLayer::from_config(&[]));
+
+        let admin_routes = Router::new()
+            .route("/api/v1/licenses", post(create_license_handler))
+            .route("/api/v1/licenses", get(list_licenses_handler))
+            .route("/api/v1/licenses/batch", post(batch_create_license_handler))
+            .route("/api/v1/licenses/:license_id", get(get_license_handler))
+            .route(
+                "/api/v1/licenses/:license_id",
+                patch(update_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/release",
+                post(admin_release_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/revoke",
+                post(revoke_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/reinstate",
+                post(reinstate_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/extend",
+                post(extend_license_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/usage",
+                patch(update_usage_handler),
+            )
+            .route(
+                "/api/v1/licenses/:license_id/blacklist",
+                post(blacklist_license_handler),
+            )
+            // Token management routes
+            .route("/api/v1/tokens", post(create_token_handler))
+            .route("/api/v1/tokens", get(list_tokens_handler))
+            .route("/api/v1/tokens/:token_id", get(get_token_handler))
+            .route("/api/v1/tokens/:token_id", delete(revoke_token_handler))
+            .layer(ip_whitelist_layer);
+
+        router.merge(admin_routes)
+    };
 
     // Add Swagger UI routes if openapi feature is enabled
     #[cfg(feature = "openapi")]
