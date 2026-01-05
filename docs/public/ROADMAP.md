@@ -756,7 +756,7 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 
 ## Phase 10: Testing ✅
 
-**Current test count: 187+ tests**
+**Current test count: 220 tests** (135 unit + 39 admin API + 46 integration/other)
 
 ### 10.1 Unit Tests ✅
 
@@ -772,6 +772,7 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 - [x] Cache security - `cache.rs` (7 tests)
 - [x] Token management - `tokens.rs` (8 tests)
 - [x] Rate limiting - `rate_limit.rs` (6 tests)
+- [x] IP whitelist - `ip_whitelist.rs` (17 tests)
 
 ### 10.2 Integration Tests ✅
 
@@ -857,41 +858,6 @@ ip_whitelist = ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
 - [ ] Configurable audit log destination (file, database, external service)
 
 ### 12.3 API Key Rotation _(Deferred)_
-
-- [ ] Add key rotation endpoint for tokens
-- [ ] Support overlapping validity periods during rotation
-- [ ] Add key rotation reminders/warnings
-
----
-
-## Phase 12: Security Enhancements (P1 - High)
-
-### 12.1 Admin API IP Whitelisting
-
-**Critical security feature** - Restrict Admin API access to specific IP addresses.
-
-- [ ] Add `admin_ip_whitelist` configuration option
-- [ ] Create IP whitelist middleware for admin routes
-- [ ] Support CIDR notation (e.g., `10.0.0.0/8`, `192.168.1.0/24`)
-- [ ] Support individual IPs and ranges
-- [ ] Return 403 Forbidden for non-whitelisted IPs
-- [ ] Log blocked access attempts
-- [ ] Document configuration in server deployment guide
-
-**Configuration example:**
-```toml
-[admin]
-ip_whitelist = ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
-```
-
-### 12.2 Audit Logging
-
-- [ ] Log all admin API actions with user/token ID
-- [ ] Log license state changes (create, revoke, suspend, etc.)
-- [ ] Log authentication failures
-- [ ] Configurable audit log destination (file, database, external service)
-
-### 12.3 API Key Rotation
 
 - [ ] Add key rotation endpoint for tokens
 - [ ] Support overlapping validity periods during rotation

@@ -274,6 +274,10 @@ impl TalosConfig {
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             .set_default("rate_limit.burst_size", 5)
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("admin.ip_whitelist", Vec::<String>::new())
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_default("admin.audit_logging", false)
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
             // Load from config.toml (optional)
             .add_source(config::File::with_name("config").required(false))
             // Override with environment variables
@@ -341,6 +345,25 @@ impl TalosConfig {
                 env::var("TALOS_TOKEN_EXPIRATION_SECS")
                     .ok()
                     .and_then(|v| v.parse::<i64>().ok()),
+            )
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            // Admin API security overrides
+            .set_override_option(
+                "admin.ip_whitelist",
+                env::var("TALOS_ADMIN_IP_WHITELIST").ok().map(|v| {
+                    if v.is_empty() {
+                        Vec::<String>::new()
+                    } else {
+                        v.split(',').map(|s| s.trim().to_string()).collect()
+                    }
+                }),
+            )
+            .map_err(|e| LicenseError::ConfigError(e.to_string()))?
+            .set_override_option(
+                "admin.audit_logging",
+                env::var("TALOS_ADMIN_AUDIT_LOGGING")
+                    .ok()
+                    .and_then(|v| v.parse::<bool>().ok()),
             )
             .map_err(|e| LicenseError::ConfigError(e.to_string()))?;
 

@@ -489,7 +489,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 9 In Progress**
+**Current Status: Phase 12 In Progress**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -513,11 +513,13 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - Updated client library with new v1 API methods (bind/release/validate/validate-feature/heartbeat)
 - Secure encrypted cache for offline/air-gapped system support
 - Grace period support for air-gapped systems
-- **Working code examples** (basic-client, air-gapped, feature-gating)
+- Working code examples (basic-client, air-gapped, feature-gating)
+- **Admin API IP whitelisting** (CIDR support, IPv4/IPv6, proxy header support)
 
 **Upcoming:**
 
-- Complete documentation guides
+- Audit logging
+- API key rotation
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting
