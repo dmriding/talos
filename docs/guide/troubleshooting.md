@@ -613,5 +613,4 @@ match license.validate().await {
 ## Still Need Help?
 
 - **GitHub Issues**: [github.com/dmriding/talos/issues](https://github.com/dmriding/talos/issues)
-- **Discussions**: [github.com/dmriding/talos/discussions](https://github.com/dmriding/talos/discussions)
 - **Check the logs**: Most issues can be diagnosed from server logs with `RUST_LOG=debug`

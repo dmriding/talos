@@ -681,7 +681,7 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 - [x] **Security** - Protecting admin endpoints
 - [x] API token management (creating service accounts)
 
-### 9.6 Advanced Topics Guide (`docs/guide/advanced.md`)
+### 9.6 Advanced Topics Guide _(Deferred)_
 
 - [ ] Custom hardware fingerprinting
 - [ ] Extending the tier system
@@ -694,26 +694,19 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 
 ### 9.7 API Reference (`docs/api/`) ✅
 
-- [ ] Generate rustdoc with `cargo doc --all-features`
-- [ ] Host rustdoc on GitHub Pages or docs.rs
 - [x] REST API reference (all endpoints with request/response examples)
 - [x] Error codes reference (all error codes with descriptions)
-- [ ] Configuration reference (all config options with defaults)
 - [x] OpenAPI specification (`docs/api/openapi.json`)
 - [x] Interactive Swagger UI documentation
+- [ ] _(Deferred)_ Generate rustdoc with `cargo doc --all-features`
+- [ ] _(Deferred)_ Host rustdoc on GitHub Pages or docs.rs
+- [ ] _(Deferred)_ Configuration reference (all config options with defaults)
 
 ### 9.8 Complete Code Examples (`docs/examples/`) ✅
 
-Each example should be a complete, runnable project:
-
 - [x] `examples/basic-client/` - Minimal client integration with runtime license key entry
-- [ ] `examples/desktop-app/` - Desktop application with license dialog
-- [ ] `examples/cli-tool/` - CLI tool with license validation
-- [ ] `examples/web-service/` - Web service checking licenses per-request
 - [x] `examples/air-gapped/` - Offline validation with grace period handling and `--offline` flag
 - [x] `examples/feature-gating/` - Enabling/disabling features based on license tier
-- [ ] `examples/admin-dashboard/` - Simple admin UI for license management
-- [ ] `examples/docker-compose/` - Complete Docker deployment with PostgreSQL
 
 **Completed Examples Include:**
 - Full README with step-by-step instructions
@@ -722,7 +715,14 @@ Each example should be a complete, runnable project:
 - Error handling and validation
 - Feature checking patterns
 
-### 9.9 Migration Guides
+**Deferred Examples:**
+- [ ] `examples/desktop-app/` - Desktop application with license dialog
+- [ ] `examples/cli-tool/` - CLI tool with license validation
+- [ ] `examples/web-service/` - Web service checking licenses per-request
+- [ ] `examples/admin-dashboard/` - Simple admin UI for license management
+- [ ] `examples/docker-compose/` - Complete Docker deployment with PostgreSQL
+
+### 9.9 Migration Guides _(Deferred)_
 
 - [ ] `docs/guide/migration-v1.md` - Migrating from legacy API to v1 API
 - [ ] `docs/guide/migration-activate-to-bind.md` - activate() → bind() migration
@@ -735,6 +735,22 @@ Each example should be a complete, runnable project:
 - [x] Network connectivity issues
 - [x] Database connection problems
 - [x] FAQ section
+
+---
+
+### Phase 9 Summary
+
+**Completed:**
+- 5 comprehensive user guides (getting-started, client-integration, server-deployment, admin-api, troubleshooting)
+- REST API reference with all endpoints documented
+- OpenAPI 3.1.0 specification with Swagger UI
+- 3 working code examples with cross-platform instructions
+
+**Deferred:**
+- Advanced topics guide
+- Additional code examples (desktop-app, cli-tool, web-service, admin-dashboard, docker-compose)
+- Migration guides
+- rustdoc generation and hosting
 
 ---
 
