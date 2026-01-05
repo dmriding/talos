@@ -624,30 +624,170 @@ bandwidth_gb = 0  # unlimited
 
 ---
 
-## Phase 9: Testing (Ongoing)
+## Phase 9: Public Documentation & Examples (P0 - Critical)
 
-### 9.1 Unit Tests
+Comprehensive, production-ready documentation for users integrating Talos into their projects.
 
-- [ ] License key generation uniqueness (1000+ keys)
-- [ ] License key format validation
-- [ ] JWT token creation and validation
-- [ ] Tier configuration lookups
-- [ ] Feature permission logic
-- [ ] Quota calculation logic
-- [ ] Error code mapping
+### 9.1 Documentation Structure (`docs/`) ✅
 
-### 9.2 Integration Tests
+- [x] Create `docs/guide/` directory for user guides
+- [x] Create `docs/examples/` directory for complete code examples
+- [x] Create `docs/api/` directory for API reference
 
-- [ ] Full license lifecycle (create -> bind -> validate -> release)
-- [ ] Multi-license organization flow
-- [ ] Bind/release workflow
-- [ ] Grace period flow (suspend -> grace -> revoke)
-- [ ] Quota exceeded flow
-- [ ] Tier upgrade/downgrade
-- [ ] Blacklist behavior
-- [ ] Background job execution
+### 9.2 Getting Started Guide (`docs/guide/getting-started.md`) ✅
 
-### 9.3 Load Tests
+- [x] Installation instructions (Cargo.toml setup)
+- [x] Feature flag selection guide (which features to enable for your use case)
+- [x] Minimal working example (5-minute quickstart)
+- [x] Environment setup (config.toml, .env, database)
+- [x] Running the server locally
+- [x] First license creation and validation
+
+### 9.3 Client Integration Guide (`docs/guide/client-integration.md`) ✅
+
+- [x] Adding Talos to your application
+- [x] License struct overview and lifecycle
+- [x] Hardware binding explanation (how fingerprinting works)
+- [x] **Binding a license** - Complete example with error handling
+- [x] **Validating a license** - Online validation flow
+- [x] **Offline validation** - Air-gapped system support with grace periods
+- [x] **Feature gating** - Checking feature access in your app
+- [x] **Heartbeat integration** - Background heartbeat setup
+- [x] **Releasing a license** - Proper cleanup on app exit
+- [x] Error handling patterns (matching on `ClientErrorCode`)
+- [x] Retry strategies for network failures
+
+### 9.4 Server Deployment Guide (`docs/guide/server-deployment.md`) ✅
+
+- [x] Database setup (SQLite vs PostgreSQL)
+- [x] Running migrations
+- [x] Configuration reference (all config.toml options)
+- [x] Environment variables reference
+- [x] Production checklist (security, performance, monitoring)
+- [x] Docker deployment
+- [x] Reverse proxy setup (nginx, traefik)
+- [x] TLS/HTTPS configuration
+- [x] Health monitoring and alerting
+
+### 9.5 Admin API Guide (`docs/guide/admin-api.md`) ✅
+
+- [x] Enabling the admin-api feature
+- [x] Authentication setup (JWT tokens)
+- [x] **Creating licenses** - Single and batch creation
+- [x] **Managing licenses** - Update, suspend, revoke, reinstate
+- [x] **Organization management** - Grouping licenses by org
+- [x] **Feature and tier management** - Configuring tiers
+- [x] **Monitoring** - Listing licenses, checking status
+- [x] **Security** - Protecting admin endpoints
+- [x] API token management (creating service accounts)
+
+### 9.6 Advanced Topics Guide _(Deferred)_
+
+- [ ] Custom hardware fingerprinting
+- [ ] Extending the tier system
+- [ ] Webhook integration (future)
+- [ ] Background jobs configuration
+- [ ] Rate limiting tuning
+- [ ] Database optimization
+- [ ] High availability setup
+- [ ] Backup and recovery
+
+### 9.7 API Reference (`docs/api/`) ✅
+
+- [x] REST API reference (all endpoints with request/response examples)
+- [x] Error codes reference (all error codes with descriptions)
+- [x] OpenAPI specification (`docs/api/openapi.json`)
+- [x] Interactive Swagger UI documentation
+- [ ] _(Deferred)_ Generate rustdoc with `cargo doc --all-features`
+- [ ] _(Deferred)_ Host rustdoc on GitHub Pages or docs.rs
+- [ ] _(Deferred)_ Configuration reference (all config options with defaults)
+
+### 9.8 Complete Code Examples (`docs/examples/`) ✅
+
+- [x] `examples/basic-client/` - Minimal client integration with runtime license key entry
+- [x] `examples/air-gapped/` - Offline validation with grace period handling and `--offline` flag
+- [x] `examples/feature-gating/` - Enabling/disabling features based on license tier
+
+**Completed Examples Include:**
+- Full README with step-by-step instructions
+- PowerShell (Windows) and bash (Mac/Linux) command variants
+- Runtime license key entry (env var, file, or user prompt)
+- Error handling and validation
+- Feature checking patterns
+
+**Deferred Examples:**
+- [ ] `examples/desktop-app/` - Desktop application with license dialog
+- [ ] `examples/cli-tool/` - CLI tool with license validation
+- [ ] `examples/web-service/` - Web service checking licenses per-request
+- [ ] `examples/admin-dashboard/` - Simple admin UI for license management
+- [ ] `examples/docker-compose/` - Complete Docker deployment with PostgreSQL
+
+### 9.9 Migration Guides _(Deferred)_
+
+- [ ] `docs/guide/migration-v1.md` - Migrating from legacy API to v1 API
+- [ ] `docs/guide/migration-activate-to-bind.md` - activate() → bind() migration
+
+### 9.10 Troubleshooting Guide (`docs/guide/troubleshooting.md`) ✅
+
+- [x] Common errors and solutions
+- [x] Debugging license validation failures
+- [x] Hardware ID changes (why validation might fail)
+- [x] Network connectivity issues
+- [x] Database connection problems
+- [x] FAQ section
+
+---
+
+### Phase 9 Summary
+
+**Completed:**
+- 5 comprehensive user guides (getting-started, client-integration, server-deployment, admin-api, troubleshooting)
+- REST API reference with all endpoints documented
+- OpenAPI 3.1.0 specification with Swagger UI
+- 3 working code examples with cross-platform instructions
+
+**Deferred:**
+- Advanced topics guide
+- Additional code examples (desktop-app, cli-tool, web-service, admin-dashboard, docker-compose)
+- Migration guides
+- rustdoc generation and hosting
+
+---
+
+## Phase 10: Testing ✅
+
+**Current test count: 187+ tests**
+
+### 10.1 Unit Tests ✅
+
+- [x] License key generation uniqueness (1000+ keys) - `license_key.rs`
+- [x] License key format validation - `license_key.rs` (12 tests)
+- [x] JWT token creation and validation - `auth.rs` (14 tests)
+- [x] Tier configuration lookups - `tiers.rs` (4 tests)
+- [x] Feature permission logic - `client_api.rs`
+- [x] Quota calculation logic - `admin.rs`
+- [x] Error code mapping - `api_error.rs` (4 tests)
+- [x] Request validation - `validation.rs` (12 tests)
+- [x] Encryption/decryption - `encryption.rs` (3 tests)
+- [x] Cache security - `cache.rs` (7 tests)
+- [x] Token management - `tokens.rs` (8 tests)
+- [x] Rate limiting - `rate_limit.rs` (6 tests)
+
+### 10.2 Integration Tests ✅
+
+- [x] Full license lifecycle (create -> bind -> validate -> release) - `integration_tests.rs`
+- [x] Bind/release workflow - `integration_tests.rs`
+- [x] Feature validation - `integration_tests.rs`
+- [x] Heartbeat flow - `integration_tests.rs`
+- [x] Admin API CRUD operations - `admin_api_tests.rs` (39 tests)
+- [x] Background job execution - `jobs_tests.rs` (7 tests)
+- [x] Blacklist behavior - `admin_api_tests.rs`
+- [x] Grace period flow - `admin_api_tests.rs`
+- [ ] _(Deferred)_ Multi-license organization flow
+- [ ] _(Deferred)_ Quota exceeded flow
+- [ ] _(Deferred)_ Tier upgrade/downgrade
+
+### 10.3 Load Tests _(Deferred)_
 
 - [ ] Validation endpoint: target 1000 req/s
 - [ ] Heartbeat endpoint: target 500 req/s
@@ -656,27 +796,62 @@ bandwidth_gb = 0  # unlimited
 
 ---
 
-## Phase 10: Deployment & Operations (P1 - High)
+## Phase 11: Deployment & Operations (P1 - High)
 
-### 10.1 Configuration
+### 11.1 Configuration
 
 - [ ] Document all environment variables
 - [ ] Create example `.env` file
 - [ ] Create example `config.toml` for production deployment
 - [ ] Add configuration validation on startup
 
-### 10.2 Docker
+### 11.2 Docker
 
 - [ ] Create optimized Dockerfile
 - [ ] Create docker-compose.yml with PostgreSQL
 - [ ] Document container deployment
 - [ ] Add health check to container
 
-### 10.3 Database Migrations
+### 11.3 Database Migrations
 
 - [ ] Document migration process
 - [ ] Create migration scripts for existing Talos deployments
 - [ ] Test migration from legacy schema to current schema
+
+---
+
+## Phase 12: Security Enhancements (P1 - High)
+
+### 12.1 Admin API IP Whitelisting
+
+**Critical security feature** - Restrict Admin API access to specific IP addresses.
+
+- [ ] Add `admin_ip_whitelist` configuration option
+- [ ] Create IP whitelist middleware for admin routes
+- [ ] Support CIDR notation (e.g., `10.0.0.0/8`, `192.168.1.0/24`)
+- [ ] Support individual IPs and ranges
+- [ ] Return 403 Forbidden for non-whitelisted IPs
+- [ ] Log blocked access attempts
+- [ ] Document configuration in server deployment guide
+
+**Configuration example:**
+```toml
+[admin]
+ip_whitelist = ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
+```
+
+### 12.2 Audit Logging
+
+- [ ] Log all admin API actions with user/token ID
+- [ ] Log license state changes (create, revoke, suspend, etc.)
+- [ ] Log authentication failures
+- [ ] Configurable audit log destination (file, database, external service)
+
+### 12.3 API Key Rotation
+
+- [ ] Add key rotation endpoint for tokens
+- [ ] Support overlapping validity periods during rotation
+- [ ] Add key rotation reminders/warnings
 
 ---
 
@@ -709,13 +884,16 @@ Phase 5 (Background Jobs) ──────────────────
 Phase 6 (Blacklist & Validation) ◄────────────────────────┘
          │
          ▼
-Phase 7 (Documentation)
+Phase 7 (OpenAPI & Logging)
          │
          ▼
 Phase 8 (Client Updates)
          │
          ▼
-Phase 9 (Testing) ────► Phase 10 (Deployment)
+Phase 9 (Public Docs & Examples)
+         │
+         ▼
+Phase 10 (Testing) ────► Phase 11 (Deployment)
 ```
 
 ---

@@ -1,0 +1,2528 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Talos Licensing API",
+    "description": "A secure, hardware-bound licensing system for software applications.",
+    "contact": {
+      "name": "Talos",
+      "url": "https://github.com/dmriding/talos"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Local server"
+    }
+  ],
+  "paths": {
+    "/activate": {
+      "post": {
+        "tags": [
+          "legacy"
+        ],
+        "summary": "Handler for activating a license.",
+        "description": "Behavior:\n- If the license does not exist, it is created as `active`.\n- If it exists, it is updated to `active` with the given client_id.\n- DB errors bubble up as `LicenseError` (mapped to HTTP 5xx).",
+        "operationId": "activate_license_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/v1/client/bind": {
+      "post": {
+        "tags": [
+          "client"
+        ],
+        "summary": "Bind a license to hardware.",
+        "description": "# Behavior\n- Checks if license exists and is valid\n- If unbound, binds to the provided hardware\n- If already bound to same hardware, returns success\n- If bound to different hardware, returns ALREADY_BOUND error",
+        "operationId": "bind_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License bound successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BindResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "License already bound to different device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/heartbeat": {
+      "post": {
+        "tags": [
+          "client"
+        ],
+        "summary": "Client heartbeat endpoint using license key.",
+        "description": "# Behavior\n- Verifies license exists and is bound to the provided hardware\n- Updates last_seen_at timestamp\n- Returns server timestamp",
+        "operationId": "client_heartbeat_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientHeartbeatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Heartbeat recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientHeartbeatResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Hardware mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "License not bound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/release": {
+      "post": {
+        "tags": [
+          "client"
+        ],
+        "summary": "Release a license from hardware.",
+        "description": "# Behavior\n- Verifies hardware_id matches the bound hardware\n- Clears hardware binding fields\n- Records release in binding history",
+        "operationId": "release_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License released successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Hardware mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "License not bound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/validate": {
+      "post": {
+        "tags": [
+          "client"
+        ],
+        "summary": "Validate a license.",
+        "description": "# Behavior\n- Checks license exists\n- Checks license is not expired, revoked, suspended, or blacklisted\n- Checks license is bound to the provided hardware\n- Updates last_seen_at timestamp\n- Returns license details including features and tier",
+        "operationId": "validate_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License validated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "License expired, revoked, or hardware mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "License not bound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/validate-feature": {
+      "post": {
+        "tags": [
+          "client"
+        ],
+        "summary": "Validate a specific feature for a license.",
+        "description": "# Behavior\n- Performs full license validation first (same checks as validate)\n- Checks if the feature is in the license's features list\n- Checks if the feature is in the tier's features (if tier is set)\n- Checks if the feature is restricted due to quota exceeded\n- Returns allowed: true/false with appropriate message",
+        "operationId": "validate_feature_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateFeatureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Feature validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateFeatureResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Feature not included or quota exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/validate-or-bind": {
+      "post": {
+        "tags": [
+          "client"
+        ],
+        "summary": "Validate or bind a license.",
+        "description": "# Behavior\n- If bound to this hardware: validate and return\n- If unbound: bind first, then validate\n- If bound to other hardware: return ALREADY_BOUND error",
+        "operationId": "validate_or_bind_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateOrBindRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License validated (and bound if needed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "License expired, revoked, or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "License already bound to different device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/licenses": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List licenses with optional filtering.",
+        "description": "`GET /api/v1/licenses?org_id={id}&page={n}&per_page={n}`",
+        "operationId": "list_licenses_handler",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "description": "Filter by organization ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "Items per page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of licenses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListLicensesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Create a new license.",
+        "description": "`POST /api/v1/licenses`",
+        "operationId": "create_license_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "License created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/batch": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Batch create multiple licenses.",
+        "description": "`POST /api/v1/licenses/batch`",
+        "operationId": "batch_create_license_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchCreateLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Licenses created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/{license_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get a license by ID.",
+        "description": "`GET /api/v1/licenses/{license_id}`",
+        "operationId": "get_license_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "License details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update a license.",
+        "description": "`PATCH /api/v1/licenses/{license_id}`",
+        "operationId": "update_license_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/{license_id}/blacklist": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Blacklist a license permanently.",
+        "description": "`POST /api/v1/licenses/{license_id}/blacklist`\n\nThis endpoint permanently blacklists a license, preventing all future use.\nBlacklisting is more severe than revocation - it indicates abuse, fraud,\nor policy violation.\n\n# Behavior\n- Sets `is_blacklisted = true`\n- Sets status to 'revoked'\n- Stores blacklist reason and timestamp\n- Clears hardware binding (force releases the license)\n- Cannot be reinstated through normal reinstate endpoint",
+        "operationId": "blacklist_license_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlacklistLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License blacklisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlacklistLicenseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "License already blacklisted or reason empty"
+          },
+          "404": {
+            "description": "License not found"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/{license_id}/extend": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Extend a license's expiration date.",
+        "description": "`POST /api/v1/licenses/{license_id}/extend`\n\nThis endpoint extends a license's expiration date.\n\n# Behavior\n- Updates the `expires_at` field to the new date\n- Optionally resets bandwidth counters (when quota tracking is enabled)\n- Can be used on active, suspended, or revoked licenses",
+        "operationId": "extend_license_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtendLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License extended",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtendLicenseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid date format"
+          },
+          "404": {
+            "description": "License not found"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/{license_id}/reinstate": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reinstate a revoked or suspended license.",
+        "description": "`POST /api/v1/licenses/{license_id}/reinstate`\n\nThis endpoint reinstates a license that was previously revoked or suspended.\n\n# Behavior\n- Sets status back to 'active'\n- Clears all suspension/revocation fields\n- Optionally sets a new expiration date\n- Optionally resets bandwidth counters (if tracked)",
+        "operationId": "reinstate_license_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReinstateLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License reinstated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReinstateLicenseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "License already active or blacklisted"
+          },
+          "404": {
+            "description": "License not found"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/{license_id}/release": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin force release a license from hardware.",
+        "description": "`POST /api/v1/licenses/{license_id}/release`\n\nThis endpoint allows administrators to force-release a license from its\nbound hardware, useful when a user loses access to their device.",
+        "operationId": "admin_release_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminReleaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License released",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminReleaseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "License not bound"
+          },
+          "404": {
+            "description": "License not found"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/{license_id}/revoke": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Revoke a license.",
+        "description": "`POST /api/v1/licenses/{license_id}/revoke`\n\nThis endpoint revokes a license, optionally with a grace period.\n\n# Behavior\n- If `grace_period_days = 0`: Sets status to 'revoked' immediately\n- If `grace_period_days > 0`: Sets status to 'suspended' with calculated grace_period_ends_at\n- Stores the revoke_reason and suspension_message for audit/display",
+        "operationId": "revoke_license_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "License revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeLicenseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "License already revoked"
+          },
+          "404": {
+            "description": "License not found"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/licenses/{license_id}/usage": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update license usage/bandwidth tracking.",
+        "description": "`PATCH /api/v1/licenses/{license_id}/usage`\n\nThis endpoint updates the bandwidth usage tracking for a license.\n\n# Behavior\n- Sets `bandwidth_used_bytes` to the provided value (or resets to 0 if `reset: true`)\n- Sets `bandwidth_limit_bytes` if provided\n- Calculates `quota_exceeded` flag based on usage vs limit\n- Returns usage statistics including percentage used\n\n# Note\nUpdate usage/quota tracking for a license.\n\nPersists bandwidth usage to the database and calculates quota status.",
+        "operationId": "update_usage_handler",
+        "parameters": [
+          {
+            "name": "license_id",
+            "in": "path",
+            "description": "License ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUsageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Usage updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateUsageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "License not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tokens": {
+      "get": {
+        "tags": [
+          "tokens"
+        ],
+        "summary": "GET /api/v1/tokens - List all API tokens.",
+        "description": "Response: `ListTokensResponse`",
+        "operationId": "list_tokens_handler",
+        "responses": {
+          "200": {
+            "description": "List of tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListTokensResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "tokens"
+        ],
+        "summary": "POST /api/v1/tokens - Create a new API token.",
+        "description": "Request body: `CreateTokenRequest`\nResponse: `CreateTokenResponse` (includes raw token, only shown once)",
+        "operationId": "create_token_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Token created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tokens/{id}": {
+      "get": {
+        "tags": [
+          "tokens"
+        ],
+        "summary": "GET /api/v1/tokens/:id - Get a specific token by ID.",
+        "description": "Response: `TokenResponse`",
+        "operationId": "get_token_handler",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Token ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "tokens"
+        ],
+        "summary": "DELETE /api/v1/tokens/:id - Revoke a token.",
+        "description": "Response: `RevokeTokenResponse`",
+        "operationId": "revoke_token_handler",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Token ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeTokenResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/deactivate": {
+      "post": {
+        "tags": [
+          "legacy"
+        ],
+        "summary": "Handler for deactivating a license.",
+        "description": "Returns `success: true` only if:\n- license exists\n- client_id matches\n- status successfully updated to \"inactive\"\n\nDB failures bubble as `LicenseError`.",
+        "operationId": "deactivate_license_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Deactivation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health check handler.",
+        "description": "Returns the service health status including database connectivity.\nThis endpoint is useful for load balancers and monitoring systems.",
+        "operationId": "health_handler",
+        "responses": {
+          "200": {
+            "description": "Service health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heartbeat": {
+      "post": {
+        "tags": [
+          "legacy"
+        ],
+        "summary": "Handler for the heartbeat mechanism.",
+        "description": "Updates `last_heartbeat` if a matching license + client exists.\nReturns:\n- `success: true` if at least one row was updated\n- `success: false` otherwise\n\nDB failures bubble as `LicenseError`.",
+        "operationId": "heartbeat_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeartbeatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Heartbeat result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/validate": {
+      "post": {
+        "tags": [
+          "legacy"
+        ],
+        "summary": "Handler for validating a license.",
+        "description": "Returns `success: true` only if:\n- license exists\n- client_id matches\n- status == \"active\"\n\nDB failures bubble as `LicenseError` (HTTP 5xx).",
+        "operationId": "validate_license_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LicenseResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminReleaseRequest": {
+        "type": "object",
+        "description": "Request for admin force release.",
+        "properties": {
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason for force release (optional, for audit)"
+          }
+        }
+      },
+      "AdminReleaseResponse": {
+        "type": "object",
+        "description": "Response from admin release.",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "previous_device_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "previous_hardware_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BatchCreateLicenseRequest": {
+        "type": "object",
+        "description": "Request body for batch creating licenses.",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of licenses to create",
+            "minimum": 0
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Expiration date (optional, applied to all)"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Features (optional, applied to all)"
+          },
+          "org_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization ID (optional, applied to all)"
+          },
+          "org_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization name (optional, applied to all)"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Tier name (optional, applied to all)"
+          }
+        }
+      },
+      "BatchCreateResponse": {
+        "type": "object",
+        "description": "Response for batch create operation.",
+        "required": [
+          "created",
+          "licenses"
+        ],
+        "properties": {
+          "created": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "licenses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LicenseSummary"
+            }
+          }
+        }
+      },
+      "BindRequest": {
+        "type": "object",
+        "description": "Request to bind a license to hardware.",
+        "required": [
+          "license_key",
+          "hardware_id"
+        ],
+        "properties": {
+          "device_info": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional device info (OS, CPU, etc.)"
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional device name for display purposes"
+          },
+          "hardware_id": {
+            "type": "string",
+            "description": "Hardware fingerprint (SHA-256 hash)"
+          },
+          "license_key": {
+            "type": "string",
+            "description": "The human-readable license key (e.g., \"LIC-XXXX-XXXX-XXXX\")"
+          }
+        }
+      },
+      "BindResponse": {
+        "type": "object",
+        "description": "Response from a successful bind operation.",
+        "required": [
+          "success",
+          "license_id",
+          "features"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "license_id": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "BlacklistLicenseRequest": {
+        "type": "object",
+        "description": "Request for blacklisting a license.",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Message to display to user when they attempt to use the license"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for blacklisting (required for audit trail)"
+          }
+        }
+      },
+      "BlacklistLicenseResponse": {
+        "type": "object",
+        "description": "Response from blacklist operation.",
+        "required": [
+          "success",
+          "message",
+          "status",
+          "blacklisted_at"
+        ],
+        "properties": {
+          "blacklisted_at": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ClientError": {
+        "type": "object",
+        "description": "Client API error response.",
+        "required": [
+          "success",
+          "error",
+          "message"
+        ],
+        "properties": {
+          "bound_device": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "$ref": "#/components/schemas/ClientErrorCode"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ClientErrorCode": {
+        "type": "string",
+        "description": "Error codes for client API responses.",
+        "enum": [
+          "LICENSE_NOT_FOUND",
+          "ALREADY_BOUND",
+          "NOT_BOUND",
+          "HARDWARE_MISMATCH",
+          "LICENSE_EXPIRED",
+          "LICENSE_REVOKED",
+          "LICENSE_SUSPENDED",
+          "LICENSE_BLACKLISTED",
+          "LICENSE_INACTIVE",
+          "FEATURE_NOT_INCLUDED",
+          "QUOTA_EXCEEDED",
+          "INVALID_REQUEST",
+          "INTERNAL_ERROR"
+        ]
+      },
+      "ClientHeartbeatRequest": {
+        "type": "object",
+        "description": "Request for heartbeat.",
+        "required": [
+          "license_key",
+          "hardware_id"
+        ],
+        "properties": {
+          "hardware_id": {
+            "type": "string",
+            "description": "Hardware fingerprint to verify binding"
+          },
+          "license_key": {
+            "type": "string",
+            "description": "The human-readable license key"
+          }
+        }
+      },
+      "ClientHeartbeatResponse": {
+        "type": "object",
+        "description": "Response from heartbeat.",
+        "required": [
+          "success",
+          "server_time"
+        ],
+        "properties": {
+          "server_time": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateLicenseRequest": {
+        "type": "object",
+        "description": "Request body for creating a new license.",
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Expiration date (ISO 8601 format: \"2025-12-31T23:59:59\")"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Features to enable - if tier is provided, these are merged with tier features"
+          },
+          "metadata": {
+            "description": "Additional metadata as JSON"
+          },
+          "org_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization ID (optional)"
+          },
+          "org_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization name (optional)"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Tier name - if provided and tiers are configured, features are derived from tier"
+          }
+        }
+      },
+      "CreateTokenRequest": {
+        "type": "object",
+        "description": "Request to create a new API token.",
+        "required": [
+          "name",
+          "scopes"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional expiration (ISO 8601 format)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the token"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Space-separated or array of scopes"
+          }
+        }
+      },
+      "CreateTokenResponse": {
+        "type": "object",
+        "description": "Response for token creation (includes the raw token).",
+        "required": [
+          "token",
+          "raw_token"
+        ],
+        "properties": {
+          "raw_token": {
+            "type": "string",
+            "description": "The raw token value - ONLY RETURNED ONCE"
+          },
+          "token": {
+            "$ref": "#/components/schemas/TokenMetadata",
+            "description": "The created token metadata"
+          }
+        }
+      },
+      "DatabaseHealth": {
+        "type": "object",
+        "description": "Database health status.",
+        "required": [
+          "connected",
+          "db_type"
+        ],
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "description": "Whether the database is connected"
+          },
+          "db_type": {
+            "type": "string",
+            "description": "Database type (sqlite or postgres)"
+          }
+        }
+      },
+      "ExtendLicenseRequest": {
+        "type": "object",
+        "description": "Request for extending a license.",
+        "required": [
+          "new_expires_at"
+        ],
+        "properties": {
+          "new_expires_at": {
+            "type": "string",
+            "description": "New expiration date (required, ISO 8601 format)"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason for extension (for audit)"
+          },
+          "reset_bandwidth": {
+            "type": "boolean",
+            "description": "Whether to reset bandwidth counters (if applicable)"
+          }
+        }
+      },
+      "ExtendLicenseResponse": {
+        "type": "object",
+        "description": "Response from extend operation.",
+        "required": [
+          "success",
+          "message",
+          "new_expires_at"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "new_expires_at": {
+            "type": "string"
+          },
+          "previous_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "description": "Health check response structure.",
+        "required": [
+          "status",
+          "service",
+          "version",
+          "database"
+        ],
+        "properties": {
+          "database": {
+            "$ref": "#/components/schemas/DatabaseHealth",
+            "description": "Database connectivity status"
+          },
+          "service": {
+            "type": "string",
+            "description": "Service name"
+          },
+          "status": {
+            "type": "string",
+            "description": "Service status (\"healthy\" or \"unhealthy\")"
+          },
+          "version": {
+            "type": "string",
+            "description": "Service version"
+          }
+        }
+      },
+      "HeartbeatRequest": {
+        "type": "object",
+        "description": "Request structure for heartbeat operations.\n\nKept separate in case heartbeat later includes extra metadata.",
+        "required": [
+          "license_id",
+          "client_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "license_id": {
+            "type": "string"
+          }
+        }
+      },
+      "HeartbeatResponse": {
+        "type": "object",
+        "description": "Response structure for heartbeat operations.",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LicenseRequest": {
+        "type": "object",
+        "description": "Request structure for license-related operations.",
+        "required": [
+          "license_id",
+          "client_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "license_id": {
+            "type": "string"
+          }
+        }
+      },
+      "LicenseResponse": {
+        "type": "object",
+        "description": "Response for a single license.",
+        "required": [
+          "license_id",
+          "status",
+          "features",
+          "issued_at",
+          "is_bound"
+        ],
+        "properties": {
+          "bound_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hardware_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_bound": {
+            "type": "boolean"
+          },
+          "issued_at": {
+            "type": "string"
+          },
+          "last_seen_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license_id": {
+            "type": "string"
+          },
+          "license_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {},
+          "org_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "org_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "LicenseSummary": {
+        "type": "object",
+        "description": "Summary of a created license (for batch operations).",
+        "required": [
+          "license_id",
+          "license_key"
+        ],
+        "properties": {
+          "license_id": {
+            "type": "string"
+          },
+          "license_key": {
+            "type": "string"
+          }
+        }
+      },
+      "ListLicensesResponse": {
+        "type": "object",
+        "description": "Response for listing licenses.",
+        "required": [
+          "licenses",
+          "total",
+          "page",
+          "per_page",
+          "total_pages"
+        ],
+        "properties": {
+          "licenses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LicenseResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "per_page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "total_pages": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "ListTokensResponse": {
+        "type": "object",
+        "description": "Response for token list endpoint.",
+        "required": [
+          "tokens"
+        ],
+        "properties": {
+          "tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TokenMetadata"
+            }
+          }
+        }
+      },
+      "ReinstateLicenseRequest": {
+        "type": "object",
+        "description": "Request for reinstating a license.",
+        "properties": {
+          "new_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New expiration date (optional, ISO 8601 format)"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason for reinstatement (for audit)"
+          },
+          "reset_bandwidth": {
+            "type": "boolean",
+            "description": "Whether to reset bandwidth counters (if applicable)"
+          }
+        }
+      },
+      "ReinstateLicenseResponse": {
+        "type": "object",
+        "description": "Response from reinstate operation.",
+        "required": [
+          "success",
+          "status",
+          "message"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ReleaseRequest": {
+        "type": "object",
+        "description": "Request to release a license from hardware.",
+        "required": [
+          "license_key",
+          "hardware_id"
+        ],
+        "properties": {
+          "hardware_id": {
+            "type": "string",
+            "description": "Hardware fingerprint to verify ownership"
+          },
+          "license_key": {
+            "type": "string",
+            "description": "The human-readable license key"
+          }
+        }
+      },
+      "ReleaseResponse": {
+        "type": "object",
+        "description": "Response from a release operation.",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RevokeLicenseRequest": {
+        "type": "object",
+        "description": "Request for revoking a license.",
+        "properties": {
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of days for grace period (0 = immediate revocation)",
+            "minimum": 0
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Message to display to user during grace period"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Reason for revocation (stored in revoke_reason)"
+          }
+        }
+      },
+      "RevokeLicenseResponse": {
+        "type": "object",
+        "description": "Response from revoke operation.",
+        "required": [
+          "success",
+          "status",
+          "message"
+        ],
+        "properties": {
+          "grace_period_ends_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RevokeTokenResponse": {
+        "type": "object",
+        "description": "Response for token revocation.",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TokenErrorResponse": {
+        "type": "object",
+        "description": "Error response for token operations.",
+        "required": [
+          "error",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "TokenMetadata": {
+        "type": "object",
+        "description": "Token metadata for listing (excludes hash and raw token).",
+        "required": [
+          "id",
+          "name",
+          "scopes",
+          "created_at",
+          "is_active"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "description": "Response for single token operations.",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/TokenMetadata"
+          }
+        }
+      },
+      "UpdateLicenseRequest": {
+        "type": "object",
+        "description": "Request body for updating a license.",
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New expiration date"
+          },
+          "features": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "New features (replaces existing)"
+          },
+          "metadata": {
+            "description": "New metadata"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "New tier (re-derives features if tiers configured)"
+          }
+        }
+      },
+      "UpdateUsageRequest": {
+        "type": "object",
+        "description": "Request for updating license usage/quota.",
+        "properties": {
+          "bandwidth_limit_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Bandwidth limit in bytes (None = unlimited)",
+            "minimum": 0
+          },
+          "bandwidth_used_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Current bandwidth used in bytes",
+            "minimum": 0
+          },
+          "reset": {
+            "type": "boolean",
+            "description": "Whether to reset the usage counter to zero"
+          }
+        }
+      },
+      "UpdateUsageResponse": {
+        "type": "object",
+        "description": "Response from usage update operation.",
+        "required": [
+          "success",
+          "bandwidth_used_bytes",
+          "quota_exceeded"
+        ],
+        "properties": {
+          "bandwidth_limit_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "bandwidth_used_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "quota_exceeded": {
+            "type": "boolean"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "usage_percentage": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ValidateFeatureRequest": {
+        "type": "object",
+        "description": "Request to validate a specific feature.",
+        "required": [
+          "license_key",
+          "hardware_id",
+          "feature"
+        ],
+        "properties": {
+          "feature": {
+            "type": "string",
+            "description": "The feature to validate"
+          },
+          "hardware_id": {
+            "type": "string",
+            "description": "Hardware fingerprint to verify binding"
+          },
+          "license_key": {
+            "type": "string",
+            "description": "The human-readable license key"
+          }
+        }
+      },
+      "ValidateFeatureResponse": {
+        "type": "object",
+        "description": "Response from feature validation.",
+        "required": [
+          "allowed"
+        ],
+        "properties": {
+          "allowed": {
+            "type": "boolean",
+            "description": "Whether the feature is allowed"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional message explaining the result"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The license tier (if applicable)"
+          }
+        }
+      },
+      "ValidateOrBindRequest": {
+        "type": "object",
+        "description": "Request for validate-or-bind operation.",
+        "required": [
+          "license_key",
+          "hardware_id"
+        ],
+        "properties": {
+          "device_info": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional device info (used if binding)"
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional device name (used if binding)"
+          },
+          "hardware_id": {
+            "type": "string",
+            "description": "Hardware fingerprint"
+          },
+          "license_key": {
+            "type": "string",
+            "description": "The human-readable license key"
+          }
+        }
+      },
+      "ValidateRequest": {
+        "type": "object",
+        "description": "Request to validate a license.",
+        "required": [
+          "license_key",
+          "hardware_id"
+        ],
+        "properties": {
+          "hardware_id": {
+            "type": "string",
+            "description": "Hardware fingerprint to verify binding"
+          },
+          "license_key": {
+            "type": "string",
+            "description": "The human-readable license key"
+          }
+        }
+      },
+      "ValidateResponse": {
+        "type": "object",
+        "description": "Response from validation.",
+        "required": [
+          "valid"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "features": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "grace_period_ends_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "warning": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearer_auth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "system",
+      "description": "System health and status endpoints"
+    },
+    {
+      "name": "client",
+      "description": "Client endpoints for license validation and binding"
+    },
+    {
+      "name": "admin",
+      "description": "Admin endpoints for license management (requires authentication)"
+    },
+    {
+      "name": "tokens",
+      "description": "API token management endpoints"
+    },
+    {
+      "name": "legacy",
+      "description": "Legacy endpoints for backwards compatibility"
+    }
+  ]
+}

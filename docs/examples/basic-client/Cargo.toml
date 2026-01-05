@@ -1,0 +1,9 @@
+[package]
+name = "basic-client"
+version = "0.1.0"
+edition = "2021"
+description = "Basic Talos client integration example"
+
+[dependencies]
+talos = { path = "../../..", default-features = false }
+tokio = { version = "1", features = ["full"] }

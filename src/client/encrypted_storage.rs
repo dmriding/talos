@@ -88,6 +88,7 @@ pub async fn clear_license_from_disk() -> LicenseResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use tokio::test as tokio_test;
 
     // Simple helper to remove the license file if present.
@@ -95,7 +96,10 @@ mod tests {
         let _ = clear_license_from_disk().await;
     }
 
+    // Use serial test attribute to prevent race conditions between tests
+    // that share the same LICENSE_STORAGE_FILE
     #[tokio_test]
+    #[serial]
     async fn round_trip_license_encrypt_decrypt() {
         cleanup_file().await;
 
@@ -130,10 +134,15 @@ mod tests {
     }
 
     #[tokio_test]
+    #[serial]
     async fn missing_file_returns_invalid_license() {
         cleanup_file().await;
 
         let result = load_license_from_disk().await;
-        assert!(matches!(result, Err(LicenseError::InvalidLicense(_))));
+        assert!(
+            matches!(result, Err(LicenseError::InvalidLicense(_))),
+            "Expected InvalidLicense error, got: {:?}",
+            result
+        );
     }
 }
