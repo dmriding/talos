@@ -1,8 +1,11 @@
 # Talos — Secure Rust Licensing System
 
-![Build Status](https://github.com/dmriding/talos/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Rust Version](https://img.shields.io/badge/rust-stable-blue)
+[![Crates.io](https://img.shields.io/crates/v/netviper-talos.svg)](https://crates.io/crates/netviper-talos)
+[![Documentation](https://docs.rs/netviper-talos/badge.svg)](https://docs.rs/netviper-talos)
+[![Downloads](https://img.shields.io/crates/d/netviper-talos.svg)](https://crates.io/crates/netviper-talos)
+[![Build Status](https://github.com/dmriding/talos/actions/workflows/ci.yml/badge.svg)](https://github.com/dmriding/talos/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/dmriding/talos/blob/main/LICENSE)
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
 
 **Talos** is a Rust-based secure licensing framework providing:
 
