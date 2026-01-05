@@ -9,7 +9,7 @@ license = "MIT"
 readme = "README.md"
 documentation = "https://docs.rs/netviper-talos"
 homepage = "https://github.com/dmriding/talos"
-keywords = ["licensing", "rust", "security", "software-protection"]
+keywords = ["licensing", "security", "software-protection", "offline", "hardware-binding"]
 categories = ["access-control", "cryptography", "software-development"]
 
 [lib]
