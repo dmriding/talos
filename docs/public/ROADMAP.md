@@ -518,13 +518,13 @@ bandwidth_gb = 0  # unlimited
 - [x] Add Swagger UI endpoint (`/swagger-ui`)
 - [x] Add `openapi` feature flag for optional inclusion
 
-### 7.2 Error Response Standardization
+### 7.2 Error Response Standardization ✅
 
-- [ ] Create standardized error response format
-- [ ] Implement error response builder
-- [ ] Map all error types to HTTP status codes
-- [ ] Include error codes in all responses
-- [ ] Document all error codes
+- [x] Create standardized error response format (`ApiError` struct)
+- [x] Implement error response builder with convenience methods
+- [x] Map all error types to HTTP status codes (`ErrorCode` enum)
+- [x] Include error codes in all responses (unified format)
+- [x] Document all error codes (README.md)
 
 ### 7.3 Logging & Observability
 

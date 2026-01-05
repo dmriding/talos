@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use axum::{
     extract::State,
-    http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
@@ -14,6 +13,7 @@ use tracing::{info, warn};
 use utoipa::ToSchema;
 
 use crate::errors::{LicenseError, LicenseResult};
+use crate::server::api_error::ApiError;
 use crate::server::database::{Database, License};
 
 #[cfg(feature = "jwt-auth")]
@@ -31,40 +31,17 @@ pub struct AppState {
     pub auth: AuthState,
 }
 
-/// Standard error response body for HTTP errors.
-#[derive(Debug, Serialize)]
-struct ErrorResponse {
-    pub success: bool,
-    pub error: String,
-}
-
 /// Map internal LicenseError into an HTTP response Axum understands.
 ///
 /// This lets handlers return:
 ///   Result<Json<T>, LicenseError>
 /// and Axum will convert both success and error into HTTP responses.
+///
+/// Uses the standardized `ApiError` format for consistent error responses.
 impl IntoResponse for LicenseError {
     fn into_response(self) -> Response {
-        // Map error categories to status codes.
-        let status = match self {
-            LicenseError::InvalidLicense(_) => StatusCode::BAD_REQUEST,
-            LicenseError::ConfigError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            LicenseError::NetworkError(_) => StatusCode::BAD_GATEWAY,
-            LicenseError::StorageError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            LicenseError::EncryptionError(_) | LicenseError::DecryptionError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-            LicenseError::ServerError(_) | LicenseError::UnknownError => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-        };
-
-        let body = ErrorResponse {
-            success: false,
-            error: self.to_string(),
-        };
-
-        (status, Json(body)).into_response()
+        let api_error: ApiError = self.into();
+        api_error.into_response()
     }
 }
 

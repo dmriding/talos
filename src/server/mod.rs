@@ -3,6 +3,7 @@
 //! Server-side components for Talos.
 //!
 //! This module contains:
+//! - `api_error`   → Standardized API error responses
 //! - `database`    → DB abstraction over SQLite/Postgres
 //! - `handlers`    → Axum HTTP handlers for license endpoints
 //! - `client_api`  → New client API for bind/release/validate
@@ -13,6 +14,7 @@
 //! - `rate_limit`  → Rate limiting middleware (requires `rate-limiting` feature)
 //! - `validation`  → Request validation utilities
 
+pub mod api_error;
 pub mod bootstrap;
 pub mod client_api;
 pub mod database;
@@ -88,6 +90,8 @@ pub use bootstrap::{
     check_bootstrap_token, execute_token_command, parse_token_command, TokenCommand,
     BOOTSTRAP_TOKEN_ENV,
 };
+
+pub use api_error::{ApiError, ErrorBody, ErrorCode};
 
 #[cfg(feature = "openapi")]
 pub use openapi::get_openapi;

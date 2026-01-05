@@ -339,6 +339,60 @@ curl -X POST http://127.0.0.1:8080/validate \
 
 ---
 
+## Error Response Format
+
+All API endpoints return errors in a standardized JSON format:
+
+```json
+{
+  "error": {
+    "code": "LICENSE_NOT_FOUND",
+    "message": "The requested license does not exist",
+    "details": null
+  }
+}
+```
+
+### Error Codes
+
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| **License State** |||
+| `LICENSE_NOT_FOUND` | 404 | License key does not exist |
+| `LICENSE_EXPIRED` | 403 | License has expired |
+| `LICENSE_REVOKED` | 403 | License has been revoked |
+| `LICENSE_SUSPENDED` | 403 | License is temporarily suspended |
+| `LICENSE_BLACKLISTED` | 403 | License is permanently blacklisted |
+| `LICENSE_INACTIVE` | 403 | License is not active |
+| **Hardware Binding** |||
+| `ALREADY_BOUND` | 409 | License is bound to another device |
+| `NOT_BOUND` | 409 | License is not bound to any device |
+| `HARDWARE_MISMATCH` | 403 | Hardware ID doesn't match bound device |
+| **Features & Quotas** |||
+| `FEATURE_NOT_INCLUDED` | 403 | Feature not in license tier |
+| `QUOTA_EXCEEDED` | 403 | Usage quota exceeded |
+| **Validation** |||
+| `INVALID_REQUEST` | 400 | Request payload is invalid |
+| `MISSING_FIELD` | 400 | Required field is missing |
+| `INVALID_FIELD` | 400 | Field value is invalid |
+| **Authentication** |||
+| `MISSING_TOKEN` | 401 | No authorization token provided |
+| `INVALID_HEADER` | 400 | Authorization header malformed |
+| `INVALID_TOKEN` | 401 | Token is invalid |
+| `TOKEN_EXPIRED` | 401 | Token has expired |
+| `INSUFFICIENT_SCOPE` | 403 | Token lacks required permissions |
+| `AUTH_DISABLED` | 501 | Authentication not configured |
+| **Server Errors** |||
+| `NOT_FOUND` | 404 | Resource not found |
+| `CONFLICT` | 409 | Operation conflicts with current state |
+| `DATABASE_ERROR` | 500 | Database operation failed |
+| `CONFIG_ERROR` | 500 | Server configuration error |
+| `CRYPTO_ERROR` | 500 | Encryption operation failed |
+| `NETWORK_ERROR` | 502 | External service communication failed |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
 ## Testing
 
 Run all tests:
@@ -365,7 +419,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 7.1 Complete**
+**Current Status: Phase 7.2 Complete**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -384,10 +438,11 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - License blacklisting (permanent ban with audit trail)
 - Request validation utilities (UUID, license key, hardware ID, datetime formats)
 - OpenAPI 3.0 specification with Swagger UI
+- Standardized error response format
 
 **Upcoming:**
 
-- Error response standardization
+- Logging & Observability (request tracking, health check)
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting

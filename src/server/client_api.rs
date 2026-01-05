@@ -25,6 +25,7 @@ use tracing::{info, warn};
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
+use crate::server::api_error::{ApiError, ErrorCode};
 use crate::server::database::{BindingAction, PerformedBy};
 use crate::server::handlers::AppState;
 use crate::tiers::get_tier_config;
@@ -109,8 +110,43 @@ impl ClientError {
 
 impl IntoResponse for ClientError {
     fn into_response(self) -> Response {
-        let status = self.status_code();
-        (status, Json(self)).into_response()
+        let api_error: ApiError = self.into();
+        api_error.into_response()
+    }
+}
+
+impl From<ClientErrorCode> for ErrorCode {
+    fn from(code: ClientErrorCode) -> Self {
+        match code {
+            ClientErrorCode::LicenseNotFound => ErrorCode::LicenseNotFound,
+            ClientErrorCode::AlreadyBound => ErrorCode::AlreadyBound,
+            ClientErrorCode::NotBound => ErrorCode::NotBound,
+            ClientErrorCode::HardwareMismatch => ErrorCode::HardwareMismatch,
+            ClientErrorCode::LicenseExpired => ErrorCode::LicenseExpired,
+            ClientErrorCode::LicenseRevoked => ErrorCode::LicenseRevoked,
+            ClientErrorCode::LicenseSuspended => ErrorCode::LicenseSuspended,
+            ClientErrorCode::LicenseBlacklisted => ErrorCode::LicenseBlacklisted,
+            ClientErrorCode::LicenseInactive => ErrorCode::LicenseInactive,
+            ClientErrorCode::FeatureNotIncluded => ErrorCode::FeatureNotIncluded,
+            ClientErrorCode::QuotaExceeded => ErrorCode::QuotaExceeded,
+            ClientErrorCode::InvalidRequest => ErrorCode::InvalidRequest,
+            ClientErrorCode::InternalError => ErrorCode::InternalError,
+        }
+    }
+}
+
+impl From<ClientError> for ApiError {
+    fn from(err: ClientError) -> Self {
+        let code: ErrorCode = err.error.into();
+        if let Some(device) = err.bound_device {
+            ApiError::with_details(
+                code,
+                err.message,
+                serde_json::json!({ "bound_device": device }),
+            )
+        } else {
+            ApiError::with_message(code, err.message)
+        }
     }
 }
 

@@ -202,7 +202,10 @@ async fn get_license_not_found() {
     let (status, body) = json_request(app, "GET", "/api/v1/licenses/nonexistent-id", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 #[tokio::test]
@@ -254,7 +257,10 @@ async fn list_licenses_requires_org_id() {
     let (status, body) = json_request(app, "GET", "/api/v1/licenses", None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap().contains("org_id"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("org_id"));
 }
 
 #[tokio::test]
@@ -324,7 +330,10 @@ async fn update_license_not_found() {
     .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 #[tokio::test]
@@ -384,7 +393,7 @@ async fn batch_create_rejects_zero_count() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap().contains("count"));
+    assert!(body["error"]["message"].as_str().unwrap().contains("count"));
 }
 
 #[tokio::test]
@@ -404,7 +413,7 @@ async fn batch_create_rejects_too_many() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap().contains("1000"));
+    assert!(body["error"]["message"].as_str().unwrap().contains("1000"));
 }
 
 #[tokio::test]
@@ -654,7 +663,10 @@ async fn revoke_license_not_found() {
     .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 #[tokio::test]
@@ -701,7 +713,10 @@ async fn revoke_already_revoked_license() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap().contains("already revoked"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("already revoked"));
 }
 
 // ============================================================================
@@ -898,7 +913,10 @@ async fn reinstate_license_not_found() {
     .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 #[tokio::test]
@@ -931,7 +949,10 @@ async fn reinstate_already_active_license() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap().contains("already active"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("already active"));
 }
 
 // ============================================================================
@@ -1099,7 +1120,10 @@ async fn extend_license_not_found() {
     .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 #[tokio::test]
@@ -1134,7 +1158,10 @@ async fn extend_license_invalid_date() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap().contains("datetime"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("datetime"));
 }
 
 // ============================================================================
@@ -1311,7 +1338,10 @@ async fn update_usage_license_not_found() {
     .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 // ============================================================================
@@ -1459,7 +1489,10 @@ async fn blacklist_license_not_found() {
     .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap().contains("not found"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not found"));
 }
 
 #[tokio::test]
@@ -1506,7 +1539,7 @@ async fn blacklist_license_already_blacklisted() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"]
+    assert!(body["error"]["message"]
         .as_str()
         .unwrap()
         .contains("already blacklisted"));
@@ -1544,7 +1577,7 @@ async fn blacklist_license_empty_reason() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"]
+    assert!(body["error"]["message"]
         .as_str()
         .unwrap()
         .contains("reason is required"));
@@ -1594,7 +1627,7 @@ async fn reinstate_blacklisted_license_fails() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"]
+    assert!(body["error"]["message"]
         .as_str()
         .unwrap()
         .contains("Cannot reinstate a blacklisted license"));

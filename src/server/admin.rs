@@ -23,6 +23,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+// Note: StatusCode is still used for successful responses (e.g., CREATED)
 use chrono::{NaiveDateTime, Utc};
 
 // Import traits for test assertions
@@ -37,6 +38,7 @@ use uuid::Uuid;
 use crate::config::get_config;
 use crate::errors::{LicenseError, LicenseResult};
 use crate::license_key::{generate_license_key, LicenseKeyConfig};
+use crate::server::api_error::{ApiError, ErrorCode};
 use crate::server::database::{Database, License};
 use crate::server::handlers::AppState;
 use crate::tiers::get_tier_features;
@@ -228,19 +230,19 @@ impl std::error::Error for AdminError {}
 
 impl IntoResponse for AdminError {
     fn into_response(self) -> Response {
-        let (status, code) = match &self {
-            AdminError::NotFound(_) => (StatusCode::NOT_FOUND, "NOT_FOUND"),
-            AdminError::BadRequest(_) => (StatusCode::BAD_REQUEST, "BAD_REQUEST"),
-            AdminError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR"),
-            AdminError::ConfigError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "CONFIG_ERROR"),
-        };
+        let api_error: ApiError = self.into();
+        api_error.into_response()
+    }
+}
 
-        let body = serde_json::json!({
-            "error": self.to_string(),
-            "code": code,
-        });
-
-        (status, Json(body)).into_response()
+impl From<AdminError> for ApiError {
+    fn from(err: AdminError) -> Self {
+        match err {
+            AdminError::NotFound(msg) => ApiError::with_message(ErrorCode::NotFound, msg),
+            AdminError::BadRequest(msg) => ApiError::with_message(ErrorCode::InvalidRequest, msg),
+            AdminError::DatabaseError(msg) => ApiError::with_message(ErrorCode::DatabaseError, msg),
+            AdminError::ConfigError(msg) => ApiError::with_message(ErrorCode::ConfigError, msg),
+        }
     }
 }
 
