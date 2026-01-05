@@ -1,0 +1,98 @@
+# Talos License Server - Docker Compose
+#
+# Usage:
+#   Start services:      docker compose up -d
+#   View logs:           docker compose logs -f
+#   Stop services:       docker compose down
+#   Reset database:      docker compose down -v
+#
+# The first startup will create a bootstrap token - check logs:
+#   docker compose logs talos | grep "BOOTSTRAP TOKEN"
+
+services:
+  # ==========================================================================
+  # Talos License Server
+  # ==========================================================================
+  talos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Include all production features
+        FEATURES: "server,postgres,jwt-auth,admin-api,rate-limiting,background-jobs,openapi"
+    container_name: talos-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Server
+      TALOS_SERVER_HOST: "0.0.0.0"
+      TALOS_SERVER_PORT: "8080"
+
+      # Database (PostgreSQL)
+      TALOS_DATABASE_TYPE: "postgres"
+      TALOS_DATABASE_URL: "postgres://talos:talos_secret@db:5432/talos"
+
+      # Authentication
+      TALOS_AUTH_ENABLED: "true"
+      TALOS_JWT_SECRET: "${TALOS_JWT_SECRET:-change-this-secret-in-production}"
+
+      # Logging
+      TALOS_LOGGING_ENABLED: "true"
+      TALOS_LOG_LEVEL: "info"
+
+      # License key prefix (customize per product)
+      TALOS_LICENSE_KEY_PREFIX: "LIC"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    volumes:
+      # Mount config file (optional - env vars take precedence)
+      - ./config.toml:/app/config.toml:ro
+    networks:
+      - talos-network
+
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: talos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: talos
+      POSTGRES_PASSWORD: talos_secret
+      POSTGRES_DB: talos
+    volumes:
+      # Persist database data
+      - talos-db-data:/var/lib/postgresql/data
+      # Initialize schema on first run
+      - ./migrations/init_postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talos -d talos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - talos-network
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  talos-db-data:
+    driver: local
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  talos-network:
+    driver: bridge

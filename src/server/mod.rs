@@ -3,22 +3,24 @@
 //! Server-side components for Talos.
 //!
 //! This module contains:
-//! - `api_error`   → Standardized API error responses
-//! - `database`    → DB abstraction over SQLite/Postgres
-//! - `handlers`    → Axum HTTP handlers for license endpoints
-//! - `client_api`  → New client API for bind/release/validate
-//! - `routes`      → Router builder (optional helper)
-//! - `server_sim`  → In-memory simulator for tests
-//! - `auth`        → JWT authentication middleware (requires `jwt-auth` feature)
-//! - `admin`       → Admin API for license CRUD (requires `admin-api` feature)
-//! - `rate_limit`  → Rate limiting middleware (requires `rate-limiting` feature)
-//! - `validation`  → Request validation utilities
+//! - `api_error`     → Standardized API error responses
+//! - `database`      → DB abstraction over SQLite/Postgres
+//! - `handlers`      → Axum HTTP handlers for license endpoints
+//! - `client_api`    → New client API for bind/release/validate
+//! - `routes`        → Router builder (optional helper)
+//! - `server_sim`    → In-memory simulator for tests
+//! - `auth`          → JWT authentication middleware (requires `jwt-auth` feature)
+//! - `admin`         → Admin API for license CRUD (requires `admin-api` feature)
+//! - `rate_limit`    → Rate limiting middleware (requires `rate-limiting` feature)
+//! - `ip_whitelist`  → IP whitelist middleware for admin API protection
+//! - `validation`    → Request validation utilities
 
 pub mod api_error;
 pub mod bootstrap;
 pub mod client_api;
 pub mod database;
 pub mod handlers;
+pub mod ip_whitelist;
 pub mod logging;
 #[cfg(feature = "openapi")]
 pub mod openapi;
@@ -101,3 +103,5 @@ pub use logging::{
 
 #[cfg(feature = "openapi")]
 pub use openapi::get_openapi;
+
+pub use ip_whitelist::{IpNetwork, IpWhitelist, IpWhitelistLayer, IpWhitelistMiddleware};

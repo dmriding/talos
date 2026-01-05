@@ -150,6 +150,13 @@ stale_device_check = "0 0 0 * * *"       # Daily at midnight
 stale_device_days = 90                    # Days before device considered stale
 
 # -----------------------------------------------------------------------------
+# Admin API Security
+# -----------------------------------------------------------------------------
+[admin]
+ip_whitelist = []              # Empty = allow all, or ["127.0.0.1", "10.0.0.0/8"]
+audit_logging = false          # Log all admin actions
+
+# -----------------------------------------------------------------------------
 # Tier Configuration (optional)
 # -----------------------------------------------------------------------------
 [tiers.free]
@@ -460,6 +467,7 @@ Before going to production, verify:
 - [ ] JWT authentication enabled (`jwt-auth` feature)
 - [ ] Strong JWT secret (32+ characters, random)
 - [ ] Rate limiting enabled (`rate-limiting` feature)
+- [ ] IP whitelisting configured for admin API (`[admin] ip_whitelist`)
 - [ ] HTTPS/TLS configured
 - [ ] Database credentials are secure
 - [ ] No secrets in config files (use env vars)

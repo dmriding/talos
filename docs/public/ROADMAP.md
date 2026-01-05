@@ -756,7 +756,7 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 
 ## Phase 10: Testing ✅
 
-**Current test count: 187+ tests**
+**Current test count: 220 tests** (135 unit + 39 admin API + 46 integration/other)
 
 ### 10.1 Unit Tests ✅
 
@@ -772,6 +772,7 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 - [x] Cache security - `cache.rs` (7 tests)
 - [x] Token management - `tokens.rs` (8 tests)
 - [x] Rate limiting - `rate_limit.rs` (6 tests)
+- [x] IP whitelist - `ip_whitelist.rs` (17 tests)
 
 ### 10.2 Integration Tests ✅
 
@@ -796,43 +797,44 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 
 ---
 
-## Phase 11: Deployment & Operations (P1 - High)
+## Phase 11: Deployment & Operations (P1 - High) ✅
 
-### 11.1 Configuration
+### 11.1 Configuration ✅
 
-- [ ] Document all environment variables
-- [ ] Create example `.env` file
-- [ ] Create example `config.toml` for production deployment
-- [ ] Add configuration validation on startup
+- [x] Document all environment variables (`.env.example`)
+- [x] Create example `.env` file with JWT/rate-limiting vars
+- [x] Create example `config.toml` for production deployment (all sections documented)
+- [x] Add configuration validation on startup (`config.rs` validates on init)
 
-### 11.2 Docker
+### 11.2 Docker ✅
 
-- [ ] Create optimized Dockerfile
-- [ ] Create docker-compose.yml with PostgreSQL
-- [ ] Document container deployment
-- [ ] Add health check to container
+- [x] Create optimized Dockerfile (multi-stage build, non-root user)
+- [x] Create docker-compose.yml with PostgreSQL
+- [x] Document container deployment (in docker-compose.yml comments)
+- [x] Add health check to container (`/health` endpoint)
 
-### 11.3 Database Migrations
+### 11.3 Database Migrations ✅
 
-- [ ] Document migration process
-- [ ] Create migration scripts for existing Talos deployments
-- [ ] Test migration from legacy schema to current schema
+- [x] Document migration process (comments in SQL files)
+- [x] Create SQLite migration script (`migrations/init_sqlite.sql`)
+- [x] Create PostgreSQL migration script (`migrations/init_postgres.sql`)
+- [ ] _(Deferred)_ Test migration from legacy schema to current schema
 
 ---
 
 ## Phase 12: Security Enhancements (P1 - High)
 
-### 12.1 Admin API IP Whitelisting
+### 12.1 Admin API IP Whitelisting ✅
 
 **Critical security feature** - Restrict Admin API access to specific IP addresses.
 
-- [ ] Add `admin_ip_whitelist` configuration option
-- [ ] Create IP whitelist middleware for admin routes
-- [ ] Support CIDR notation (e.g., `10.0.0.0/8`, `192.168.1.0/24`)
-- [ ] Support individual IPs and ranges
-- [ ] Return 403 Forbidden for non-whitelisted IPs
-- [ ] Log blocked access attempts
-- [ ] Document configuration in server deployment guide
+- [x] Add `admin_ip_whitelist` configuration option (`config.rs`, `AdminConfig`)
+- [x] Create IP whitelist middleware for admin routes (`ip_whitelist.rs`)
+- [x] Support CIDR notation (e.g., `10.0.0.0/8`, `192.168.1.0/24`)
+- [x] Support individual IPs and ranges (IPv4 and IPv6)
+- [x] Return 403 Forbidden for non-whitelisted IPs
+- [x] Log blocked access attempts (with tracing)
+- [x] Document configuration in `config.toml.example`
 
 **Configuration example:**
 ```toml
@@ -840,14 +842,22 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 ip_whitelist = ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
 ```
 
-### 12.2 Audit Logging
+**Implementation details:**
+- `IpNetwork` enum handles single IPs and CIDR ranges
+- `IpWhitelist` struct with `is_allowed()` method
+- `IpWhitelistLayer` and `IpWhitelistMiddleware` for axum integration
+- Checks `X-Forwarded-For` and `X-Real-IP` headers for proxy support
+- Empty whitelist = disabled (all IPs allowed)
+- 17 unit tests for CIDR parsing and matching
+
+### 12.2 Audit Logging _(Deferred)_
 
 - [ ] Log all admin API actions with user/token ID
 - [ ] Log license state changes (create, revoke, suspend, etc.)
 - [ ] Log authentication failures
 - [ ] Configurable audit log destination (file, database, external service)
 
-### 12.3 API Key Rotation
+### 12.3 API Key Rotation _(Deferred)_
 
 - [ ] Add key rotation endpoint for tokens
 - [ ] Support overlapping validity periods during rotation

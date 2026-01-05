@@ -1,8 +1,9 @@
 # Talos — Secure Rust Licensing System
 
-![Build Status](https://github.com/dmriding/talos/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Rust Version](https://img.shields.io/badge/rust-stable-blue)
+[![Crates.io](https://img.shields.io/crates/v/netviper-talos.svg)](https://crates.io/crates/netviper-talos)
+[![Documentation](https://docs.rs/netviper-talos/badge.svg)](https://docs.rs/netviper-talos)
+[![License](https://img.shields.io/crates/l/netviper-talos.svg)](https://github.com/dmriding/talos/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/crates/d/netviper-talos.svg)](https://crates.io/crates/netviper-talos)
 
 **Talos** is a Rust-based secure licensing framework providing:
 
@@ -139,7 +140,20 @@ Add Talos to your project:
 
 ```toml
 [dependencies]
-talos = { git = "https://github.com/dmriding/talos" }
+netviper-talos = "0.1"
+```
+
+Or from git:
+
+```toml
+[dependencies]
+netviper-talos = { git = "https://github.com/dmriding/talos" }
+```
+
+The crate exports as `talos` internally, so you use it as:
+
+```rust
+use talos::client::License;
 ```
 
 Then:
@@ -169,28 +183,28 @@ Talos uses Cargo feature flags to let you include only what you need:
 
 ```toml
 # Default: server + SQLite
-talos = { git = "https://github.com/dmriding/talos" }
+netviper-talos = "0.1"
 
 # Client-only (no server components)
-talos = { git = "https://github.com/dmriding/talos", default-features = false }
+netviper-talos = { version = "0.1", default-features = false }
 
 # Server with PostgreSQL instead of SQLite
-talos = { git = "https://github.com/dmriding/talos", default-features = false, features = ["server", "postgres"] }
+netviper-talos = { version = "0.1", default-features = false, features = ["server", "postgres"] }
 
 # Server with both SQLite and PostgreSQL
-talos = { git = "https://github.com/dmriding/talos", features = ["postgres"] }
+netviper-talos = { version = "0.1", features = ["postgres"] }
 
 # Full server with admin API and JWT auth
-talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth"] }
+netviper-talos = { version = "0.1", features = ["admin-api", "jwt-auth"] }
 
 # Server with background jobs enabled
-talos = { git = "https://github.com/dmriding/talos", features = ["background-jobs"] }
+netviper-talos = { version = "0.1", features = ["background-jobs"] }
 
 # Full-featured server
-talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
+netviper-talos = { version = "0.1", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
 
 # Server with OpenAPI documentation
-talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "openapi"] }
+netviper-talos = { version = "0.1", features = ["admin-api", "openapi"] }
 ```
 
 ---
@@ -489,7 +503,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 9 In Progress**
+**Current Status: Phase 12 In Progress**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -513,11 +527,13 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - Updated client library with new v1 API methods (bind/release/validate/validate-feature/heartbeat)
 - Secure encrypted cache for offline/air-gapped system support
 - Grace period support for air-gapped systems
-- **Working code examples** (basic-client, air-gapped, feature-gating)
+- Working code examples (basic-client, air-gapped, feature-gating)
+- **Admin API IP whitelisting** (CIDR support, IPv4/IPv6, proxy header support)
 
 **Upcoming:**
 
-- Complete documentation guides
+- Audit logging
+- API key rotation
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting

@@ -68,10 +68,14 @@ async fn main() -> LicenseResult<()> {
 
     info!("Talos server listening on http://{}", addr);
 
-    // Serve the application
-    axum::serve(listener, app.into_make_service())
-        .await
-        .map_err(|e| LicenseError::ServerError(format!("server failed: {e}")))?;
+    // Serve the application with ConnectInfo for IP extraction
+    // This enables IP whitelist and rate limiting middleware to determine client IPs
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .map_err(|e| LicenseError::ServerError(format!("server failed: {e}")))?;
 
     Ok(())
 }
