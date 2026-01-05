@@ -10,7 +10,7 @@ readme = "README.md"
 documentation = "https://docs.rs/netviper-talos"
 homepage = "https://github.com/dmriding/talos"
 keywords = ["licensing", "security", "software-protection", "offline", "hardware-binding"]
-categories = ["access-control", "cryptography", "software-development"]
+categories = ["authentication", "cryptography", "development-tools"]
 
 [lib]
 name = "talos"
