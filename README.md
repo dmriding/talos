@@ -220,31 +220,68 @@ cargo run --bin talos_server
 ### 4. Use the Client
 
 ```rust
-use talos::client::license::License;
+use talos::client::License;
+use talos::errors::LicenseResult;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let mut license = License {
-        license_id: "LICENSE-12345".into(),
-        client_id: "".into(), // Auto-filled by activate()
-        expiry_date: "2025-12-31".into(),
-        features: vec!["feature1".into()],
-        server_url: "http://127.0.0.1:8080".into(),
-        signature: "dummy".into(),
-        is_active: false,
-    };
+async fn main() -> LicenseResult<()> {
+    // Create a new license client
+    let mut license = License::new(
+        "LIC-XXXX-XXXX-XXXX".to_string(),  // Your license key
+        "http://127.0.0.1:8080".to_string(),
+    );
 
-    license.activate().await?;
-    println!("License activated.");
+    // Bind to this hardware (replaces activate())
+    let bind_result = license.bind(Some("My Workstation"), None).await?;
+    println!("License bound. Features: {:?}", bind_result.features);
 
-    if license.validate().await? {
-        println!("License validated.");
+    // Validate the license
+    let validation = license.validate().await?;
+    if validation.has_feature("feature_a") {
+        println!("Feature A is enabled!");
     }
 
-    license.heartbeat().await?;
-    license.deactivate().await?;
+    // Check a specific feature
+    let feature_result = license.validate_feature("premium_export").await?;
+    if feature_result.allowed {
+        println!("Premium export is available");
+    }
+
+    // Send heartbeat
+    let heartbeat = license.heartbeat().await?;
+    println!("Server time: {}", heartbeat.server_time);
+
+    // Release when done (replaces deactivate())
+    license.release().await?;
 
     Ok(())
+}
+```
+
+### Air-Gapped Systems
+
+For systems that need to operate offline within a grace period:
+
+```rust
+use talos::client::License;
+
+async fn check_license_with_fallback() -> bool {
+    let mut license = License::load_from_disk().await.unwrap();
+
+    // Try online validation first, fall back to cached offline validation
+    match license.validate_with_fallback().await {
+        Ok(result) => {
+            if let Some(warning) = &result.warning {
+                // System should go online soon
+                eprintln!("Warning: {}", warning);
+            }
+            true
+        }
+        Err(e) => {
+            eprintln!("License validation failed: {}", e);
+            false
+        }
+    }
 }
 ```
 
@@ -439,7 +476,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 7.3 Complete**
+**Current Status: Phase 8 Complete**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -460,10 +497,12 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - OpenAPI 3.0 specification with Swagger UI
 - Standardized error response format
 - Logging & observability (request ID tracking, health check, structured license event logging)
+- Updated client library with new v1 API methods (bind/release/validate/validate-feature/heartbeat)
+- Secure encrypted cache for offline/air-gapped system support
+- Grace period support for air-gapped systems
 
 **Upcoming:**
 
-- Client library updates (new methods for bind/release/validate-feature)
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting

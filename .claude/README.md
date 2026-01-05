@@ -24,17 +24,29 @@ talos/
 │   ├── license_key.rs      # License key generation/validation
 │   ├── tiers.rs            # Tier configuration system
 │   ├── client/             # Client-side modules
-│   │   ├── license.rs      # License struct and validation
-│   │   ├── heartbeat.rs    # Heartbeat mechanism
+│   │   ├── mod.rs          # Module exports
+│   │   ├── license.rs      # License struct and v1 API methods (bind/release/validate)
+│   │   ├── heartbeat.rs    # Legacy heartbeat mechanism
 │   │   ├── encrypted_storage.rs  # Secure license storage
-│   │   └── key_generation.rs     # Key pair generation
+│   │   ├── key_generation.rs     # Key pair generation
+│   │   ├── errors.rs       # Client error types (ClientErrorCode, ClientApiError)
+│   │   ├── responses.rs    # Response types (ValidationResult, BindResult, etc.)
+│   │   └── cache.rs        # Encrypted cache for offline validation
 │   └── server/             # Server-side modules (requires "server" feature)
 │       ├── mod.rs          # Module exports
 │       ├── database.rs     # Database abstraction (SQLite/PostgreSQL)
-│       ├── handlers.rs     # Client-facing API handlers
+│       ├── handlers.rs     # Legacy client API handlers (/activate, /validate, etc.)
+│       ├── client_api.rs   # New v1 client API handlers (/api/v1/client/*)
 │       ├── admin.rs        # Admin API handlers (requires "admin-api" feature)
 │       ├── auth.rs         # JWT authentication (requires "jwt-auth" feature)
+│       ├── api_error.rs    # Standardized API error responses
+│       ├── validation.rs   # Request validation utilities
+│       ├── logging.rs      # Request logging and health check
+│       ├── rate_limit.rs   # Rate limiting (requires "rate-limiting" feature)
 │       ├── routes.rs       # Router builder
+│       ├── tokens.rs       # API token management
+│       ├── bootstrap.rs    # Bootstrap token handling
+│       ├── openapi.rs      # OpenAPI spec (requires "openapi" feature)
 │       └── server_sim.rs   # In-memory simulator for tests
 ├── tests/                  # Integration tests
 ├── docs/                   # Documentation
@@ -54,6 +66,9 @@ The project uses Cargo feature flags for modularity:
 | `postgres` | PostgreSQL database backend | sqlx/postgres |
 | `jwt-auth` | JWT authentication middleware | jsonwebtoken |
 | `admin-api` | Admin CRUD API endpoints | server |
+| `rate-limiting` | Rate limiting middleware | tower-governor, governor |
+| `background-jobs` | Scheduled background jobs | tokio-cron-scheduler |
+| `openapi` | OpenAPI 3.0 spec and Swagger UI | utoipa, utoipa-swagger-ui |
 
 **Default features:** `server`, `sqlite`
 
@@ -66,10 +81,25 @@ The project uses Cargo feature flags for modularity:
 - `AuthConfig` - JWT settings (secret, issuer, audience)
 - `LicenseConfig` - Key generation settings
 
-### Database
-- `License` - Main license record with all fields
+### Client Types
+- `License` - Main client struct with bind/release/validate/heartbeat methods
+- `ValidationResult` - Online validation response (features, tier, expires_at, warning)
+- `BindResult` - Hardware binding response
+- `FeatureResult` - Feature validation response
+- `HeartbeatResult` - Heartbeat response (server_time, grace_period_ends_at)
+- `CachedValidation` - Encrypted cache for offline validation
+- `ClientApiError` - Typed API error with code and message
+- `ClientErrorCode` - Error codes matching server responses
+
+### Server Database
+- `License` (server) - Main license record with all fields
 - `Database` - Enum over SQLite/PostgreSQL pools
 - `BindingAction`, `PerformedBy` - Audit trail enums
+
+### Server API
+- `ApiError` - Standardized error response format
+- `ErrorCode` - 27 machine-readable error codes
+- `AppState` - Shared state for handlers
 
 ### Authentication
 - `Claims` - JWT claims with scope checking
@@ -82,26 +112,49 @@ The project uses Cargo feature flags for modularity:
 
 ## Testing Requirements
 
-**CRITICAL: ALL CODE MUST PASS BEFORE COMMITTING:**
+**CRITICAL: ALL CODE MUST HAVE TESTS AND ALL TESTS MUST PASS BEFORE COMMITTING**
 
-1. **All tests must pass** - No exceptions
-2. **Code must be formatted** - `cargo fmt` must produce no changes
-3. **CI must pass** - GitHub Actions runs tests on all PRs
+### Test Policy (Non-Negotiable)
+
+1. **All new code MUST have tests** - PRs without tests for new functionality will be rejected
+2. **All tests must pass** - No exceptions, no skipped tests
+3. **Tests must run with `--all-features`** - This ensures all feature-gated code is tested
+4. **Code must be formatted** - `cargo fmt` must produce no changes
+5. **No clippy warnings** - All warnings must be resolved
 
 ### Required Commands Before Every Commit
 
 ```bash
-# 1. Run all tests with all features
+# 1. Run ALL tests with ALL features enabled (REQUIRED)
 cargo test --all-features
 
 # 2. Check formatting (must produce no output)
 cargo fmt --check
 
 # 3. Run clippy with no warnings
-cargo clippy --all-features
+cargo clippy --all-features -- -D warnings
 
 # If any of these fail, fix the issues before committing!
 ```
+
+### Why `--all-features` is Required
+
+The `--all-features` flag is **mandatory** because:
+- Many modules are gated behind feature flags (`admin-api`, `jwt-auth`, `rate-limiting`, etc.)
+- Running `cargo test` alone will NOT test feature-gated code
+- CI runs with `--all-features` - your local tests must match
+
+**Example:** If you modify `src/server/admin.rs`, running `cargo test` will pass even with broken code because `admin.rs` requires the `admin-api` feature. Only `cargo test --all-features` will catch the error.
+
+### Test Requirements for PRs
+
+| Change Type | Test Requirement |
+|-------------|------------------|
+| New endpoint | Integration test in `tests/` |
+| New client method | Unit test + integration test |
+| Bug fix | Test that reproduces the bug (fails before fix, passes after) |
+| New error type | Unit test for error handling |
+| New feature flag | Tests that run with that feature enabled |
 
 ### Optional: Run Specific Tests
 
@@ -119,21 +172,25 @@ cargo test --all-features -- --nocapture
 The GitHub Actions workflow runs on every PR and push:
 - `cargo test --all-features`
 - `cargo fmt --check`
-- `cargo clippy --all-features`
+- `cargo clippy --all-features -- -D warnings`
 
 **PRs will not be merged if CI fails.**
 
 ### For AI Agents
 
-**IMPORTANT:** AI agents (Claude, GPT, etc.) MUST run the following commands and verify they pass before completing any task:
+**IMPORTANT:** AI agents (Claude, GPT, etc.) MUST:
+
+1. **Write tests for all new code** - No exceptions
+2. **Run the following commands and verify they pass** before completing any task:
 
 ```bash
 cargo test --all-features
 cargo fmt --check
-cargo clippy --all-features
+cargo clippy --all-features -- -D warnings
 ```
 
-**Do not submit results if any of these commands fail.** Fix the issues first.
+3. **Do not submit results if any of these commands fail** - Fix the issues first
+4. **Do not submit code without tests** - This is considered incomplete work
 
 ## Code Style Guidelines
 

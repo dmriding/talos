@@ -99,15 +99,16 @@ mod tests {
     async fn round_trip_license_encrypt_decrypt() {
         cleanup_file().await;
 
-        let license = License {
-            license_id: "LIC-123".into(),
-            client_id: "CLIENT-XYZ".into(),
-            expiry_date: "2099-01-01T00:00:00Z".into(),
-            features: vec!["feature_a".into(), "feature_b".into()],
-            server_url: "http://localhost:8080".into(),
-            signature: "dummy-signature".into(),
-            is_active: true,
-        };
+        let mut license =
+            License::new("TEST-XXXX-XXXX-XXXX".into(), "http://localhost:8080".into());
+        // Set some fields for testing
+        license.license_id = "LIC-123".into();
+        license.client_id = "CLIENT-XYZ".into();
+        license.hardware_id = "CLIENT-XYZ".into();
+        license.expiry_date = "2099-01-01T00:00:00Z".into();
+        license.features = vec!["feature_a".into(), "feature_b".into()];
+        license.signature = "dummy-signature".into();
+        license.is_active = true;
 
         save_license_to_disk(&license)
             .await
@@ -115,8 +116,10 @@ mod tests {
 
         let loaded = load_license_from_disk().await.expect("load should succeed");
 
+        assert_eq!(loaded.license_key, license.license_key);
         assert_eq!(loaded.license_id, license.license_id);
         assert_eq!(loaded.client_id, license.client_id);
+        assert_eq!(loaded.hardware_id, license.hardware_id);
         assert_eq!(loaded.expiry_date, license.expiry_date);
         assert_eq!(loaded.features, license.features);
         assert_eq!(loaded.server_url, license.server_url);

@@ -4,6 +4,8 @@ use std::result;
 
 use thiserror::Error;
 
+use crate::client::errors::ClientApiError;
+
 /// Convenient alias for results throughout Talos.
 pub type LicenseResult<T> = result::Result<T, LicenseError>;
 
@@ -40,6 +42,13 @@ pub enum LicenseError {
     /// Configuration-related errors (missing values, invalid formats, etc.).
     #[error("config error: {0}")]
     ConfigError(String),
+
+    /// Structured API error from the license server.
+    ///
+    /// This wraps the server's error response with machine-readable error codes
+    /// for programmatic error handling.
+    #[error("api error: {0}")]
+    ClientApiError(ClientApiError),
 
     /// Fallback for unexpected conditions that don't fit other variants.
     #[error("unknown error")]
