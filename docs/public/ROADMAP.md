@@ -508,31 +508,32 @@ bandwidth_gb = 0  # unlimited
 
 ## Phase 7: API Documentation & Polish (P2 - Medium)
 
-### 7.1 OpenAPI Specification
+### 7.1 OpenAPI Specification ✅
 
-- [ ] Add `utoipa` crate for OpenAPI generation
-- [ ] Document all endpoints with request/response schemas
-- [ ] Document error responses and codes
-- [ ] Document authentication requirements
-- [ ] Generate OpenAPI JSON/YAML
-- [ ] Add Swagger UI endpoint for interactive docs
+- [x] Add `utoipa` crate for OpenAPI generation
+- [x] Document all endpoints with request/response schemas
+- [x] Document error responses and codes
+- [x] Document authentication requirements (bearer_auth security scheme)
+- [x] Generate OpenAPI JSON (`/api-docs/openapi.json`)
+- [x] Add Swagger UI endpoint (`/swagger-ui`)
+- [x] Add `openapi` feature flag for optional inclusion
 
-### 7.2 Error Response Standardization
+### 7.2 Error Response Standardization ✅
 
-- [ ] Create standardized error response format
-- [ ] Implement error response builder
-- [ ] Map all error types to HTTP status codes
-- [ ] Include error codes in all responses
-- [ ] Document all error codes
+- [x] Create standardized error response format (`ApiError` struct)
+- [x] Implement error response builder with convenience methods
+- [x] Map all error types to HTTP status codes (`ErrorCode` enum)
+- [x] Include error codes in all responses (unified format)
+- [x] Document all error codes (README.md)
 
-### 7.3 Logging & Observability
+### 7.3 Logging & Observability ✅
 
-- [ ] Add structured logging with `tracing`
-- [ ] Log all API requests with timing
-- [ ] Log all license state changes
-- [ ] Add request ID tracking
-- [ ] Add health check endpoint (`GET /health`)
-- [ ] Add metrics endpoint (optional)
+- [x] Add structured logging with `tracing`
+- [x] Log all API requests with timing
+- [x] Log all license state changes
+- [x] Add request ID tracking
+- [x] Add health check endpoint (`GET /health`)
+- [ ] Add metrics endpoint (optional, deferred)
 
 ---
 

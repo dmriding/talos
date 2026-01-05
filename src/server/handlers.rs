@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use axum::{
     extract::State,
-    http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
@@ -10,7 +9,11 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
+
 use crate::errors::{LicenseError, LicenseResult};
+use crate::server::api_error::ApiError;
 use crate::server::database::{Database, License};
 
 #[cfg(feature = "jwt-auth")]
@@ -28,45 +31,23 @@ pub struct AppState {
     pub auth: AuthState,
 }
 
-/// Standard error response body for HTTP errors.
-#[derive(Debug, Serialize)]
-struct ErrorResponse {
-    pub success: bool,
-    pub error: String,
-}
-
 /// Map internal LicenseError into an HTTP response Axum understands.
 ///
 /// This lets handlers return:
 ///   Result<Json<T>, LicenseError>
 /// and Axum will convert both success and error into HTTP responses.
+///
+/// Uses the standardized `ApiError` format for consistent error responses.
 impl IntoResponse for LicenseError {
     fn into_response(self) -> Response {
-        // Map error categories to status codes.
-        let status = match self {
-            LicenseError::InvalidLicense(_) => StatusCode::BAD_REQUEST,
-            LicenseError::ConfigError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            LicenseError::NetworkError(_) => StatusCode::BAD_GATEWAY,
-            LicenseError::StorageError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            LicenseError::EncryptionError(_) | LicenseError::DecryptionError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-            LicenseError::ServerError(_) | LicenseError::UnknownError => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-        };
-
-        let body = ErrorResponse {
-            success: false,
-            error: self.to_string(),
-        };
-
-        (status, Json(body)).into_response()
+        let api_error: ApiError = self.into();
+        api_error.into_response()
     }
 }
 
 /// Request structure for license-related operations.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct LicenseRequest {
     pub license_id: String,
     pub client_id: String,
@@ -74,6 +55,7 @@ pub struct LicenseRequest {
 
 /// Response structure for license-related operations.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct LicenseResponse {
     pub success: bool,
 }
@@ -82,6 +64,7 @@ pub struct LicenseResponse {
 ///
 /// Kept separate in case heartbeat later includes extra metadata.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct HeartbeatRequest {
     pub license_id: String,
     pub client_id: String,
@@ -89,6 +72,7 @@ pub struct HeartbeatRequest {
 
 /// Response structure for heartbeat operations.
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct HeartbeatResponse {
     pub success: bool,
 }
@@ -99,6 +83,16 @@ pub struct HeartbeatResponse {
 /// - If the license does not exist, it is created as `active`.
 /// - If it exists, it is updated to `active` with the given client_id.
 /// - DB errors bubble up as `LicenseError` (mapped to HTTP 5xx).
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/activate",
+    tag = "legacy",
+    request_body = LicenseRequest,
+    responses(
+        (status = 200, description = "License activated", body = LicenseResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn activate_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<LicenseRequest>,
@@ -156,6 +150,16 @@ pub async fn activate_license_handler(
 /// - status == "active"
 ///
 /// DB failures bubble as `LicenseError` (HTTP 5xx).
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/validate",
+    tag = "legacy",
+    request_body = LicenseRequest,
+    responses(
+        (status = 200, description = "Validation result", body = LicenseResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn validate_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<LicenseRequest>,
@@ -202,6 +206,16 @@ pub async fn validate_license_handler(
 /// - status successfully updated to "inactive"
 ///
 /// DB failures bubble as `LicenseError`.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/deactivate",
+    tag = "legacy",
+    request_body = LicenseRequest,
+    responses(
+        (status = 200, description = "Deactivation result", body = LicenseResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn deactivate_license_handler(
     State(state): State<AppState>,
     Json(payload): Json<LicenseRequest>,
@@ -248,6 +262,16 @@ pub async fn deactivate_license_handler(
 /// - `success: false` otherwise
 ///
 /// DB failures bubble as `LicenseError`.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/heartbeat",
+    tag = "legacy",
+    request_body = HeartbeatRequest,
+    responses(
+        (status = 200, description = "Heartbeat result", body = HeartbeatResponse),
+        (status = 500, description = "Server error"),
+    )
+))]
 pub async fn heartbeat_handler(
     State(state): State<AppState>,
     Json(payload): Json<HeartbeatRequest>,
@@ -270,4 +294,29 @@ pub async fn heartbeat_handler(
     }
 
     Ok(Json(HeartbeatResponse { success: updated }))
+}
+
+/// Health check handler.
+///
+/// Returns the service health status including database connectivity.
+/// This endpoint is useful for load balancers and monitoring systems.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/health",
+    tag = "system",
+    responses(
+        (status = 200, description = "Service health status", body = crate::server::logging::HealthResponse),
+    )
+))]
+pub async fn health_handler(
+    State(state): State<AppState>,
+) -> Json<crate::server::logging::HealthResponse> {
+    // Check database connectivity
+    let db_connected = state.db.health_check().await;
+    let db_type = state.db.db_type();
+
+    Json(crate::server::logging::HealthResponse::healthy(
+        db_connected,
+        db_type,
+    ))
 }

@@ -34,10 +34,11 @@
 use axum::{
     async_trait,
     extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
+    http::request::Parts,
     response::{IntoResponse, Response},
-    Json,
 };
+
+use crate::server::api_error::{ApiError, ErrorCode};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -151,28 +152,25 @@ impl std::error::Error for AuthError {}
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
-        let (status, message) = match &self {
-            AuthError::MissingToken => (StatusCode::UNAUTHORIZED, self.to_string()),
-            AuthError::InvalidHeader => (StatusCode::BAD_REQUEST, self.to_string()),
-            AuthError::InvalidToken(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
-            AuthError::TokenExpired => (StatusCode::UNAUTHORIZED, self.to_string()),
-            AuthError::InsufficientScope(_) => (StatusCode::FORBIDDEN, self.to_string()),
-            AuthError::AuthDisabled => (StatusCode::NOT_IMPLEMENTED, self.to_string()),
-        };
+        let api_error: ApiError = self.into();
+        api_error.into_response()
+    }
+}
 
-        let body = serde_json::json!({
-            "error": message,
-            "code": match &self {
-                AuthError::MissingToken => "MISSING_TOKEN",
-                AuthError::InvalidHeader => "INVALID_HEADER",
-                AuthError::InvalidToken(_) => "INVALID_TOKEN",
-                AuthError::TokenExpired => "TOKEN_EXPIRED",
-                AuthError::InsufficientScope(_) => "INSUFFICIENT_SCOPE",
-                AuthError::AuthDisabled => "AUTH_DISABLED",
-            }
-        });
-
-        (status, Json(body)).into_response()
+impl From<AuthError> for ApiError {
+    fn from(err: AuthError) -> Self {
+        match err {
+            AuthError::MissingToken => ApiError::new(ErrorCode::MissingToken),
+            AuthError::InvalidHeader => ApiError::new(ErrorCode::InvalidHeader),
+            AuthError::InvalidToken(msg) => ApiError::with_message(ErrorCode::InvalidToken, msg),
+            AuthError::TokenExpired => ApiError::new(ErrorCode::TokenExpired),
+            AuthError::InsufficientScope(scope) => ApiError::with_details(
+                ErrorCode::InsufficientScope,
+                format!("Insufficient scope: requires {}", scope),
+                serde_json::json!({ "required_scope": scope }),
+            ),
+            AuthError::AuthDisabled => ApiError::new(ErrorCode::AuthDisabled),
+        }
     }
 }
 

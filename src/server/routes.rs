@@ -1,16 +1,20 @@
-use axum::{routing::post, Router};
+use axum::{middleware, routing::get, routing::post, Router};
 
 #[cfg(feature = "admin-api")]
-use axum::routing::{delete, get, patch};
+use axum::routing::{delete, patch};
+
+#[cfg(feature = "openapi")]
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::server::client_api::{
     bind_handler, client_heartbeat_handler, release_handler, validate_feature_handler,
     validate_handler, validate_or_bind_handler,
 };
 use crate::server::handlers::{
-    activate_license_handler, deactivate_license_handler, heartbeat_handler,
+    activate_license_handler, deactivate_license_handler, health_handler, heartbeat_handler,
     validate_license_handler, AppState,
 };
+use crate::server::logging::request_logging_middleware;
 
 #[cfg(feature = "admin-api")]
 use crate::server::admin::{
@@ -69,6 +73,8 @@ use crate::server::auth::AuthLayer;
 /// - `DELETE /api/v1/tokens/{token_id}` - Revoke a token
 pub fn build_router(state: AppState) -> Router {
     let router = Router::new()
+        // Health check endpoint (no auth required)
+        .route("/health", get(health_handler))
         // Legacy client endpoints (backwards compatibility)
         .route("/activate", post(activate_license_handler))
         .route("/validate", post(validate_license_handler))
@@ -177,5 +183,15 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/v1/tokens/:token_id", get(get_token_handler))
         .route("/api/v1/tokens/:token_id", delete(revoke_token_handler));
 
-    router.with_state(state)
+    // Add Swagger UI routes if openapi feature is enabled
+    #[cfg(feature = "openapi")]
+    let router = {
+        use crate::server::openapi::get_openapi;
+        router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", get_openapi()))
+    };
+
+    // Add request logging middleware to all routes
+    router
+        .layer(middleware::from_fn(request_logging_middleware))
+        .with_state(state)
 }

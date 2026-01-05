@@ -22,12 +22,18 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
+
+use crate::server::api_error::{ApiError, ErrorCode};
 use crate::server::database::{BindingAction, PerformedBy};
 use crate::server::handlers::AppState;
+use crate::server::logging::{log_license_binding_event, log_license_event, LicenseEvent};
 use crate::tiers::get_tier_config;
 
 /// Error codes for client API responses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ClientErrorCode {
     /// License key not found
@@ -60,6 +66,7 @@ pub enum ClientErrorCode {
 
 /// Client API error response.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ClientError {
     pub success: bool,
     pub error: ClientErrorCode,
@@ -104,8 +111,43 @@ impl ClientError {
 
 impl IntoResponse for ClientError {
     fn into_response(self) -> Response {
-        let status = self.status_code();
-        (status, Json(self)).into_response()
+        let api_error: ApiError = self.into();
+        api_error.into_response()
+    }
+}
+
+impl From<ClientErrorCode> for ErrorCode {
+    fn from(code: ClientErrorCode) -> Self {
+        match code {
+            ClientErrorCode::LicenseNotFound => ErrorCode::LicenseNotFound,
+            ClientErrorCode::AlreadyBound => ErrorCode::AlreadyBound,
+            ClientErrorCode::NotBound => ErrorCode::NotBound,
+            ClientErrorCode::HardwareMismatch => ErrorCode::HardwareMismatch,
+            ClientErrorCode::LicenseExpired => ErrorCode::LicenseExpired,
+            ClientErrorCode::LicenseRevoked => ErrorCode::LicenseRevoked,
+            ClientErrorCode::LicenseSuspended => ErrorCode::LicenseSuspended,
+            ClientErrorCode::LicenseBlacklisted => ErrorCode::LicenseBlacklisted,
+            ClientErrorCode::LicenseInactive => ErrorCode::LicenseInactive,
+            ClientErrorCode::FeatureNotIncluded => ErrorCode::FeatureNotIncluded,
+            ClientErrorCode::QuotaExceeded => ErrorCode::QuotaExceeded,
+            ClientErrorCode::InvalidRequest => ErrorCode::InvalidRequest,
+            ClientErrorCode::InternalError => ErrorCode::InternalError,
+        }
+    }
+}
+
+impl From<ClientError> for ApiError {
+    fn from(err: ClientError) -> Self {
+        let code: ErrorCode = err.error.into();
+        if let Some(device) = err.bound_device {
+            ApiError::with_details(
+                code,
+                err.message,
+                serde_json::json!({ "bound_device": device }),
+            )
+        } else {
+            ApiError::with_message(code, err.message)
+        }
     }
 }
 
@@ -115,6 +157,7 @@ impl IntoResponse for ClientError {
 
 /// Request to bind a license to hardware.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct BindRequest {
     /// The human-readable license key (e.g., "LIC-XXXX-XXXX-XXXX")
     pub license_key: String,
@@ -130,6 +173,7 @@ pub struct BindRequest {
 
 /// Response from a successful bind operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct BindResponse {
     pub success: bool,
     pub license_id: String,
@@ -142,6 +186,7 @@ pub struct BindResponse {
 
 /// Request to release a license from hardware.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReleaseRequest {
     /// The human-readable license key
     pub license_key: String,
@@ -151,6 +196,7 @@ pub struct ReleaseRequest {
 
 /// Response from a release operation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReleaseResponse {
     pub success: bool,
     pub message: String,
@@ -158,6 +204,7 @@ pub struct ReleaseResponse {
 
 /// Request to validate a license.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ValidateRequest {
     /// The human-readable license key
     pub license_key: String,
@@ -167,6 +214,7 @@ pub struct ValidateRequest {
 
 /// Response from validation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ValidateResponse {
     pub valid: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -185,6 +233,7 @@ pub struct ValidateResponse {
 
 /// Request for validate-or-bind operation.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ValidateOrBindRequest {
     /// The human-readable license key
     pub license_key: String,
@@ -200,6 +249,7 @@ pub struct ValidateOrBindRequest {
 
 /// Request for heartbeat.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ClientHeartbeatRequest {
     /// The human-readable license key
     pub license_key: String,
@@ -209,6 +259,7 @@ pub struct ClientHeartbeatRequest {
 
 /// Response from heartbeat.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ClientHeartbeatResponse {
     pub success: bool,
     pub server_time: String,
@@ -216,6 +267,7 @@ pub struct ClientHeartbeatResponse {
 
 /// Request to validate a specific feature.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ValidateFeatureRequest {
     /// The human-readable license key
     pub license_key: String,
@@ -227,6 +279,7 @@ pub struct ValidateFeatureRequest {
 
 /// Response from feature validation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ValidateFeatureResponse {
     /// Whether the feature is allowed
     pub allowed: bool,
@@ -249,6 +302,18 @@ pub struct ValidateFeatureResponse {
 /// - If unbound, binds to the provided hardware
 /// - If already bound to same hardware, returns success
 /// - If bound to different hardware, returns ALREADY_BOUND error
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/client/bind",
+    tag = "client",
+    request_body = BindRequest,
+    responses(
+        (status = 200, description = "License bound successfully", body = BindResponse),
+        (status = 400, description = "Invalid request", body = ClientError),
+        (status = 404, description = "License not found", body = ClientError),
+        (status = 409, description = "License already bound to different device", body = ClientError),
+    )
+))]
 pub async fn bind_handler(
     State(state): State<AppState>,
     Json(req): Json<BindRequest>,
@@ -352,9 +417,12 @@ pub async fn bind_handler(
         )
         .await;
 
-    info!(
-        "License {} bound to hardware {}",
-        req.license_key, req.hardware_id
+    // Log structured license binding event
+    log_license_binding_event(
+        LicenseEvent::Bound,
+        &req.license_key,
+        &req.hardware_id,
+        req.device_name.as_deref(),
     );
 
     Ok(Json(BindResponse {
@@ -372,6 +440,18 @@ pub async fn bind_handler(
 /// - Verifies hardware_id matches the bound hardware
 /// - Clears hardware binding fields
 /// - Records release in binding history
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/client/release",
+    tag = "client",
+    request_body = ReleaseRequest,
+    responses(
+        (status = 200, description = "License released successfully", body = ReleaseResponse),
+        (status = 403, description = "Hardware mismatch", body = ClientError),
+        (status = 404, description = "License not found", body = ClientError),
+        (status = 409, description = "License not bound", body = ClientError),
+    )
+))]
 pub async fn release_handler(
     State(state): State<AppState>,
     Json(req): Json<ReleaseRequest>,
@@ -432,9 +512,12 @@ pub async fn release_handler(
         )
         .await;
 
-    info!(
-        "License {} released from hardware {}",
-        req.license_key, req.hardware_id
+    // Log structured license release event
+    log_license_binding_event(
+        LicenseEvent::Released,
+        &req.license_key,
+        &req.hardware_id,
+        license.device_name.as_deref(),
     );
 
     Ok(Json(ReleaseResponse {
@@ -451,6 +534,18 @@ pub async fn release_handler(
 /// - Checks license is bound to the provided hardware
 /// - Updates last_seen_at timestamp
 /// - Returns license details including features and tier
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/client/validate",
+    tag = "client",
+    request_body = ValidateRequest,
+    responses(
+        (status = 200, description = "License validated successfully", body = ValidateResponse),
+        (status = 403, description = "License expired, revoked, or hardware mismatch", body = ClientError),
+        (status = 404, description = "License not found", body = ClientError),
+        (status = 409, description = "License not bound", body = ClientError),
+    )
+))]
 pub async fn validate_handler(
     State(state): State<AppState>,
     Json(req): Json<ValidateRequest>,
@@ -555,7 +650,8 @@ pub async fn validate_handler(
         warning: warning_msg,
     };
 
-    info!("License {} validated successfully", req.license_key);
+    // Log structured license validation event
+    log_license_event(LicenseEvent::Validated, &req.license_key, None);
 
     Ok(Json(response))
 }
@@ -566,6 +662,18 @@ pub async fn validate_handler(
 /// - If bound to this hardware: validate and return
 /// - If unbound: bind first, then validate
 /// - If bound to other hardware: return ALREADY_BOUND error
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/client/validate-or-bind",
+    tag = "client",
+    request_body = ValidateOrBindRequest,
+    responses(
+        (status = 200, description = "License validated (and bound if needed)", body = ValidateResponse),
+        (status = 403, description = "License expired, revoked, or invalid", body = ClientError),
+        (status = 404, description = "License not found", body = ClientError),
+        (status = 409, description = "License already bound to different device", body = ClientError),
+    )
+))]
 pub async fn validate_or_bind_handler(
     State(state): State<AppState>,
     Json(req): Json<ValidateOrBindRequest>,
@@ -662,9 +770,12 @@ pub async fn validate_or_bind_handler(
             )
             .await;
 
-        info!(
-            "License {} auto-bound to hardware {}",
-            req.license_key, req.hardware_id
+        // Log structured license binding event
+        log_license_binding_event(
+            LicenseEvent::Bound,
+            &req.license_key,
+            &req.hardware_id,
+            req.device_name.as_deref(),
         );
     }
 
@@ -698,6 +809,9 @@ pub async fn validate_or_bind_handler(
         warning: warning_msg,
     };
 
+    // Log structured validation event
+    log_license_event(LicenseEvent::Validated, &req.license_key, None);
+
     Ok(Json(response))
 }
 
@@ -707,6 +821,18 @@ pub async fn validate_or_bind_handler(
 /// - Verifies license exists and is bound to the provided hardware
 /// - Updates last_seen_at timestamp
 /// - Returns server timestamp
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/client/heartbeat",
+    tag = "client",
+    request_body = ClientHeartbeatRequest,
+    responses(
+        (status = 200, description = "Heartbeat recorded", body = ClientHeartbeatResponse),
+        (status = 403, description = "Hardware mismatch", body = ClientError),
+        (status = 404, description = "License not found", body = ClientError),
+        (status = 409, description = "License not bound", body = ClientError),
+    )
+))]
 pub async fn client_heartbeat_handler(
     State(state): State<AppState>,
     Json(req): Json<ClientHeartbeatRequest>,
@@ -753,6 +879,9 @@ pub async fn client_heartbeat_handler(
             ClientError::new(ClientErrorCode::InternalError, "Failed to update heartbeat")
         })?;
 
+    // Log structured heartbeat event
+    log_license_event(LicenseEvent::Heartbeat, &req.license_key, None);
+
     Ok(Json(ClientHeartbeatResponse {
         success: true,
         server_time: Utc::now().to_rfc3339(),
@@ -767,6 +896,17 @@ pub async fn client_heartbeat_handler(
 /// - Checks if the feature is in the tier's features (if tier is set)
 /// - Checks if the feature is restricted due to quota exceeded
 /// - Returns allowed: true/false with appropriate message
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/api/v1/client/validate-feature",
+    tag = "client",
+    request_body = ValidateFeatureRequest,
+    responses(
+        (status = 200, description = "Feature validation result", body = ValidateFeatureResponse),
+        (status = 403, description = "Feature not included or quota exceeded", body = ClientError),
+        (status = 404, description = "License not found", body = ClientError),
+    )
+))]
 pub async fn validate_feature_handler(
     State(state): State<AppState>,
     Json(req): Json<ValidateFeatureRequest>,

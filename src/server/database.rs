@@ -207,6 +207,28 @@ impl Database {
         }
     }
 
+    /// Returns the database type as a string ("sqlite" or "postgres").
+    pub fn db_type(&self) -> &'static str {
+        match self {
+            #[cfg(feature = "sqlite")]
+            Database::SQLite(_) => "sqlite",
+            #[cfg(feature = "postgres")]
+            Database::Postgres(_) => "postgres",
+        }
+    }
+
+    /// Check database connectivity by running a simple query.
+    ///
+    /// Returns `true` if the database is reachable, `false` otherwise.
+    pub async fn health_check(&self) -> bool {
+        match self {
+            #[cfg(feature = "sqlite")]
+            Database::SQLite(pool) => sqlx::query("SELECT 1").fetch_one(pool).await.is_ok(),
+            #[cfg(feature = "postgres")]
+            Database::Postgres(pool) => sqlx::query("SELECT 1").fetch_one(pool).await.is_ok(),
+        }
+    }
+
     /// Insert a new license or update an existing one.
     ///
     /// This acts like an "upsert" keyed on `license_id`:

@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 
-use axum::{routing::post, Router};
 use tokio::net::TcpListener;
 use tracing::{info, warn};
 
@@ -8,10 +7,8 @@ use talos::config::init_config;
 use talos::errors::{LicenseError, LicenseResult};
 use talos::server::bootstrap::{check_bootstrap_token, execute_token_command, parse_token_command};
 use talos::server::database::Database;
-use talos::server::handlers::{
-    activate_license_handler, deactivate_license_handler, heartbeat_handler,
-    validate_license_handler, AppState,
-};
+use talos::server::handlers::AppState;
+use talos::server::routes::build_router;
 
 #[cfg(feature = "jwt-auth")]
 use talos::server::auth::AuthState;
@@ -57,13 +54,8 @@ async fn main() -> LicenseResult<()> {
         auth,
     };
 
-    // Set up the Axum router with routes for license management
-    let app = Router::new()
-        .route("/activate", post(activate_license_handler))
-        .route("/validate", post(validate_license_handler))
-        .route("/deactivate", post(deactivate_license_handler))
-        .route("/heartbeat", post(heartbeat_handler))
-        .with_state(state);
+    // Set up the Axum router with all routes (legacy, client API, admin API, Swagger UI)
+    let app = build_router(state);
 
     // Bind to address from config
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port)

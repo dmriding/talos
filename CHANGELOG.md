@@ -6,6 +6,80 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v2025.12.3 — 2026-01-05
+
+### Added
+
+#### Phase 7.1: OpenAPI Specification
+- `openapi` feature flag for optional OpenAPI/Swagger integration
+- `utoipa` and `utoipa-swagger-ui` dependencies for OpenAPI 3.0 generation
+- `/swagger-ui` endpoint for interactive API documentation
+- `/api-docs/openapi.json` endpoint for OpenAPI specification
+- `#[utoipa::path]` annotations on all handler functions
+- `ToSchema` derives on all request/response structs
+- `ApiDoc` and `ApiDocWithAdmin` structs for conditional endpoint documentation
+- Bearer token authentication scheme documented in OpenAPI spec
+
+#### Phase 7.3: Logging & Observability
+- **Request Logging Middleware** (`src/server/logging.rs`)
+  - Automatic request ID generation (UUID v4)
+  - `X-Request-Id` header added to all responses
+  - Request timing with millisecond precision
+  - Tracing spans for request context
+- **Health Check Endpoint** (`GET /health`)
+  - Service status ("healthy" or "degraded")
+  - Database connectivity check
+  - Database type reporting (sqlite/postgres)
+  - Service version from `Cargo.toml`
+- **Structured License Event Logging**
+  - `LicenseEvent` enum for all license state changes
+  - `log_license_event()` for state changes (created, revoked, etc.)
+  - `log_license_binding_event()` for hardware binding events
+  - Events: `Created`, `Bound`, `Released`, `Validated`, `ValidationFailed`, `Activated`, `Deactivated`, `Revoked`, `Reinstated`, `Suspended`, `Extended`, `Blacklisted`, `Heartbeat`, `UsageUpdated`
+- Health endpoint added to OpenAPI documentation with "system" tag
+
+#### Phase 7.2: Error Response Standardization
+- **New `ApiError` struct** - Unified error response format across all endpoints:
+  ```json
+  {
+    "error": {
+      "code": "LICENSE_NOT_FOUND",
+      "message": "The requested license does not exist",
+      "details": null
+    }
+  }
+  ```
+- **`ErrorCode` enum** - 27 machine-readable error codes:
+  - License state: `LICENSE_NOT_FOUND`, `LICENSE_EXPIRED`, `LICENSE_REVOKED`, `LICENSE_SUSPENDED`, `LICENSE_BLACKLISTED`, `LICENSE_INACTIVE`
+  - Hardware binding: `ALREADY_BOUND`, `NOT_BOUND`, `HARDWARE_MISMATCH`
+  - Features/quotas: `FEATURE_NOT_INCLUDED`, `QUOTA_EXCEEDED`
+  - Validation: `INVALID_REQUEST`, `MISSING_FIELD`, `INVALID_FIELD`
+  - Authentication: `MISSING_TOKEN`, `INVALID_HEADER`, `INVALID_TOKEN`, `TOKEN_EXPIRED`, `INSUFFICIENT_SCOPE`, `AUTH_DISABLED`
+  - Server errors: `NOT_FOUND`, `CONFLICT`, `DATABASE_ERROR`, `CONFIG_ERROR`, `CRYPTO_ERROR`, `NETWORK_ERROR`, `INTERNAL_ERROR`
+- **Convenience constructors** - `ApiError::license_not_found()`, `invalid_field()`, `missing_field()`, `not_found()`, `database_error()`, `internal_error()`
+- **Error conversions** - `From<LicenseError>`, `From<AdminError>`, `From<ClientError>`, `From<AuthError>` for `ApiError`
+- Error codes documented in README.md with HTTP status mappings
+
+### Changed
+- `main.rs` now uses `build_router()` instead of manually creating routes (enables Swagger UI)
+- `LicenseError::IntoResponse` now delegates to `ApiError` for consistent format
+- `AdminError::IntoResponse` now delegates to `ApiError`
+- `ClientError::IntoResponse` now delegates to `ApiError`
+- `AuthError::IntoResponse` now delegates to `ApiError`
+- Updated test assertions to use new error response format (`body["error"]["message"]`)
+
+### Fixed
+- Duplicate `AuthState` import in `main.rs` from merge conflict
+- Swagger UI returning 404 (main.rs wasn't using `build_router()`)
+
+### Tests
+- 4 new unit tests for `ApiError` and `ErrorCode`
+- 3 new unit tests for `LicenseEvent` and health response
+- Updated 16 admin API tests for new error format
+- Total test count: 168+ tests passing
+
+---
+
 ## v2025.12.2 — 2026-01-03
 
 ### Added
