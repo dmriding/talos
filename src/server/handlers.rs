@@ -295,3 +295,28 @@ pub async fn heartbeat_handler(
 
     Ok(Json(HeartbeatResponse { success: updated }))
 }
+
+/// Health check handler.
+///
+/// Returns the service health status including database connectivity.
+/// This endpoint is useful for load balancers and monitoring systems.
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = "/health",
+    tag = "system",
+    responses(
+        (status = 200, description = "Service health status", body = crate::server::logging::HealthResponse),
+    )
+))]
+pub async fn health_handler(
+    State(state): State<AppState>,
+) -> Json<crate::server::logging::HealthResponse> {
+    // Check database connectivity
+    let db_connected = state.db.health_check().await;
+    let db_type = state.db.db_type();
+
+    Json(crate::server::logging::HealthResponse::healthy(
+        db_connected,
+        db_type,
+    ))
+}

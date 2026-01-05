@@ -34,12 +34,15 @@ use utoipa::OpenApi;
         (url = "/", description = "Local server")
     ),
     tags(
+        (name = "system", description = "System health and status endpoints"),
         (name = "client", description = "Client endpoints for license validation and binding"),
         (name = "admin", description = "Admin endpoints for license management (requires authentication)"),
         (name = "tokens", description = "API token management endpoints"),
         (name = "legacy", description = "Legacy endpoints for backwards compatibility")
     ),
     paths(
+        // System endpoints
+        crate::server::handlers::health_handler,
         // Client API endpoints
         crate::server::client_api::bind_handler,
         crate::server::client_api::release_handler,
@@ -105,12 +108,15 @@ pub struct ApiDoc;
         (url = "/", description = "Local server")
     ),
     tags(
+        (name = "system", description = "System health and status endpoints"),
         (name = "client", description = "Client endpoints for license validation and binding"),
         (name = "admin", description = "Admin endpoints for license management (requires authentication)"),
         (name = "tokens", description = "API token management endpoints"),
         (name = "legacy", description = "Legacy endpoints for backwards compatibility")
     ),
     paths(
+        // System endpoints
+        crate::server::handlers::health_handler,
         // Client API endpoints
         crate::server::client_api::bind_handler,
         crate::server::client_api::release_handler,

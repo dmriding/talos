@@ -526,14 +526,14 @@ bandwidth_gb = 0  # unlimited
 - [x] Include error codes in all responses (unified format)
 - [x] Document all error codes (README.md)
 
-### 7.3 Logging & Observability
+### 7.3 Logging & Observability ✅
 
-- [ ] Add structured logging with `tracing`
-- [ ] Log all API requests with timing
-- [ ] Log all license state changes
-- [ ] Add request ID tracking
-- [ ] Add health check endpoint (`GET /health`)
-- [ ] Add metrics endpoint (optional)
+- [x] Add structured logging with `tracing`
+- [x] Log all API requests with timing
+- [x] Log all license state changes
+- [x] Add request ID tracking
+- [x] Add health check endpoint (`GET /health`)
+- [ ] Add metrics endpoint (optional, deferred)
 
 ---
 

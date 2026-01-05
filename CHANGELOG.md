@@ -20,6 +20,24 @@ Format: `vYYYY.MM.INCREMENT`
 - `ApiDoc` and `ApiDocWithAdmin` structs for conditional endpoint documentation
 - Bearer token authentication scheme documented in OpenAPI spec
 
+#### Phase 7.3: Logging & Observability
+- **Request Logging Middleware** (`src/server/logging.rs`)
+  - Automatic request ID generation (UUID v4)
+  - `X-Request-Id` header added to all responses
+  - Request timing with millisecond precision
+  - Tracing spans for request context
+- **Health Check Endpoint** (`GET /health`)
+  - Service status ("healthy" or "degraded")
+  - Database connectivity check
+  - Database type reporting (sqlite/postgres)
+  - Service version from `Cargo.toml`
+- **Structured License Event Logging**
+  - `LicenseEvent` enum for all license state changes
+  - `log_license_event()` for state changes (created, revoked, etc.)
+  - `log_license_binding_event()` for hardware binding events
+  - Events: `Created`, `Bound`, `Released`, `Validated`, `ValidationFailed`, `Activated`, `Deactivated`, `Revoked`, `Reinstated`, `Suspended`, `Extended`, `Blacklisted`, `Heartbeat`, `UsageUpdated`
+- Health endpoint added to OpenAPI documentation with "system" tag
+
 #### Phase 7.2: Error Response Standardization
 - **New `ApiError` struct** - Unified error response format across all endpoints:
   ```json
@@ -56,8 +74,9 @@ Format: `vYYYY.MM.INCREMENT`
 
 ### Tests
 - 4 new unit tests for `ApiError` and `ErrorCode`
+- 3 new unit tests for `LicenseEvent` and health response
 - Updated 16 admin API tests for new error format
-- Total test count: 165+ tests passing
+- Total test count: 168+ tests passing
 
 ---
 

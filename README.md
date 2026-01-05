@@ -275,6 +275,26 @@ cargo run --bin talos_server --features "openapi,admin-api"
 
 Then navigate to `http://127.0.0.1:8080/swagger-ui` in your browser.
 
+### System Endpoints (always available)
+
+| Method | Endpoint      | Description                        |
+|--------|---------------|------------------------------------|
+| GET    | `/health`     | Health check with database status  |
+
+The health endpoint returns:
+
+```json
+{
+  "status": "healthy",
+  "service": "talos",
+  "version": "0.1.0",
+  "database": {
+    "connected": true,
+    "db_type": "sqlite"
+  }
+}
+```
+
 ### Legacy Client Endpoints (always available)
 
 | Method | Endpoint      | Description              |
@@ -419,7 +439,7 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 7.2 Complete**
+**Current Status: Phase 7.3 Complete**
 
 - Activation/validation/deactivation
 - Heartbeat mechanism
@@ -439,10 +459,11 @@ See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans
 - Request validation utilities (UUID, license key, hardware ID, datetime formats)
 - OpenAPI 3.0 specification with Swagger UI
 - Standardized error response format
+- Logging & observability (request ID tracking, health check, structured license event logging)
 
 **Upcoming:**
 
-- Logging & Observability (request tracking, health check)
+- Client library updates (new methods for bind/release/validate-feature)
 - Webhook notifications
 - Dashboard UI
 - Analytics and reporting

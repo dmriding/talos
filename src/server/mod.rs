@@ -19,6 +19,7 @@ pub mod bootstrap;
 pub mod client_api;
 pub mod database;
 pub mod handlers;
+pub mod logging;
 #[cfg(feature = "openapi")]
 pub mod openapi;
 pub mod routes;
@@ -92,6 +93,11 @@ pub use bootstrap::{
 };
 
 pub use api_error::{ApiError, ErrorBody, ErrorCode};
+
+pub use logging::{
+    generate_request_id, log_license_binding_event, log_license_event, request_logging_middleware,
+    DatabaseHealth, HealthResponse, LicenseEvent, REQUEST_ID_HEADER,
+};
 
 #[cfg(feature = "openapi")]
 pub use openapi::get_openapi;

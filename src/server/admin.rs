@@ -41,6 +41,7 @@ use crate::license_key::{generate_license_key, LicenseKeyConfig};
 use crate::server::api_error::{ApiError, ErrorCode};
 use crate::server::database::{Database, License};
 use crate::server::handlers::AppState;
+use crate::server::logging::{log_license_event, LicenseEvent};
 use crate::tiers::get_tier_features;
 
 // ============================================================================
@@ -398,10 +399,8 @@ pub async fn create_license_handler(
 
     state.db.insert_license(license.clone()).await?;
 
-    info!(
-        "Created license license_id={} license_key={}",
-        license_id, license_key
-    );
+    // Log structured license creation event
+    log_license_event(LicenseEvent::Created, &license_id, Some(&license_key));
 
     Ok((StatusCode::CREATED, Json(license.into())))
 }
@@ -927,7 +926,12 @@ pub async fn revoke_license_handler(
 
         state.db.insert_license(license).await?;
 
-        info!("License {} revoked immediately", license_id);
+        // Log structured revoke event
+        log_license_event(
+            LicenseEvent::Revoked,
+            &license_id,
+            payload.reason.as_deref(),
+        );
 
         Ok(Json(RevokeLicenseResponse {
             success: true,
@@ -948,9 +952,11 @@ pub async fn revoke_license_handler(
 
         state.db.insert_license(license).await?;
 
-        info!(
-            "License {} suspended with grace period until {}",
-            license_id, grace_end
+        // Log structured suspend event
+        log_license_event(
+            LicenseEvent::Suspended,
+            &license_id,
+            Some(&format!("grace period until {}", grace_end)),
         );
 
         Ok(Json(RevokeLicenseResponse {
@@ -1052,9 +1058,11 @@ pub async fn reinstate_license_handler(
 
     state.db.insert_license(license).await?;
 
-    info!(
-        "License {} reinstated, reason={:?}",
-        license_id, payload.reason
+    // Log structured reinstate event
+    log_license_event(
+        LicenseEvent::Reinstated,
+        &license_id,
+        payload.reason.as_deref(),
     );
 
     Ok(Json(ReinstateLicenseResponse {
@@ -1127,9 +1135,11 @@ pub async fn extend_license_handler(
 
     state.db.insert_license(license).await?;
 
-    info!(
-        "License {} extended to {}, reason={:?}",
-        license_id, new_expires_at, payload.reason
+    // Log structured extend event
+    log_license_event(
+        LicenseEvent::Extended,
+        &license_id,
+        Some(&format!("extended to {}", new_expires_at)),
     );
 
     Ok(Json(ExtendLicenseResponse {
@@ -1366,9 +1376,11 @@ pub async fn blacklist_license_handler(
 
     state.db.insert_license(license).await?;
 
-    info!(
-        "License {} blacklisted at {} for reason: {}",
-        license_id, now, payload.reason
+    // Log structured blacklist event
+    log_license_event(
+        LicenseEvent::Blacklisted,
+        &license_id,
+        Some(&payload.reason),
     );
 
     Ok(Json(BlacklistLicenseResponse {

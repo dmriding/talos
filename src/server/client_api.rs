@@ -28,6 +28,7 @@ use utoipa::ToSchema;
 use crate::server::api_error::{ApiError, ErrorCode};
 use crate::server::database::{BindingAction, PerformedBy};
 use crate::server::handlers::AppState;
+use crate::server::logging::{log_license_binding_event, log_license_event, LicenseEvent};
 use crate::tiers::get_tier_config;
 
 /// Error codes for client API responses.
@@ -416,9 +417,12 @@ pub async fn bind_handler(
         )
         .await;
 
-    info!(
-        "License {} bound to hardware {}",
-        req.license_key, req.hardware_id
+    // Log structured license binding event
+    log_license_binding_event(
+        LicenseEvent::Bound,
+        &req.license_key,
+        &req.hardware_id,
+        req.device_name.as_deref(),
     );
 
     Ok(Json(BindResponse {
@@ -508,9 +512,12 @@ pub async fn release_handler(
         )
         .await;
 
-    info!(
-        "License {} released from hardware {}",
-        req.license_key, req.hardware_id
+    // Log structured license release event
+    log_license_binding_event(
+        LicenseEvent::Released,
+        &req.license_key,
+        &req.hardware_id,
+        license.device_name.as_deref(),
     );
 
     Ok(Json(ReleaseResponse {
@@ -643,7 +650,8 @@ pub async fn validate_handler(
         warning: warning_msg,
     };
 
-    info!("License {} validated successfully", req.license_key);
+    // Log structured license validation event
+    log_license_event(LicenseEvent::Validated, &req.license_key, None);
 
     Ok(Json(response))
 }
@@ -762,9 +770,12 @@ pub async fn validate_or_bind_handler(
             )
             .await;
 
-        info!(
-            "License {} auto-bound to hardware {}",
-            req.license_key, req.hardware_id
+        // Log structured license binding event
+        log_license_binding_event(
+            LicenseEvent::Bound,
+            &req.license_key,
+            &req.hardware_id,
+            req.device_name.as_deref(),
         );
     }
 
@@ -797,6 +808,9 @@ pub async fn validate_or_bind_handler(
         grace_period_ends_at: grace_period_ends,
         warning: warning_msg,
     };
+
+    // Log structured validation event
+    log_license_event(LicenseEvent::Validated, &req.license_key, None);
 
     Ok(Json(response))
 }
@@ -864,6 +878,9 @@ pub async fn client_heartbeat_handler(
             warn!("Failed to update last_seen: {}", e);
             ClientError::new(ClientErrorCode::InternalError, "Failed to update heartbeat")
         })?;
+
+    // Log structured heartbeat event
+    log_license_event(LicenseEvent::Heartbeat, &req.license_key, None);
 
     Ok(Json(ClientHeartbeatResponse {
         success: true,
