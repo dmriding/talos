@@ -1,18 +1,17 @@
 use std::env;
 
-use talos::client::client::License;
+use talos::client::License;
 use talos::config::{get_heartbeat_interval, get_server_url, is_logging_enabled};
 
 fn dummy_license(server_url: &str) -> License {
-    License {
-        license_id: "LICENSE-12345".to_string(),
-        client_id: "CLIENT-67890".to_string(),
-        expiry_date: "2025-12-31".to_string(),
-        features: vec!["feature1".to_string(), "feature2".to_string()],
-        server_url: server_url.to_string(),
-        signature: "test-signature".to_string(),
-        is_active: true,
-    }
+    let mut license = License::new("LICENSE-12345".to_string(), server_url.to_string());
+    license.license_id = "LICENSE-12345".to_string();
+    license.client_id = "CLIENT-67890".to_string();
+    license.expiry_date = "2025-12-31".to_string();
+    license.features = vec!["feature1".to_string(), "feature2".to_string()];
+    license.signature = "test-signature".to_string();
+    license.is_active = true;
+    license
 }
 
 #[test]

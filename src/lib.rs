@@ -31,10 +31,19 @@ pub mod tiers;
 
 // Client-related modules (always available)
 pub mod client {
+    pub mod cache;
     pub mod encrypted_storage;
+    pub mod errors;
     pub mod heartbeat;
     pub mod key_generation;
     pub mod license;
+    pub mod responses;
+
+    // Re-export main types at client module level
+    pub use cache::CachedValidation;
+    pub use errors::{ClientApiError, ClientErrorCode};
+    pub use license::License;
+    pub use responses::{BindResult, FeatureResult, HeartbeatResult, ValidationResult};
 
     // Re-export for backwards compatibility
     pub use license as client;

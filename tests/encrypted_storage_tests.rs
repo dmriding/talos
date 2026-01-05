@@ -1,7 +1,7 @@
-use talos::client::client::License;
 use talos::client::encrypted_storage::{
     clear_license_from_disk, load_license_from_disk, save_license_to_disk,
 };
+use talos::client::License;
 use talos::errors::LicenseError;
 
 /// Round-trip test: save a License, load it back, and verify all fields.
@@ -10,16 +10,18 @@ async fn test_license_encryption_storage_round_trip() {
     // Clean up any existing encrypted license before running the test
     let _ = clear_license_from_disk().await;
 
-    // Construct a sample license
-    let original = License {
-        license_id: "TEST-LICENSE-001".to_string(),
-        client_id: "TEST-CLIENT-ID".to_string(),
-        expiry_date: "2099-01-01T00:00:00Z".to_string(),
-        features: vec!["feature_a".into(), "feature_b".into()],
-        server_url: "http://127.0.0.1:8080".to_string(),
-        signature: "dummy-signature".to_string(),
-        is_active: true,
-    };
+    // Construct a sample license using the new constructor
+    let mut original = License::new(
+        "TEST-LICENSE-001".to_string(),
+        "http://127.0.0.1:8080".to_string(),
+    );
+    original.license_id = "TEST-LICENSE-001".to_string();
+    original.client_id = "TEST-CLIENT-ID".to_string();
+    original.hardware_id = "TEST-HARDWARE-ID".to_string();
+    original.expiry_date = "2099-01-01T00:00:00Z".to_string();
+    original.features = vec!["feature_a".into(), "feature_b".into()];
+    original.signature = "dummy-signature".to_string();
+    original.is_active = true;
 
     // Encrypt and store the license
     save_license_to_disk(&original)

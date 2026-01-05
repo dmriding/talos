@@ -354,6 +354,27 @@ impl From<LicenseError> for ApiError {
             }
             LicenseError::ServerError(msg) => ApiError::with_message(ErrorCode::InternalError, msg),
             LicenseError::UnknownError => ApiError::new(ErrorCode::InternalError),
+            LicenseError::ClientApiError(e) => {
+                // Map client error codes to server error codes
+                use crate::client::errors::ClientErrorCode;
+                let code = match e.code {
+                    ClientErrorCode::LicenseNotFound => ErrorCode::LicenseNotFound,
+                    ClientErrorCode::LicenseExpired => ErrorCode::LicenseExpired,
+                    ClientErrorCode::LicenseRevoked => ErrorCode::LicenseRevoked,
+                    ClientErrorCode::LicenseSuspended => ErrorCode::LicenseSuspended,
+                    ClientErrorCode::LicenseBlacklisted => ErrorCode::LicenseBlacklisted,
+                    ClientErrorCode::LicenseInactive => ErrorCode::LicenseInactive,
+                    ClientErrorCode::AlreadyBound => ErrorCode::AlreadyBound,
+                    ClientErrorCode::NotBound => ErrorCode::NotBound,
+                    ClientErrorCode::HardwareMismatch => ErrorCode::HardwareMismatch,
+                    ClientErrorCode::FeatureNotIncluded => ErrorCode::FeatureNotIncluded,
+                    ClientErrorCode::QuotaExceeded => ErrorCode::QuotaExceeded,
+                    ClientErrorCode::GracePeriodExpired
+                    | ClientErrorCode::InternalError
+                    | ClientErrorCode::Unknown => ErrorCode::InternalError,
+                };
+                ApiError::with_message(code, e.message)
+            }
         }
     }
 }

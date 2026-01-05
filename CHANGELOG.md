@@ -6,6 +6,72 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v2025.12.4 — 2026-01-05
+
+### Added
+
+#### Phase 8: Client Library Updates
+- **New Client Error Types** (`src/client/errors.rs`)
+  - `ClientErrorCode` enum matching server error codes (LICENSE_NOT_FOUND, LICENSE_EXPIRED, etc.)
+  - `ClientApiError` struct for typed API error handling
+  - `ClientApiError::from_response()` for async error parsing
+  - `From<reqwest::Error>` conversion for network errors
+- **Response Types** (`src/client/responses.rs`)
+  - `ValidationResult` - Online validation response (features, tier, expires_at, warning)
+  - `BindResult` - Hardware binding response (license_id, features, tier, expires_at)
+  - `FeatureResult` - Feature validation response (allowed, message, tier)
+  - `HeartbeatResult` - Heartbeat response (server_time, grace_period_ends_at)
+  - Helper methods: `ValidationResult::has_feature()`, `BindResult::has_feature()`
+- **Secure Cache for Offline Validation** (`src/client/cache.rs`)
+  - `CachedValidation` struct for encrypted offline validation data
+  - AES-256-GCM encryption with hardware-bound key derivation
+  - Salt-based key derivation using SHA-256 HKDF
+  - Helper methods: `is_valid_for_offline()`, `is_license_expired()`, `grace_period_remaining()`, `matches_hardware()`, `has_feature()`
+  - Tamper detection via GCM authentication tag
+- **New License Methods** (`src/client/license.rs`)
+  - `License::new(license_key, server_url)` - Primary constructor
+  - `bind(device_name, device_info) -> BindResult` - Hardware binding (replaces `activate()`)
+  - `release()` - Release hardware binding (replaces `deactivate()`)
+  - `validate() -> ValidationResult` - Online validation with cache update
+  - `validate_offline() -> ValidationResult` - Cached validation for air-gapped systems
+  - `validate_with_fallback() -> ValidationResult` - Online with offline fallback
+  - `validate_feature(feature) -> FeatureResult` - Server-side feature check
+  - `heartbeat() -> HeartbeatResult` - Heartbeat with grace period update
+- **Air-Gapped System Support**
+  - Server-provided grace periods stored in encrypted cache
+  - `validate_offline()` returns warning when grace period nearing expiration
+  - Cache automatically updated on each `validate()` or `heartbeat()` call
+  - Hardware binding ensures cache cannot be copied between machines
+
+### Changed
+- `License` struct now uses `license_key` as primary identifier (not `license_id`)
+- `License::bind()` now sets `hardware_id` automatically from system fingerprint
+- `validate()` updates the encrypted cache on success
+- `heartbeat()` updates the cache grace period on success
+- Legacy `activate()` and `deactivate()` marked as `#[deprecated]` with migration guidance
+- `LicenseError` enum extended with `ClientApiError(ClientApiError)` variant
+
+### Deprecated
+- `License::activate()` - Use `License::bind()` instead
+- `License::deactivate()` - Use `License::release()` instead
+- Legacy fields (`license_id`, `client_id`, `expiry_date`, `signature`, `is_active`) - Use new v1 API fields
+
+### Tests
+- 5 new unit tests for `ClientApiError` parsing
+- 4 new unit tests for response type parsing
+- 8 new unit tests for cache encryption/decryption and tamper detection
+- 3 new unit tests for offline validation grace period logic
+- Integration test `integration_test_v1_api_lifecycle` for full v1 API flow
+- Updated existing tests for new `License::new()` constructor
+- Total test count: 192 tests passing
+
+### Documentation
+- Updated README.md with new client API examples
+- Added air-gapped system usage examples
+- Added code examples for `validate_with_fallback()`
+
+---
+
 ## v2025.12.3 — 2026-01-05
 
 ### Added
