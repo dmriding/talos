@@ -22,6 +22,8 @@ async fn setup_test_app() -> AppState {
     // Use an in-memory SQLite database for testing
     std::env::set_var("TALOS_DATABASE_TYPE", "sqlite");
     std::env::set_var("TALOS_DATABASE_URL", "sqlite::memory:");
+    // Disable IP whitelist for tests (tower::oneshot doesn't provide ConnectInfo)
+    std::env::set_var("TALOS_ADMIN_IP_WHITELIST", "");
 
     let db = Database::new().await.expect("failed to create database");
 

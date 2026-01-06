@@ -9,18 +9,22 @@
 # - TALOS_DATABASE_URL, TALOS_DATABASE_TYPE
 # - TALOS_LICENSE_KEY_PREFIX
 # - TALOS_LOG_LEVEL, TALOS_LOGGING_ENABLED
+# - TALOS_AUTH_ENABLED, TALOS_JWT_SECRET
+# - See .env.example for the full list
 
 # =============================================================================
 # Server Configuration
 # =============================================================================
 [server]
 # Host address to bind to (default: "127.0.0.1")
+# Use "0.0.0.0" to listen on all interfaces (required for Docker)
 host = "127.0.0.1"
 
 # Port to listen on (default: 8080)
 port = 8080
 
 # Heartbeat interval in seconds (default: 60)
+# Clients should send heartbeats at this interval to confirm they're still active
 heartbeat_interval = 60
 
 # =============================================================================
@@ -29,6 +33,7 @@ heartbeat_interval = 60
 [license]
 # Prefix for generated license keys (default: "LIC")
 # Example: "LIC" -> "LIC-A1B2-C3D4-E5F6-G7H8"
+# Customize this per product: "MYAPP", "PRO", etc.
 key_prefix = "LIC"
 
 # Number of segments in the license key (default: 4)
@@ -45,10 +50,13 @@ key_segment_length = 4
 db_type = "sqlite"
 
 # SQLite connection URL (used when db_type = "sqlite")
+# For file-based: sqlite://talos.db or sqlite:///absolute/path/talos.db
+# For in-memory: sqlite::memory:
 sqlite_url = "sqlite://talos.db"
 
 # PostgreSQL connection URL (used when db_type = "postgres")
-# postgres_url = "postgres://username:password@localhost/talos"
+# Format: postgres://username:password@host:port/database
+# postgres_url = "postgres://talos:secretpassword@localhost:5432/talos"
 
 # =============================================================================
 # Logging Configuration
@@ -59,3 +67,90 @@ enabled = true
 
 # Log level: trace, debug, info, warn, error (default: "info")
 level = "info"
+
+# =============================================================================
+# JWT Authentication (requires "jwt-auth" feature)
+# =============================================================================
+[auth]
+# Enable JWT authentication for admin API endpoints (default: false)
+# When enabled, all /api/v1/* admin endpoints require a valid JWT token
+enabled = false
+
+# JWT secret key for signing/validating tokens
+# IMPORTANT: Use a strong, random secret in production (minimum 32 characters)
+# Can use "env:TALOS_JWT_SECRET" to read from environment variable
+jwt_secret = ""
+
+# JWT issuer claim (iss) - identifies who issued the token
+jwt_issuer = "talos"
+
+# JWT audience claim (aud) - identifies intended recipients
+jwt_audience = "talos-api"
+
+# Token expiration time in seconds (default: 3600 = 1 hour)
+token_expiration_secs = 3600
+
+# =============================================================================
+# Rate Limiting (requires "rate-limiting" feature)
+# =============================================================================
+[rate_limit]
+# Enable rate limiting for public client endpoints (default: true)
+enabled = true
+
+# Requests per minute for /api/v1/client/validate endpoint
+validate_rpm = 100
+
+# Requests per minute for /api/v1/client/heartbeat endpoint
+heartbeat_rpm = 60
+
+# Requests per minute for /api/v1/client/bind and /release endpoints
+bind_rpm = 10
+
+# Burst size - allows short bursts above the limit
+burst_size = 5
+
+# =============================================================================
+# Admin API Security
+# =============================================================================
+[admin]
+# IP whitelist for admin API access (default: empty = allow all)
+#
+# When non-empty, only requests from these IPs/CIDRs can access admin endpoints.
+# Supports individual IPs and CIDR notation for network ranges.
+#
+# Example configurations:
+# - Localhost only: ip_whitelist = ["127.0.0.1", "::1"]
+# - Internal network: ip_whitelist = ["10.0.0.0/8", "192.168.0.0/16"]
+# - Specific servers: ip_whitelist = ["10.0.1.5", "10.0.1.6"]
+#
+# IMPORTANT: When behind a reverse proxy, ensure X-Forwarded-For or X-Real-IP
+# headers are set correctly, as the middleware uses these to determine client IP.
+ip_whitelist = []
+
+# Enable audit logging for admin actions (default: false)
+# When enabled, logs all admin API actions with user/token ID
+audit_logging = false
+
+# =============================================================================
+# Tier Configuration
+# =============================================================================
+# Define your license tiers here. Each tier has a set of features and
+# optional bandwidth limits.
+#
+# Example tiers:
+
+[tiers.free]
+features = []
+bandwidth_gb = 0
+
+[tiers.starter]
+features = ["feature_basic"]
+bandwidth_gb = 10
+
+[tiers.pro]
+features = ["feature_basic", "feature_advanced"]
+bandwidth_gb = 100
+
+[tiers.enterprise]
+features = ["feature_basic", "feature_advanced", "feature_premium", "feature_api"]
+bandwidth_gb = 0  # 0 = unlimited

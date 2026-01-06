@@ -6,6 +6,53 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v2025.12.6 — 2026-01-06
+
+### Added
+
+#### Phase 12.1: Admin API IP Whitelisting
+- **IP Whitelist Middleware** (`src/server/ip_whitelist.rs`)
+  - `IpNetwork` enum for single IPs and CIDR ranges (IPv4/IPv6)
+  - `IpWhitelist` struct with `is_allowed()` method
+  - `IpWhitelistLayer` and `IpWhitelistMiddleware` for Axum integration
+  - Checks `X-Forwarded-For` and `X-Real-IP` headers for proxy support
+  - Returns 403 Forbidden with `IP_NOT_ALLOWED` error for blocked IPs
+  - Empty whitelist = disabled (all IPs allowed)
+- **Admin Config** (`src/config.rs`)
+  - `AdminConfig` struct with `ip_whitelist` and `audit_logging` fields
+  - `TALOS_ADMIN_IP_WHITELIST` environment variable override
+  - Supports comma-separated IPs/CIDRs in env var
+- **Route Protection** (`src/server/routes.rs`)
+  - IP whitelist layer applied to all admin routes
+  - Works with both `admin-api` only and `admin-api` + `jwt-auth` configurations
+
+### Changed
+- Server now uses `into_make_service_with_connect_info::<SocketAddr>()` for IP extraction
+- Added `#[derive(Default)]` to `AdminConfig` and `IpWhitelist` (clippy fix)
+- Simplified async blocks in middleware (clippy fix)
+
+### Configuration
+
+```toml
+[admin]
+# Restrict admin API to specific IPs/networks
+ip_whitelist = ["127.0.0.1", "::1", "10.0.0.0/8"]
+audit_logging = false
+```
+
+### Tests
+- 17 new unit tests for IP whitelist parsing and matching
+- Updated admin API tests to disable IP whitelist via env var
+- Total test count: 220 tests passing (135 unit + 39 admin API + 46 integration)
+
+### Documentation
+- Updated `docs/guide/admin-api.md` with built-in IP whitelist section
+- Updated `docs/guide/server-deployment.md` production checklist
+- Updated `config.toml.example` with `[admin]` section
+- Updated ROADMAP.md Phase 10 test count and Phase 12.1 completion
+
+---
+
 ## v2025.12.5 — 2026-01-05
 
 ### Added
