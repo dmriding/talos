@@ -142,20 +142,7 @@ Add Talos to your project:
 
 ```toml
 [dependencies]
-netviper-talos = "0.1"
-```
-
-Or from git:
-
-```toml
-[dependencies]
-netviper-talos = { git = "https://github.com/dmriding/talos" }
-```
-
-The crate exports as `talos` internally, so you use it as:
-
-```rust
-use talos::client::License;
+talos = "0.1"
 ```
 
 Then:
@@ -185,28 +172,28 @@ Talos uses Cargo feature flags to let you include only what you need:
 
 ```toml
 # Default: server + SQLite
-netviper-talos = "0.1"
+talos = "0.1"
 
 # Client-only (no server components)
-netviper-talos = { version = "0.1", default-features = false }
+talos = { version = "0.1", default-features = false }
 
 # Server with PostgreSQL instead of SQLite
-netviper-talos = { version = "0.1", default-features = false, features = ["server", "postgres"] }
+talos = { version = "0.1", default-features = false, features = ["server", "postgres"] }
 
 # Server with both SQLite and PostgreSQL
-netviper-talos = { version = "0.1", features = ["postgres"] }
+talos = { version = "0.1", features = ["postgres"] }
 
 # Full server with admin API and JWT auth
-netviper-talos = { version = "0.1", features = ["admin-api", "jwt-auth"] }
+talos = { version = "0.1", features = ["admin-api", "jwt-auth"] }
 
 # Server with background jobs enabled
-netviper-talos = { version = "0.1", features = ["background-jobs"] }
+talos = { version = "0.1", features = ["background-jobs"] }
 
 # Full-featured server
-netviper-talos = { version = "0.1", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
+talos = { version = "0.1", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
 
 # Server with OpenAPI documentation
-netviper-talos = { version = "0.1", features = ["admin-api", "openapi"] }
+talos = { version = "0.1", features = ["admin-api", "openapi"] }
 ```
 
 ---

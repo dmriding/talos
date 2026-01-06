@@ -1,6 +1,6 @@
 [package]
 name = "netviper-talos"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["David Riding <david@netviper.gr>"]
 description = "A Rust-based secure licensing system."
