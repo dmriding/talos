@@ -1494,6 +1494,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "netviper-talos"
+version = "0.1.1"
+dependencies = [
+ "aes-gcm",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "config",
+ "env_logger",
+ "governor",
+ "hex",
+ "hyper 1.8.1",
+ "jsonwebtoken",
+ "lazy_static",
+ "log",
+ "rand 0.9.2",
+ "regex",
+ "reqwest",
+ "ring",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "sha2",
+ "sqlx",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-cron-scheduler",
+ "tokio-test",
+ "tokio-util",
+ "tower",
+ "tower_governor",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+]
+
+[[package]]
 name = "no-std-compat"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2749,45 +2788,6 @@ checksum = "a75fb188eb626b924683e3b95e3a48e63551fcfb51949de2f06a9d91dbee93c9"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "talos"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "axum",
- "base64 0.22.1",
- "chrono",
- "config",
- "env_logger",
- "governor",
- "hex",
- "hyper 1.8.1",
- "jsonwebtoken",
- "lazy_static",
- "log",
- "rand 0.9.2",
- "regex",
- "reqwest",
- "ring",
- "serde",
- "serde_json",
- "serial_test",
- "sha2",
- "sqlx",
- "thiserror 2.0.17",
- "tokio",
- "tokio-cron-scheduler",
- "tokio-test",
- "tokio-util",
- "tower",
- "tower_governor",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
 ]
 
 [[package]]

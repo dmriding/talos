@@ -142,7 +142,7 @@ Add Talos to your project:
 
 ```toml
 [dependencies]
-talos = { git = "https://github.com/dmriding/talos" }
+talos = "0.1"
 ```
 
 Then:
@@ -172,28 +172,28 @@ Talos uses Cargo feature flags to let you include only what you need:
 
 ```toml
 # Default: server + SQLite
-talos = { git = "https://github.com/dmriding/talos" }
+talos = "0.1"
 
 # Client-only (no server components)
-talos = { git = "https://github.com/dmriding/talos", default-features = false }
+talos = { version = "0.1", default-features = false }
 
 # Server with PostgreSQL instead of SQLite
-talos = { git = "https://github.com/dmriding/talos", default-features = false, features = ["server", "postgres"] }
+talos = { version = "0.1", default-features = false, features = ["server", "postgres"] }
 
 # Server with both SQLite and PostgreSQL
-talos = { git = "https://github.com/dmriding/talos", features = ["postgres"] }
+talos = { version = "0.1", features = ["postgres"] }
 
 # Full server with admin API and JWT auth
-talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth"] }
+talos = { version = "0.1", features = ["admin-api", "jwt-auth"] }
 
 # Server with background jobs enabled
-talos = { git = "https://github.com/dmriding/talos", features = ["background-jobs"] }
+talos = { version = "0.1", features = ["background-jobs"] }
 
 # Full-featured server
-talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
+talos = { version = "0.1", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
 
 # Server with OpenAPI documentation
-talos = { git = "https://github.com/dmriding/talos", features = ["admin-api", "openapi"] }
+talos = { version = "0.1", features = ["admin-api", "openapi"] }
 ```
 
 ---
