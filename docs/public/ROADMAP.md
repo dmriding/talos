@@ -865,6 +865,37 @@ ip_whitelist = ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
 
 ---
 
+## Phase 13: Encryption API Hardening
+
+_Type-system improvements for compile-time safety. Ergonomic fixes, not security fixes._
+
+### 13.1 Fixed-Size Key Types
+
+- [ ] Change `encrypt_bytes(msg: &[u8], key: &[u8])` to use `key: &[u8; 32]`
+- [ ] Change `decrypt_bytes` signature similarly
+- [ ] Update all call sites to pass fixed-size arrays
+
+### 13.2 Newtype Wrappers
+
+- [ ] Create `EncryptionKey([u8; 32])` newtype to prevent argument swapping
+- [ ] Create `Plaintext(Vec<u8>)` wrapper (optional)
+- [ ] Update encrypt/decrypt signatures to use newtypes
+
+### 13.3 Explicit Ciphertext Structure
+
+- [ ] Create `Ciphertext { nonce: [u8; 12], payload: Vec<u8> }` struct
+- [ ] Replace `Vec<u8>` return with `Ciphertext` in `encrypt_bytes`
+- [ ] Update `decrypt_bytes` to accept `&Ciphertext`
+- [ ] Add serialization methods for wire format
+
+### 13.4 Separate Wire Format Layer
+
+- [ ] Move base64 encoding out of encryption module
+- [ ] Create dedicated `wire` or `serialization` module
+- [ ] Clear separation: encryption returns `Ciphertext`, serialization handles encoding
+
+---
+
 ## Dependency Graph
 
 ```
