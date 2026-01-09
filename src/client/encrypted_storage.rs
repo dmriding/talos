@@ -1,15 +1,11 @@
 use crate::client::client::License;
+use crate::client::storage::{clear_from_storage, load_from_storage, save_to_storage, StorageKey};
 use crate::encryption::{decrypt_from_base64, encrypt_to_base64, KEY_SIZE};
 use crate::errors::{LicenseError, LicenseResult};
 use crate::hardware::get_hardware_id;
 
 use ring::digest::{digest, SHA256};
 use serde_json;
-use std::io::ErrorKind;
-use std::path::Path;
-use tokio::fs;
-
-const LICENSE_STORAGE_FILE: &str = "talos_license.enc";
 
 /// Derive a 256-bit local storage key from the hardware ID using SHA-256.
 ///
@@ -26,9 +22,12 @@ fn derive_local_storage_key() -> [u8; KEY_SIZE] {
     key
 }
 
-/// Encrypt and write the license JSON to disk using the shared encryption module.
+/// Encrypt and save the license using the secure storage backend.
 ///
-/// Format on disk:
+/// Data is encrypted with AES-256-GCM using a hardware-derived key,
+/// then stored in the OS keyring (or app data directory as fallback).
+///
+/// Format stored:
 ///   base64( nonce || ciphertext+tag )
 pub async fn save_license_to_disk(license: &License) -> LicenseResult<()> {
     let key = derive_local_storage_key();
@@ -40,28 +39,23 @@ pub async fn save_license_to_disk(license: &License) -> LicenseResult<()> {
     // AES-256-GCM + nonce + base64 handled by encryption module.
     let encrypted_b64 = encrypt_to_base64(&json_bytes, &key)?;
 
-    // Filesystem errors bubble as LicenseError::StorageError via `?`.
-    fs::write(Path::new(LICENSE_STORAGE_FILE), encrypted_b64).await?;
-
-    Ok(())
+    // Save to secure storage (keyring with file fallback)
+    save_to_storage(StorageKey::License, &encrypted_b64).await
 }
 
-/// Read, decrypt, and deserialize the license from disk.
+/// Load, decrypt, and deserialize the license from secure storage.
+///
+/// Checks storage locations in order:
+/// 1. OS keyring
+/// 2. App data directory file
+/// 3. Legacy CWD file (with automatic migration)
 ///
 /// Errors:
-/// - `InvalidLicense` if the file is missing.
+/// - `InvalidLicense` if no stored license is found.
 /// - `StorageError` for I/O failures.
 /// - `DecryptionError` / `EncryptionError` for crypto issues.
 pub async fn load_license_from_disk() -> LicenseResult<License> {
-    let encrypted_b64 = match fs::read_to_string(Path::new(LICENSE_STORAGE_FILE)).await {
-        Ok(s) => s,
-        Err(e) if e.kind() == ErrorKind::NotFound => {
-            return Err(LicenseError::InvalidLicense(
-                "No local license file found.".to_string(),
-            ));
-        }
-        Err(e) => return Err(LicenseError::StorageError(e)),
-    };
+    let encrypted_b64 = load_from_storage(StorageKey::License).await?;
 
     let key = derive_local_storage_key();
 
@@ -76,13 +70,11 @@ pub async fn load_license_from_disk() -> LicenseResult<License> {
     Ok(license)
 }
 
-/// Delete the local license file if it exists (no-op if missing).
+/// Delete the stored license from all storage locations.
+///
+/// Clears from keyring, app data directory, and legacy CWD location.
 pub async fn clear_license_from_disk() -> LicenseResult<()> {
-    match fs::remove_file(Path::new(LICENSE_STORAGE_FILE)).await {
-        Ok(_) => Ok(()),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(LicenseError::StorageError(e)),
-    }
+    clear_from_storage(StorageKey::License).await
 }
 
 #[cfg(test)]
@@ -91,17 +83,17 @@ mod tests {
     use serial_test::serial;
     use tokio::test as tokio_test;
 
-    // Simple helper to remove the license file if present.
-    async fn cleanup_file() {
+    // Simple helper to clear license from storage.
+    async fn cleanup() {
         let _ = clear_license_from_disk().await;
     }
 
     // Use serial test attribute to prevent race conditions between tests
-    // that share the same LICENSE_STORAGE_FILE
+    // that share the same storage location
     #[tokio_test]
     #[serial]
     async fn round_trip_license_encrypt_decrypt() {
-        cleanup_file().await;
+        cleanup().await;
 
         let mut license =
             License::new("TEST-XXXX-XXXX-XXXX".into(), "http://localhost:8080".into());
@@ -130,13 +122,13 @@ mod tests {
         assert_eq!(loaded.signature, license.signature);
         assert_eq!(loaded.is_active, license.is_active);
 
-        cleanup_file().await;
+        cleanup().await;
     }
 
     #[tokio_test]
     #[serial]
     async fn missing_file_returns_invalid_license() {
-        cleanup_file().await;
+        cleanup().await;
 
         let result = load_license_from_disk().await;
         assert!(

@@ -57,7 +57,7 @@ async fn test_load_without_existing_file_returns_invalid_license() {
     match result {
         Err(LicenseError::InvalidLicense(msg)) => {
             assert!(
-                msg.contains("No local license file found"),
+                msg.contains("No stored data found"),
                 "Unexpected InvalidLicense message: {msg}"
             );
         }

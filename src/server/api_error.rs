@@ -349,7 +349,9 @@ impl From<LicenseError> for ApiError {
             LicenseError::StorageError(e) => {
                 ApiError::with_message(ErrorCode::InternalError, e.to_string())
             }
-            LicenseError::EncryptionError(msg) | LicenseError::DecryptionError(msg) => {
+            LicenseError::EncryptionError(msg)
+            | LicenseError::DecryptionError(msg)
+            | LicenseError::KeyringError(msg) => {
                 ApiError::with_message(ErrorCode::CryptoError, msg)
             }
             LicenseError::ServerError(msg) => ApiError::with_message(ErrorCode::InternalError, msg),

@@ -39,6 +39,10 @@ pub enum LicenseError {
     #[error("decryption error: {0}")]
     DecryptionError(String),
 
+    /// Errors when accessing the OS keyring/credential store.
+    #[error("keyring error: {0}")]
+    KeyringError(String),
+
     /// Configuration-related errors (missing values, invalid formats, etc.).
     #[error("config error: {0}")]
     ConfigError(String),

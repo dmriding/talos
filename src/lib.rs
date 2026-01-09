@@ -38,12 +38,14 @@ pub mod client {
     pub mod key_generation;
     pub mod license;
     pub mod responses;
+    pub mod storage;
 
     // Re-export main types at client module level
     pub use cache::CachedValidation;
     pub use errors::{ClientApiError, ClientErrorCode};
     pub use license::License;
     pub use responses::{BindResult, FeatureResult, HeartbeatResult, ValidationResult};
+    pub use storage::StorageKey;
 
     // Re-export for backwards compatibility
     pub use license as client;

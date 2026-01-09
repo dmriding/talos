@@ -6,6 +6,62 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v0.2.0 — 2026-01-09
+
+### Fixed
+
+#### Secure License Storage (Bug Fix)
+- **Fixed license files stored in project root** - License files (`talos_license.enc`, `talos_cache.enc`) were being stored in the current working directory when talos was used as a dependency. Now properly stored in secure OS locations.
+
+### Added
+
+#### Keyring-Based Storage (`src/client/storage.rs`)
+- **OS Keyring Integration** - License data now stored in the OS credential store:
+  - Windows: Windows Credential Manager
+  - macOS: Keychain
+  - Linux: Secret Service (via D-Bus)
+- **File Fallback** - Automatic fallback to app data directory if keyring unavailable:
+  - Windows: `%APPDATA%\talos\`
+  - macOS: `~/Library/Application Support/talos/`
+  - Linux: `~/.local/share/talos/`
+- **Automatic Migration** - Existing license files in project root are automatically migrated on first load and deleted after successful migration
+- **StorageKey Enum** - `StorageKey::License` and `StorageKey::Cache` for type-safe storage operations
+- **Public Storage API** - `save_to_storage()`, `load_from_storage()`, `clear_from_storage()`
+
+#### New Dependencies
+- `keyring = "3"` - Cross-platform credential storage
+- `dirs = "5"` - Platform-specific directory paths
+
+#### Error Handling
+- **KeyringError Variant** - New `LicenseError::KeyringError(String)` for keyring-specific failures
+
+### Changed
+- `save_license_to_disk()` now uses keyring with file fallback instead of CWD
+- `load_license_from_disk()` checks keyring → app data → legacy CWD (with migration)
+- `clear_license_from_disk()` clears from all storage locations
+- Same changes applied to cache storage functions
+- Version bumped to `0.2.0`
+
+### Security
+- License data remains AES-256-GCM encrypted with hardware-derived keys
+- Keyring adds additional OS-level protection on top of existing encryption
+- Hardware binding preserved - credentials cannot be copied between machines
+
+### Migration
+- **Fully Automatic** - No user action required
+- Existing `talos_license.enc` and `talos_cache.enc` files in project roots will be:
+  1. Detected on first `load_from_disk()` call
+  2. Migrated to keyring (or app data directory)
+  3. Deleted from the project root
+- API unchanged - `License::load_from_disk()` and `save_to_disk()` work exactly as before
+
+### Tests
+- 5 new unit tests for storage module
+- Updated integration tests for new error messages
+- Total test count: 214 tests passing
+
+---
+
 ## v2025.12.6 — 2026-01-06
 
 ### Added
