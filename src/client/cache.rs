@@ -18,6 +18,7 @@
 //! - Copy the cache to another machine (different hardware = different key)
 //! - Extend the grace period (server-provided, stored encrypted)
 
+use crate::client::storage::{clear_from_storage, load_from_storage, save_to_storage, StorageKey};
 use crate::encryption::{decrypt_from_base64, encrypt_to_base64, KEY_SIZE};
 use crate::errors::{LicenseError, LicenseResult};
 use crate::hardware::get_hardware_id;
@@ -25,12 +26,6 @@ use crate::hardware::get_hardware_id;
 use chrono::{DateTime, Utc};
 use ring::digest::{digest, SHA256};
 use serde::{Deserialize, Serialize};
-use std::io::ErrorKind;
-use std::path::Path;
-use tokio::fs;
-
-/// File name for the cached validation data.
-const CACHE_STORAGE_FILE: &str = "talos_cache.enc";
 
 /// Cached validation state for offline use.
 ///
@@ -173,12 +168,12 @@ fn derive_cache_storage_key() -> [u8; KEY_SIZE] {
     key
 }
 
-/// Save cached validation to encrypted storage.
+/// Save cached validation to secure storage.
 ///
 /// The cache is:
 /// - Serialized to JSON
 /// - Encrypted with AES-256-GCM using a hardware-bound key
-/// - Stored as base64-encoded ciphertext
+/// - Stored in OS keyring (or app data directory as fallback)
 pub async fn save_cache_to_disk(cache: &CachedValidation) -> LicenseResult<()> {
     let key = derive_cache_storage_key();
 
@@ -187,27 +182,23 @@ pub async fn save_cache_to_disk(cache: &CachedValidation) -> LicenseResult<()> {
 
     let encrypted_b64 = encrypt_to_base64(&json_bytes, &key)?;
 
-    fs::write(Path::new(CACHE_STORAGE_FILE), encrypted_b64).await?;
-
-    Ok(())
+    save_to_storage(StorageKey::Cache, &encrypted_b64).await
 }
 
-/// Load cached validation from encrypted storage.
+/// Load cached validation from secure storage.
+///
+/// Checks storage locations in order:
+/// 1. OS keyring
+/// 2. App data directory file
+/// 3. Legacy CWD file (with automatic migration)
 ///
 /// Returns an error if:
-/// - No cache file exists
+/// - No cache is found in any location
 /// - Decryption fails (wrong key, tampered data)
 /// - Deserialization fails
+/// - Cache doesn't match current hardware
 pub async fn load_cache_from_disk() -> LicenseResult<CachedValidation> {
-    let encrypted_b64 = match fs::read_to_string(Path::new(CACHE_STORAGE_FILE)).await {
-        Ok(s) => s,
-        Err(e) if e.kind() == ErrorKind::NotFound => {
-            return Err(LicenseError::InvalidLicense(
-                "No cached validation found.".to_string(),
-            ));
-        }
-        Err(e) => return Err(LicenseError::StorageError(e)),
-    };
+    let encrypted_b64 = load_from_storage(StorageKey::Cache).await?;
 
     let key = derive_cache_storage_key();
 
@@ -226,22 +217,24 @@ pub async fn load_cache_from_disk() -> LicenseResult<CachedValidation> {
     Ok(cache)
 }
 
-/// Delete the cache file if it exists.
+/// Delete cached validation from all storage locations.
+///
+/// Clears from keyring, app data directory, and legacy CWD location.
 pub async fn clear_cache_from_disk() -> LicenseResult<()> {
-    match fs::remove_file(Path::new(CACHE_STORAGE_FILE)).await {
-        Ok(_) => Ok(()),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(LicenseError::StorageError(e)),
-    }
+    clear_from_storage(StorageKey::Cache).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::Duration;
+    use serial_test::serial;
+    use std::io::ErrorKind;
+    use std::path::Path;
+    use tokio::fs;
     use tokio::test as tokio_test;
 
-    // Test-specific file paths to avoid conflicts with parallel tests
+    // Test-specific file paths for encryption layer tests
     const TEST_CACHE_FILE_1: &str = "talos_cache_test_roundtrip.enc";
     const TEST_CACHE_FILE_2: &str = "talos_cache_test_tamper.enc";
 
@@ -249,7 +242,12 @@ mod tests {
         let _ = fs::remove_file(Path::new(path)).await;
     }
 
-    // Helper to save cache to a specific test file
+    // Helper to clear cache from storage
+    async fn cleanup() {
+        let _ = clear_cache_from_disk().await;
+    }
+
+    // Helper to save cache to a specific test file (for encryption layer tests)
     async fn save_cache_to_test_file(cache: &CachedValidation, path: &str) -> LicenseResult<()> {
         let key = derive_cache_storage_key();
 
@@ -264,7 +262,7 @@ mod tests {
         Ok(())
     }
 
-    // Helper to load cache from a specific test file
+    // Helper to load cache from a specific test file (for encryption layer tests)
     async fn load_cache_from_test_file(path: &str) -> LicenseResult<CachedValidation> {
         let encrypted_b64 = match fs::read_to_string(Path::new(path)).await {
             Ok(s) => s,
@@ -333,12 +331,33 @@ mod tests {
     }
 
     #[tokio_test]
+    #[serial]
     async fn missing_cache_returns_error() {
-        // Use main function since we're testing non-existence
-        let _ = clear_cache_from_disk().await;
+        cleanup().await;
 
         let result = load_cache_from_disk().await;
         assert!(matches!(result, Err(LicenseError::InvalidLicense(_))));
+    }
+
+    #[tokio_test]
+    #[serial]
+    async fn storage_api_round_trip() {
+        cleanup().await;
+
+        let cache = create_test_cache(Some(24));
+
+        save_cache_to_disk(&cache)
+            .await
+            .expect("save should succeed");
+
+        let loaded = load_cache_from_disk().await.expect("load should succeed");
+
+        assert_eq!(loaded.license_key, cache.license_key);
+        assert_eq!(loaded.hardware_id, cache.hardware_id);
+        assert_eq!(loaded.features, cache.features);
+        assert_eq!(loaded.tier, cache.tier);
+
+        cleanup().await;
     }
 
     #[test]

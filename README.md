@@ -37,7 +37,8 @@ Talos is built to be **easy to integrate yet extremely hard to bypass**.
 ## Key Features
 
 - **Hardware Binding** — Licenses tied to CPU + motherboard fingerprint
-- **AES-256-GCM Encrypted Storage** — License files encrypted locally
+- **Secure OS Keyring Storage** — License data stored in Windows Credential Manager, macOS Keychain, or Linux Secret Service
+- **AES-256-GCM Encryption** — License data encrypted with hardware-derived keys
 - **Networked License Control** — Activate/validate/deactivate remotely
 - **Heartbeat System** — Keeps licenses alive and trackable
 - **SQLite & Postgres Support** — Choose your storage backend
@@ -50,10 +51,11 @@ Talos is built to be **easy to integrate yet extremely hard to bypass**.
 ## How It Works
 
 1. Talos generates a **hardware fingerprint** using CPU + motherboard identifiers (hashed via SHA-256).
-2. License data is encrypted locally using **AES-256-GCM**.
-3. Client communicates with the server using HTTPS via `reqwest`.
-4. Server stores licenses and heartbeat timestamps via SQLx.
-5. A small REST API allows:
+2. License data is encrypted using **AES-256-GCM** with a hardware-derived key.
+3. Encrypted data is stored securely in the **OS keyring** (with fallback to app data directory).
+4. Client communicates with the server using HTTPS via `reqwest`.
+5. Server stores licenses and heartbeat timestamps via SQLx.
+6. A small REST API allows:
    - Activation
    - Validation
    - Deactivation
@@ -68,7 +70,8 @@ talos/
 ├── src/
 │   ├── client/
 │   │   ├── license.rs            # License struct + client operations
-│   │   ├── encrypted_storage.rs  # AES-256-GCM encrypted local storage
+│   │   ├── storage.rs            # Keyring + file storage abstraction
+│   │   ├── encrypted_storage.rs  # AES-256-GCM encrypted storage
 │   │   ├── heartbeat.rs          # Heartbeat HTTP operations
 │   │   ├── key_generation.rs     # Device key helpers
 │   │   └── main.rs               # Example client binary
@@ -143,7 +146,7 @@ Add Talos to your project:
 
 ```toml
 [dependencies]
-talos = "0.1"
+talos = "0.2"
 ```
 
 Then:
@@ -173,28 +176,28 @@ Talos uses Cargo feature flags to let you include only what you need:
 
 ```toml
 # Default: server + SQLite
-talos = "0.1"
+talos = "0.2"
 
 # Client-only (no server components)
-talos = { version = "0.1", default-features = false }
+talos = { version = "0.2", default-features = false }
 
 # Server with PostgreSQL instead of SQLite
-talos = { version = "0.1", default-features = false, features = ["server", "postgres"] }
+talos = { version = "0.2", default-features = false, features = ["server", "postgres"] }
 
 # Server with both SQLite and PostgreSQL
-talos = { version = "0.1", features = ["postgres"] }
+talos = { version = "0.2", features = ["postgres"] }
 
 # Full server with admin API and JWT auth
-talos = { version = "0.1", features = ["admin-api", "jwt-auth"] }
+talos = { version = "0.2", features = ["admin-api", "jwt-auth"] }
 
 # Server with background jobs enabled
-talos = { version = "0.1", features = ["background-jobs"] }
+talos = { version = "0.2", features = ["background-jobs"] }
 
 # Full-featured server
-talos = { version = "0.1", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
+talos = { version = "0.2", features = ["admin-api", "jwt-auth", "rate-limiting", "background-jobs"] }
 
 # Server with OpenAPI documentation
-talos = { version = "0.1", features = ["admin-api", "openapi"] }
+talos = { version = "0.2", features = ["admin-api", "openapi"] }
 ```
 
 ---

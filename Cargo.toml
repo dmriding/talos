@@ -1,6 +1,6 @@
 [package]
 name = "netviper-talos"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 authors = ["David Riding <david@netviper.gr>"]
 description = "A Rust-based secure licensing system."
@@ -76,6 +76,10 @@ lazy_static = "1.4.0"
 
 # === Error Derive ===
 thiserror = "2.0.17"
+
+# === Secure Storage ===
+keyring = "3"
+dirs = "5"
 
 # === Web Framework Dependencies (optional, requires "server" feature) ===
 axum = { version = "0.7", features = ["macros"], optional = true }
