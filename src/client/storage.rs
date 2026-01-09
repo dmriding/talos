@@ -180,10 +180,17 @@ pub async fn save_to_storage(key: StorageKey, data: &str) -> LicenseResult<()> {
             if load_from_keyring(key).is_ok() {
                 return Ok(());
             }
-            log::debug!("Keyring save verification failed for {:?}, falling back to file", key);
+            log::debug!(
+                "Keyring save verification failed for {:?}, falling back to file",
+                key
+            );
         }
         Err(e) => {
-            log::debug!("Keyring save failed for {:?}: {}, falling back to file", key, e);
+            log::debug!(
+                "Keyring save failed for {:?}: {}, falling back to file",
+                key,
+                e
+            );
         }
     }
 
