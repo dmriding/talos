@@ -1,11 +1,19 @@
 use std::error::Error;
+use std::os::windows::process::CommandExt;
 use std::process::Command;
+
+/// Windows flag to prevent CMD window popups in GUI applications.
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Try WMIC with normal formatting.
 ///
 /// Returns Some(String) if a non-empty value was found.
 fn try_wmic(args: &[&str]) -> Option<String> {
-    let output = Command::new("wmic").args(args).output().ok()?;
+    let output = Command::new("wmic")
+        .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
     let text = String::from_utf8_lossy(&output.stdout);
 
     // WMIC output usually has header in first line, value in second line.
@@ -22,6 +30,7 @@ fn try_wmic(args: &[&str]) -> Option<String> {
 fn try_wmic_list(class: &str, key: &str) -> Option<String> {
     let output = Command::new("wmic")
         .args([class, "get", "/format:list"])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok()?;
 

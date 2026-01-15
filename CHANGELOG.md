@@ -6,6 +6,13 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v0.2.1 — 2026-01-15
+
+### Fixed
+- **Fixed CMD window flashing in GUI applications** - WMIC commands for hardware fingerprinting now use `CREATE_NO_WINDOW` flag to prevent console window popups in Tauri/GUI applications on Windows.
+
+---
+
 ## v0.2.0 — 2026-01-09
 
 ### Fixed
