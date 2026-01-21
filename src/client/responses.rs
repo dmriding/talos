@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Result of a successful license validation.
 ///
 /// Returned by `License::validate()` and `License::validate_offline()`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationResult {
     /// List of features enabled for this license
@@ -31,6 +32,14 @@ pub struct ValidationResult {
     /// Warning message from the server (e.g., approaching expiration)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub warning: Option<String>,
+
+    /// Bandwidth used in bytes (if tracked)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bandwidth_used_bytes: Option<i64>,
+
+    /// Bandwidth limit in bytes (if set, None means unlimited)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bandwidth_limit_bytes: Option<i64>,
 }
 
 impl ValidationResult {
@@ -53,6 +62,7 @@ impl ValidationResult {
 /// Result of a successful license bind operation.
 ///
 /// Returned by `License::bind()`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BindResult {
     /// Server-side license ID (UUID)
@@ -80,6 +90,7 @@ impl BindResult {
 /// Result of a feature validation check.
 ///
 /// Returned by `License::validate_feature()`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureResult {
     /// Whether the feature is allowed for this license
@@ -97,6 +108,7 @@ pub struct FeatureResult {
 /// Result of a heartbeat operation.
 ///
 /// Returned by `License::heartbeat()`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeartbeatResult {
     /// Server timestamp (RFC 3339 format)
@@ -153,6 +165,8 @@ pub(crate) struct ServerValidateResponse {
     pub expires_at: Option<String>,
     pub grace_period_ends_at: Option<String>,
     pub warning: Option<String>,
+    pub bandwidth_used_bytes: Option<i64>,
+    pub bandwidth_limit_bytes: Option<i64>,
 }
 
 impl From<ServerValidateResponse> for ValidationResult {
@@ -163,6 +177,8 @@ impl From<ServerValidateResponse> for ValidationResult {
             expires_at: resp.expires_at,
             grace_period_ends_at: resp.grace_period_ends_at,
             warning: resp.warning,
+            bandwidth_used_bytes: resp.bandwidth_used_bytes,
+            bandwidth_limit_bytes: resp.bandwidth_limit_bytes,
         }
     }
 }
@@ -215,6 +231,8 @@ mod tests {
             expires_at: None,
             grace_period_ends_at: None,
             warning: None,
+            bandwidth_used_bytes: None,
+            bandwidth_limit_bytes: None,
         };
 
         assert!(result.has_feature("feature_a"));
@@ -230,6 +248,8 @@ mod tests {
             expires_at: None,
             grace_period_ends_at: Some("2024-12-31T23:59:59Z".to_string()),
             warning: Some("Must connect by 2024-12-31".to_string()),
+            bandwidth_used_bytes: None,
+            bandwidth_limit_bytes: None,
         };
 
         assert!(with_grace.has_grace_period_warning());
@@ -241,6 +261,8 @@ mod tests {
             expires_at: None,
             grace_period_ends_at: None,
             warning: None,
+            bandwidth_used_bytes: None,
+            bandwidth_limit_bytes: None,
         };
 
         assert!(!without_grace.has_grace_period_warning());
