@@ -450,6 +450,8 @@ impl License {
             expires_at: cache.expires_at.clone(),
             grace_period_ends_at: cache.grace_period_ends_at.clone(),
             warning,
+            bandwidth_used_bytes: None,
+            bandwidth_limit_bytes: None,
         })
     }
 

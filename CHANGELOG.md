@@ -6,6 +6,14 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v0.2.3 — 2026-01-21
+
+### Added
+- **Client ValidationResult now includes bandwidth fields** - Added `bandwidth_used_bytes` and `bandwidth_limit_bytes` to `ValidationResult` struct, allowing client applications to access bandwidth data returned by the server.
+- **Response types now marked `#[non_exhaustive]`** - `ValidationResult`, `BindResult`, `FeatureResult`, and `HeartbeatResult` are now non-exhaustive, allowing future field additions without breaking changes.
+
+---
+
 ## v0.2.2 — 2026-01-21
 
 ### Added
