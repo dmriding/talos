@@ -2451,11 +2451,16 @@
           "valid"
         ],
         "properties": {
-          "expires_at": {
+          "valid": {
+            "type": "boolean",
+            "description": "Whether the license is valid"
+          },
+          "license_id": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "The license ID"
           },
           "features": {
             "type": [
@@ -2464,34 +2469,66 @@
             ],
             "items": {
               "type": "string"
-            }
-          },
-          "grace_period_ends_at": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "license_id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            },
+            "description": "List of enabled features"
           },
           "tier": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "License tier name"
           },
-          "valid": {
-            "type": "boolean"
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Expiration date (RFC3339 format)"
+          },
+          "grace_period_ends_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Grace period end date (if suspended)"
           },
           "warning": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Warning message (e.g., nearing expiration)"
+          },
+          "org_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization ID (falls back to license_id if not set)"
+          },
+          "org_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization name (falls back to org_id if not set)"
+          },
+          "bandwidth_used_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Bandwidth used this billing period (bytes)"
+          },
+          "bandwidth_limit_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Bandwidth limit (bytes). Null means unlimited."
           }
         }
       }

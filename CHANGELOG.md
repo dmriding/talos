@@ -6,6 +6,17 @@ Format: `vYYYY.MM.INCREMENT`
 
 ---
 
+## v0.2.2 — 2026-01-21
+
+### Added
+- **ValidateResponse now includes organization and bandwidth fields** - New optional fields `org_id`, `org_name`, `bandwidth_used_bytes`, and `bandwidth_limit_bytes` are returned from `/api/v1/client/validate` and `/api/v1/client/validate-or-bind` endpoints. For licenses without an org_id, the license_id is used as a fallback.
+- **New "team" tier in example config** - Added team tier to config.toml.example demonstrating multi-tier setups.
+
+### Changed
+- **Updated example tier bandwidth limits** - Example config now shows realistic bandwidth configurations for different tier levels.
+
+---
+
 ## v0.2.1 — 2026-01-15
 
 ### Fixed

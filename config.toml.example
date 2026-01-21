@@ -134,23 +134,48 @@ audit_logging = false
 # =============================================================================
 # Tier Configuration
 # =============================================================================
-# Define your license tiers here. Each tier has a set of features and
-# optional bandwidth limits.
+# Define your license tiers here. Tiers are OPTIONAL - if you don't need
+# tiered features, you can omit this entire section.
 #
-# Example tiers:
+# Each tier has:
+# - features: List of feature strings enabled for this tier
+# - bandwidth_gb: Reference value for bandwidth allocation (see note below)
+#
+# IMPORTANT: Tier config is REFERENCE DATA ONLY
+# -------------------------------------------------
+# The bandwidth_gb value here is NOT automatically enforced or copied to
+# licenses. Actual bandwidth tracking is done via the Admin API:
+#   PATCH /api/v1/licenses/{id}/usage
+#
+# Your application is responsible for:
+# 1. Tracking actual bandwidth usage
+# 2. Calling the Admin API to update usage values
+# 3. Deciding what to do when limits are exceeded
+#
+# Features are arbitrary strings - define whatever makes sense for your app.
+# Common patterns:
+# - "basic", "advanced", "premium" for feature levels
+# - "api", "export", "analytics" for specific capabilities
+# - "relay", "sync", "backup" for service features
+#
+# Example tiers (customize for your product):
 
 [tiers.free]
 features = []
-bandwidth_gb = 0
+# No bandwidth-related features for free tier
 
 [tiers.starter]
-features = ["feature_basic"]
-bandwidth_gb = 10
+features = ["basic", "export"]
+bandwidth_gb = 100  # Reference: 100 GB allocation
 
 [tiers.pro]
-features = ["feature_basic", "feature_advanced"]
-bandwidth_gb = 100
+features = ["basic", "export", "advanced", "api"]
+bandwidth_gb = 500  # Reference: 500 GB allocation
+
+[tiers.team]
+features = ["basic", "export", "advanced", "api", "premium"]
+bandwidth_gb = 2000  # Reference: 2 TB allocation
 
 [tiers.enterprise]
-features = ["feature_basic", "feature_advanced", "feature_premium", "feature_api"]
-bandwidth_gb = 0  # 0 = unlimited
+features = ["basic", "export", "advanced", "api", "premium", "white_label"]
+# Enterprise: Custom/unlimited bandwidth (negotiate per customer)

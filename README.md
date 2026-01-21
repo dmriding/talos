@@ -344,7 +344,7 @@ The health endpoint returns:
 {
   "status": "healthy",
   "service": "talos",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "database": {
     "connected": true,
     "db_type": "sqlite"
@@ -496,32 +496,29 @@ RUST_LOG=info cargo test
 
 See the full [ROADMAP.md](docs/public/ROADMAP.md) for detailed development plans.
 
-**Current Status: Phase 12 In Progress**
+**Current Status: v0.2.2**
 
-- Activation/validation/deactivation
-- Heartbeat mechanism
-- Hardware binding
-- Encrypted storage
-- Configuration system
+Talos is a fully-featured, production-ready licensing system with:
+
+- License activation/validation/deactivation with bind/release workflow
+- Heartbeat mechanism with grace period support
+- Hardware binding (SHA-256 fingerprint)
+- Encrypted storage (AES-256-GCM)
 - Configurable license key generation
-- Tier-based feature system
+- Tier-based feature system with configurable tiers
+- Organization/tenant grouping (1 org = N licenses)
+- Bandwidth/quota tracking exposed in validation responses
 - JWT authentication middleware
 - Admin API (CRUD operations)
 - Rate limiting middleware
-- Feature gating (tier-based access control)
 - License lifecycle management (suspend, revoke, reinstate, extend)
-- Usage tracking endpoints
 - Background jobs (grace period expiration, license expiration, stale device cleanup)
 - License blacklisting (permanent ban with audit trail)
-- Request validation utilities (UUID, license key, hardware ID, datetime formats)
 - OpenAPI 3.0 specification with Swagger UI
 - Standardized error response format
-- Logging & observability (request ID tracking, health check, structured license event logging)
-- Updated client library with new v1 API methods (bind/release/validate/validate-feature/heartbeat)
+- Updated client library with v1 API methods (bind/release/validate/validate-feature/heartbeat)
 - Secure encrypted cache for offline/air-gapped system support
-- Grace period support for air-gapped systems
-- Working code examples (basic-client, air-gapped, feature-gating)
-- **Admin API IP whitelisting** (CIDR support, IPv4/IPv6, proxy header support)
+- Admin API IP whitelisting (CIDR support, IPv4/IPv6, proxy header support)
 
 **Upcoming:**
 

@@ -162,11 +162,17 @@ pub struct ValidationResult {
     pub expires_at: Option<String>,         // Expiration date
     pub grace_period_ends_at: Option<String>, // For offline validation
     pub warning: Option<String>,            // Warnings (expiring soon, etc.)
+    pub org_id: Option<String>,             // Organization ID (for multi-seat)
+    pub org_name: Option<String>,           // Organization name
+    pub bandwidth_used_bytes: Option<i64>,  // Bandwidth used this period
+    pub bandwidth_limit_bytes: Option<i64>, // Bandwidth limit (None = unlimited)
 }
 
 // Helper method
 result.has_feature("analytics")  // Returns bool
 ```
+
+The `org_id` and `org_name` fields are always populated in the response (falling back to `license_id` if no organization is set). The bandwidth fields allow your application to display usage information or enforce client-side limits.
 
 ### When to Validate
 
