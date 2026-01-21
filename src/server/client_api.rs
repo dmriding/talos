@@ -229,6 +229,18 @@ pub struct ValidateResponse {
     pub grace_period_ends_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub warning: Option<String>,
+    /// Organization ID (for multi-seat licenses). Falls back to license_id if not set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub org_id: Option<String>,
+    /// Organization name. Falls back to org_id if not set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub org_name: Option<String>,
+    /// Bandwidth used this billing period (bytes).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bandwidth_used_bytes: Option<i64>,
+    /// Bandwidth limit for this license (bytes). None means unlimited.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bandwidth_limit_bytes: Option<i64>,
 }
 
 /// Request for validate-or-bind operation.
@@ -641,6 +653,16 @@ pub async fn validate_handler(
         ));
     }
 
+    // Fallback: if no org, treat license as its own org
+    let effective_org_id = license
+        .org_id
+        .clone()
+        .unwrap_or_else(|| license.license_id.clone());
+    let effective_org_name = license
+        .org_name
+        .clone()
+        .unwrap_or_else(|| effective_org_id.clone());
+
     // Build response
     let response = ValidateResponse {
         valid: true,
@@ -650,6 +672,10 @@ pub async fn validate_handler(
         expires_at: license.expires_at.map(|d| d.and_utc().to_rfc3339()),
         grace_period_ends_at: grace_period_ends,
         warning: warning_msg,
+        org_id: Some(effective_org_id),
+        org_name: Some(effective_org_name),
+        bandwidth_used_bytes: license.bandwidth_used_bytes,
+        bandwidth_limit_bytes: license.bandwidth_limit_bytes,
     };
 
     // Log structured license validation event
@@ -802,6 +828,16 @@ pub async fn validate_or_bind_handler(
             (None, None)
         };
 
+    // Fallback: if no org, treat license as its own org
+    let effective_org_id = license
+        .org_id
+        .clone()
+        .unwrap_or_else(|| license.license_id.clone());
+    let effective_org_name = license
+        .org_name
+        .clone()
+        .unwrap_or_else(|| effective_org_id.clone());
+
     // Build response
     let response = ValidateResponse {
         valid: true,
@@ -811,6 +847,10 @@ pub async fn validate_or_bind_handler(
         expires_at: license.expires_at.map(|d| d.and_utc().to_rfc3339()),
         grace_period_ends_at: grace_period_ends,
         warning: warning_msg,
+        org_id: Some(effective_org_id),
+        org_name: Some(effective_org_name),
+        bandwidth_used_bytes: license.bandwidth_used_bytes,
+        bandwidth_limit_bytes: license.bandwidth_limit_bytes,
     };
 
     // Log structured validation event

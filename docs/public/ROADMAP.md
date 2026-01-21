@@ -13,28 +13,32 @@ This roadmap outlines all tasks to evolve Talos into a full-featured, production
 
 ## Current State Summary
 
-**What Talos Has Today:**
+**What Talos Has Today (v0.2.2):**
 
-- Basic license activation/validation/deactivation
-- Heartbeat mechanism
+- License activation/validation/deactivation with bind/release workflow
+- Heartbeat mechanism with grace period support
 - Hardware binding (SHA-256 fingerprint)
 - AES-256-GCM encrypted local storage
 - SQLite and PostgreSQL database support
-- Simple REST API (no authentication)
-- Cross-platform client library
-
-**What a Production Licensing System Needs:**
-
-- Full Admin API for management integrations
+- Full Admin API for license management
 - Optional JWT service authentication
 - Configurable license key generation (`PREFIX-XXXX-XXXX-XXXX`)
-- Optional organization/tenant grouping (1 org = N licenses)
-- Hardware bind/release workflow
+- Organization/tenant grouping (1 org = N licenses)
 - Feature gating and validation
-- Optional quota/usage tracking
+- Quota/usage tracking with bandwidth limits
 - Configurable tier system
 - Grace period and revocation handling
-- Background jobs for expiration
+- Background jobs for license expiration
+- OpenAPI 3.0 specification with Swagger UI
+- Cross-platform client library with offline validation
+
+**Upcoming Features:**
+
+- Audit logging
+- API key rotation
+- Webhook notifications
+- Dashboard UI
+- Analytics and reporting
 
 ---
 
@@ -862,6 +866,33 @@ ip_whitelist = ["127.0.0.1", "10.0.0.0/8", "192.168.0.0/16"]
 - [ ] Add key rotation endpoint for tokens
 - [ ] Support overlapping validity periods during rotation
 - [ ] Add key rotation reminders/warnings
+
+### 12.4 Bandwidth Tracking Feature Flag _(Future)_
+
+Move bandwidth/quota tracking behind a dedicated feature flag for cleaner configuration.
+
+**Motivation:** Currently `bandwidth_gb` appears in tier config even if you're not using bandwidth tracking, which is confusing. Users who don't need bandwidth tracking shouldn't have to deal with it.
+
+**Proposed changes:**
+- [ ] Add `bandwidth-tracking` Cargo feature flag
+- [ ] Gate `bandwidth_gb` tier config field behind the feature
+- [ ] Gate `bandwidth_used_bytes`, `bandwidth_limit_bytes`, `quota_exceeded` response fields
+- [ ] Gate `PATCH /api/v1/licenses/{id}/usage` endpoint
+- [ ] Update documentation to explain when to enable this feature
+
+**Config without feature:**
+```toml
+[tiers.pro]
+features = ["basic", "api"]
+# No bandwidth_gb field needed
+```
+
+**Config with feature:**
+```toml
+[tiers.pro]
+features = ["basic", "api"]
+bandwidth_gb = 500  # Only available with bandwidth-tracking feature
+```
 
 ---
 

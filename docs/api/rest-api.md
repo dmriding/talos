@@ -49,7 +49,7 @@ GET /health
   "status": "healthy",
   "database": "connected",
   "database_type": "postgresql",
-  "version": "2025.12.5"
+  "version": "0.2.2"
 }
 ```
 
@@ -178,13 +178,34 @@ POST /api/v1/client/validate
 ```json
 {
   "valid": true,
+  "license_id": "550e8400-e29b-41d4-a716-446655440000",
   "features": ["basic", "export", "api_access"],
   "tier": "professional",
   "expires_at": "2026-12-31T23:59:59Z",
+  "grace_period_ends_at": "2026-01-15T00:00:00Z",
   "warning": null,
-  "grace_period_ends_at": "2026-01-15T00:00:00Z"
+  "org_id": "org-123456",
+  "org_name": "Acme Corp",
+  "bandwidth_used_bytes": 1073741824,
+  "bandwidth_limit_bytes": 5368709120
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `valid` | boolean | Whether the license is valid |
+| `license_id` | string | The license ID |
+| `features` | array | List of enabled features |
+| `tier` | string | License tier name |
+| `expires_at` | string | Expiration date (RFC3339) |
+| `grace_period_ends_at` | string | Grace period end date (if suspended) |
+| `warning` | string | Warning message (e.g., nearing expiration) |
+| `org_id` | string | Organization ID (falls back to license_id if not set) |
+| `org_name` | string | Organization name (falls back to org_id if not set) |
+| `bandwidth_used_bytes` | integer | Bandwidth used this billing period (bytes) |
+| `bandwidth_limit_bytes` | integer | Bandwidth limit (bytes), null means unlimited |
+
+**Note:** Fields with null values are omitted from the response.
 
 **Errors**
 - `400` - Invalid request
@@ -227,13 +248,20 @@ POST /api/v1/client/validate-or-bind
 {
   "valid": true,
   "was_bound": false,
+  "license_id": "550e8400-e29b-41d4-a716-446655440000",
   "features": ["basic", "export"],
   "tier": "professional",
-  "expires_at": "2026-12-31T23:59:59Z"
+  "expires_at": "2026-12-31T23:59:59Z",
+  "grace_period_ends_at": null,
+  "warning": null,
+  "org_id": "org-123456",
+  "org_name": "Acme Corp",
+  "bandwidth_used_bytes": 0,
+  "bandwidth_limit_bytes": 5368709120
 }
 ```
 
-The `was_bound` field indicates whether this request performed a new binding.
+The `was_bound` field indicates whether this request performed a new binding. See the [Validate License](#validate-license) response for field descriptions.
 
 ---
 
