@@ -73,7 +73,7 @@ services:
       # Persist database data
       - talos-db-data:/var/lib/postgresql/data
       # Initialize schema on first run
-      - ./migrations/init_postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./scripts/sql/init_postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U talos -d talos"]
       interval: 10s

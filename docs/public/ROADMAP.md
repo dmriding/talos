@@ -820,8 +820,8 @@ Comprehensive, production-ready documentation for users integrating Talos into t
 ### 11.3 Database Migrations ✅
 
 - [x] Document migration process (comments in SQL files)
-- [x] Create SQLite migration script (`migrations/init_sqlite.sql`)
-- [x] Create PostgreSQL migration script (`migrations/init_postgres.sql`)
+- [x] Create SQLite setup script (`scripts/sql/init_sqlite.sql`)
+- [x] Create PostgreSQL setup script (`scripts/sql/init_postgres.sql`)
 - [ ] _(Deferred)_ Test migration from legacy schema to current schema
 
 ---

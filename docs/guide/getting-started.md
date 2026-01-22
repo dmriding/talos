@@ -77,6 +77,11 @@ export DATABASE_URL="sqlite://talos.db"
 sqlx migrate run
 ```
 
+> **Alternative:** For quick setup without SQLx, you can use the standalone script:
+> ```bash
+> sqlite3 talos.db < scripts/sql/init_sqlite.sql
+> ```
+
 ### 3. Start the Server
 
 Create a simple server binary (`src/bin/server.rs`):
