@@ -10,7 +10,8 @@ ALTER TABLE licenses ADD COLUMN org_id TEXT;
 ALTER TABLE licenses ADD COLUMN org_name TEXT;
 
 -- Human-readable license key (PREFIX-XXXX-XXXX-XXXX format)
-ALTER TABLE licenses ADD COLUMN license_key TEXT UNIQUE;
+-- Note: Uniqueness enforced via index (SQLite doesn't support ADD COLUMN ... UNIQUE)
+ALTER TABLE licenses ADD COLUMN license_key TEXT;
 
 -- Tier system (optional)
 ALTER TABLE licenses ADD COLUMN tier TEXT;
@@ -41,7 +42,7 @@ ALTER TABLE licenses ADD COLUMN metadata TEXT;
 -- ============================================================================
 
 CREATE INDEX IF NOT EXISTS idx_licenses_org_id ON licenses(org_id);
-CREATE INDEX IF NOT EXISTS idx_licenses_license_key ON licenses(license_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_license_key ON licenses(license_key);
 CREATE INDEX IF NOT EXISTS idx_licenses_hardware_id ON licenses(hardware_id);
 CREATE INDEX IF NOT EXISTS idx_licenses_status ON licenses(status);
 CREATE INDEX IF NOT EXISTS idx_licenses_expires_at ON licenses(expires_at);
