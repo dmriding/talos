@@ -1469,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "netviper-talos"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "aes-gcm",
  "axum",

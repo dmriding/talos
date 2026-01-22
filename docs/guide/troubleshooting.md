@@ -343,6 +343,36 @@ async fn validate_with_backoff(license: &mut License) {
 
 ## Database Issues
 
+### SQLx migration filename error
+
+**Symptoms:**
+- `sqlx migrate run` fails with "error parsing migration filename"
+- Error mentions "expected integer version prefix (e.g. 01_foo.sql)"
+
+**Cause:**
+You may have non-migration SQL files in the `migrations/` folder. SQLx expects all `.sql` files in that folder to follow the versioned naming convention (e.g., `20241114103315_init.sql`).
+
+**Solution:**
+
+The standalone setup scripts (`init_sqlite.sql`, `init_postgres.sql`) are located in `scripts/sql/`, not in `migrations/`. These are for manual database initialization, not for use with SQLx.
+
+**Option A: Use SQLx migrations (recommended)**
+```bash
+export DATABASE_URL="sqlite://talos.db"
+sqlx migrate run
+```
+
+**Option B: Use the standalone setup script**
+```bash
+# SQLite
+sqlite3 talos.db < scripts/sql/init_sqlite.sql
+
+# PostgreSQL
+psql -U postgres -d talos -f scripts/sql/init_postgres.sql
+```
+
+---
+
 ### SQLite "database is locked"
 
 **Symptoms:**

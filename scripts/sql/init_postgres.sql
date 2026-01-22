@@ -1,9 +1,12 @@
 -- Talos PostgreSQL Schema
 -- Run this on a fresh database or use with docker-compose
 --
+-- NOTE: This is a standalone setup script, NOT an SQLx migration.
+-- For SQLx migrations, use: sqlx migrate run
+--
 -- Manual setup:
 --   psql -U postgres -c "CREATE DATABASE talos;"
---   psql -U postgres -d talos -f migrations/init_postgres.sql
+--   psql -U postgres -d talos -f scripts/sql/init_postgres.sql
 
 -- =============================================================================
 -- Licenses Table

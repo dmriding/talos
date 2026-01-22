@@ -1,4 +1,5 @@
--- migrations/schema.sql
+-- scripts/sql/schema.sql
+-- Basic schema reference (see init_sqlite.sql or init_postgres.sql for full schema)
 CREATE TABLE IF NOT EXISTS licenses (
     license_id TEXT PRIMARY KEY,          -- Unique license key
     client_id TEXT,                       -- Client ID associated with the license

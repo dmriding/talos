@@ -1,5 +1,8 @@
 -- Combined SQLite schema for Talos
--- Run this on a fresh database: sqlite3 talos_dev.db < migrations/init_sqlite.sql
+-- Run this on a fresh database: sqlite3 talos_dev.db < scripts/sql/init_sqlite.sql
+--
+-- NOTE: This is a standalone setup script, NOT an SQLx migration.
+-- For SQLx migrations, use: sqlx migrate run
 
 CREATE TABLE IF NOT EXISTS licenses (
     license_id TEXT PRIMARY KEY,
