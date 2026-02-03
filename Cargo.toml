@@ -96,7 +96,7 @@ sqlx = { version = "0.8.2", features = [
 ], optional = true }
 
 # === JWT Authentication (optional, requires "jwt-auth" feature) ===
-jsonwebtoken = { version = "9", optional = true }
+jsonwebtoken = { version = "10", optional = true }
 
 # === Rate Limiting (optional, requires "rate-limiting" feature) ===
 tower_governor = { version = "0.4", optional = true }
